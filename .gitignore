@@ -1,0 +1,29 @@
+@"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data outputs (do not version)
+data/downloads/
+data/outputs/
+data/reports/
+data/state/
+
+# Local DB copies (optional: keep templates only)
+data/db/*.xlsx
+data/db/*.xls
+data/db/*.csv
+
+# Logs
+*.log
+"@ | Set-Content .gitignore
