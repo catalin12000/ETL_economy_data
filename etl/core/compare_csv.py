@@ -24,7 +24,19 @@ class CsvUpdateResult:
 
 def _clean_cols(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
+    cols = [str(c).strip() for c in df.columns]
+
+    # dedupe: Year, Year -> Year, Year__1
+    seen = {}
+    out = []
+    for c in cols:
+        if c not in seen:
+            seen[c] = 0
+            out.append(c)
+        else:
+            seen[c] += 1
+            out.append(f"{c}__{seen[c]}")
+    df.columns = out
     return df
 
 

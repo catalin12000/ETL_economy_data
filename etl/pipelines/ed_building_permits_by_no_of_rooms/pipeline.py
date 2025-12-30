@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
@@ -8,28 +8,34 @@ from etl.core.elstat import get_latest_publication_url, get_download_url_by_titl
 
 
 class Pipeline:
-    pipeline_id = "ed_building_permits_table"
-    display_name = "Ed Building Permits Table"
+    pipeline_id = "ed_building_permits_by_no_of_rooms"
+    display_name = "Ed Building Permits By No Of Rooms"
 
     TARGET_TITLE = (
-        "01. New built properties, storeys, volume and surface thereon, by region and regional unit"
+        "04. New dwellings and improvements of dwellings, number of habitable rooms volume and surface thereon, "
+        "by region and regional unit"
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         out_dir = Path("data/downloads") / self.pipeline_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save as .xls (do NOT rename/pretend it's xlsx)
-        xls_path = out_dir / "elstat_building_permits.xls"
+        # Keep .xls (do NOT rename)
+        xls_path = out_dir / "elstat_building_permits_by_no_of_rooms.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
+        # SOP03 latest month page
         pub_url = get_latest_publication_url("SOP03", locale="en", headers=headers)
+
+        # Find the exact item by title on that page
         download_url = get_download_url_by_title(pub_url, self.TARGET_TITLE, headers=headers)
 
+        # Download
         meta = download_file(download_url, xls_path, headers=headers)
         file_hash = sha256_file(xls_path)
 
+        # Update state (traceable)
         new_state = dict(state)
         new_state.update({
             "publication_url_used": pub_url,
@@ -45,6 +51,7 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
+        # Skip if unchanged
         if not is_new_by_hash(state.get("file_sha256"), file_hash):
             return {"status": "skipped", "message": "No new file detected (same file SHA256).", "state": new_state}
 

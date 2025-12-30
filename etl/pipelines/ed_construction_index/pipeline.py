@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
@@ -8,23 +8,23 @@ from etl.core.elstat import get_latest_publication_url, get_download_url_by_titl
 
 
 class Pipeline:
-    pipeline_id = "ed_building_permits_table"
-    display_name = "Ed Building Permits Table"
+    pipeline_id = "ed_construction_index"
+    display_name = "Ed Construction Index"
 
     TARGET_TITLE = (
-        "01. New built properties, storeys, volume and surface thereon, by region and regional unit"
+        "02. Evolution of the Production Index in Construction (working day adjusted data) "
+        "(2021=100.0) (1st Quarter 2021 - 3rd Quarter 2025)"
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         out_dir = Path("data/downloads") / self.pipeline_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save as .xls (do NOT rename/pretend it's xlsx)
-        xls_path = out_dir / "elstat_building_permits.xls"
+        xls_path = out_dir / "elstat_construction_index.xls"  # keep .xls (no renaming)
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
-        pub_url = get_latest_publication_url("SOP03", locale="en", headers=headers)
+        pub_url = get_latest_publication_url("DKT66", locale="en", frequency="quarterly", headers=headers)
         download_url = get_download_url_by_title(pub_url, self.TARGET_TITLE, headers=headers)
 
         meta = download_file(download_url, xls_path, headers=headers)

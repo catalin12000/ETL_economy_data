@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
@@ -8,24 +8,36 @@ from etl.core.elstat import get_latest_publication_url, get_download_url_by_titl
 
 
 class Pipeline:
-    pipeline_id = "ed_building_permits_table"
-    display_name = "Ed Building Permits Table"
+    pipeline_id = "ed_consumer_price_index"
+    display_name = "Ed Consumer Price Index"
 
+    # Greek ELSTAT item title to download from the latest month page
     TARGET_TITLE = (
-        "01. New built properties, storeys, volume and surface thereon, by region and regional unit"
+        "03. Συγκρίσεις Γενικού Δείκτη Τιμών Καταναλωτή (2020=100,0) "
+        "(Ιανουαρίου 2001 - Νοεμβρίου 2025)"
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         out_dir = Path("data/downloads") / self.pipeline_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save as .xls (do NOT rename/pretend it's xlsx)
-        xls_path = out_dir / "elstat_building_permits.xls"
+        xls_path = out_dir / "elstat_consumer_price_index.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
-        pub_url = get_latest_publication_url("SOP03", locale="en", headers=headers)
-        download_url = get_download_url_by_title(pub_url, self.TARGET_TITLE, headers=headers)
+        # DKT87 is monthly; locale is Greek ("el") because the publication URL is /el/...
+        pub_url = get_latest_publication_url(
+            "DKT87",
+            locale="el",
+            frequency="monthly",
+            headers=headers,
+        )
+
+        download_url = get_download_url_by_title(
+            pub_url,
+            self.TARGET_TITLE,
+            headers=headers,
+        )
 
         meta = download_file(download_url, xls_path, headers=headers)
         file_hash = sha256_file(xls_path)
