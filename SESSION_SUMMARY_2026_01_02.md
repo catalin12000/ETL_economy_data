@@ -32,6 +32,35 @@ All pipelines (both the 15+ previously existing ones and the 3 new ones) follow 
     1.  **Raw Download:** The original source file (PDF/XLS) in `data/downloads/`.
     2.  **Audit Report:** A CSV log (`data/reports/`) detailing exactly what changed in the database during that run.
 
+## Types of Pipelines Implemented
+
+We have categorized the existing pipelines into three distinct implementation patterns:
+
+### Type 1: Standard ELSTAT Download (Download-Only)
+*   **Examples:** `ed_consumer_price_index`, `ed_employment`
+*   **How it works:**
+    *   Uses `get_latest_publication_url` to find the correct month/quarter page.
+    *   Scrapes the page for the specific file title (e.g., "03. Consumer Price Index...").
+    *   Downloads the file to `data/downloads`.
+    *   **Purpose:** Ensures we always have the raw source file archived. Extraction is either done manually or planned for a future phase.
+
+### Type 2: Direct PDF Extraction
+*   **Example:** `ed_apartments_price_index_table`
+*   **How it works:**
+    *   Downloads a specific PDF URL (static or dynamic).
+    *   **Extraction:** Uses `pdfplumber` (in `extract.py`) to parse complex tables from the PDF into a clean Pandas DataFrame.
+    *   **Validation:** Checks if the extracted data is actually new (using `data_sha256`).
+    *   **Deliverable:** Produces a structured Excel file ready for analysis.
+
+### Type 3: Full-Cycle Sync (Compare & Update)
+*   **Example:** `ed_building_permits_table` (planned/partial), `ed_apartments_price_index_table`
+*   **How it works:**
+    *   **Step 1:** Download & Extract (as above).
+    *   **Step 2:** Load local "Database" (an existing Excel/CSV file in `data/db/`).
+    *   **Step 3:** Compare new data vs. old data.
+    *   **Step 4:** **Update Report:** Generates a CSV showing exactly which rows were added or modified.
+    *   **Step 5:** Writes the updated "Deliverable" file to `data/outputs/`.
+
 ## Project Status Overview
 Based on the Master Tracking Sheet (`Copy of Economy Data Update Management.xlsx`):
 
