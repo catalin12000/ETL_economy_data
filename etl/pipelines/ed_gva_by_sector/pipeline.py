@@ -1,56 +1,50 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-
-import requests
+from typing import Dict, Any
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
-from etl.core.elstat import get_download_url_by_title, get_latest_publication_year_url
-
-
-BASE = "https://www.statistics.gr"
-
+from etl.core.elstat import get_latest_publication_year_url, get_download_url_by_title
 
 class Pipeline:
-    pipeline_id = "ed_imports_exports_millions"
-    display_name = "Imports-Exports of Goods and Services (Millions) - Annual"
+    pipeline_id = "ed_gva_by_sector"
+    display_name = "Ed GVA By Sector - Annual"
 
-    PUBLICATION_CODE = "SEL30"
-
-    # Use a stable substring: the end year changes each year
-    TARGET_TITLE_SUBSTRING = "Imports-Exports of Goods and Services"
+    PUBLICATION_CODE = "SEL12"
+    TARGET_TITLE = "Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         out_dir = Path("data/downloads") / self.pipeline_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        out_path = out_dir / "elstat_imports_exports_goods_services.xls"
+        out_path = out_dir / "ed_gva_by_sector.xls"
 
-        headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "*/*",
+        }
 
         # 1) Resolve latest year page dynamically
         pub_url = get_latest_publication_year_url(
             publication_code=self.PUBLICATION_CODE,
-            locale="en",
+            locale="el",
             headers=headers,
         )
 
-        # 2) Find download link by title (substring match)
+        # 2) Find the correct downloadable file by title
         download_url = get_download_url_by_title(
             publication_url=pub_url,
-            target_title=self.TARGET_TITLE_SUBSTRING,
+            target_title=self.TARGET_TITLE,
             headers=headers,
         )
 
-        # 3) Download + hash
+        # 3) Download
         meta = download_file(download_url, out_path, headers=headers)
         file_hash = sha256_file(out_path)
 
+        # 4) Update state
         new_state = dict(state)
         new_state.update({
-            "publication_code": self.PUBLICATION_CODE,
             "publication_url_used": pub_url,
             "download_url_used": download_url,
             "source_url_used": download_url,
@@ -65,6 +59,14 @@ class Pipeline:
         })
 
         if not is_new_by_hash(state.get("file_sha256"), file_hash):
-            return {"status": "skipped", "message": "No new file detected (same file SHA256).", "state": new_state}
+            return {
+                "status": "skipped",
+                "message": f"No new file detected for {self.pipeline_id} (same file SHA256).",
+                "state": new_state,
+            }
 
-        return {"status": "delivered", "message": f"Downloaded to {out_path}", "state": new_state}
+        return {
+            "status": "delivered",
+            "message": f"Downloaded to {out_path}",
+            "state": new_state,
+        }
