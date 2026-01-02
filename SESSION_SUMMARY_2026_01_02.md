@@ -23,89 +23,33 @@ We successfully implemented and verified the following 3 new pipelines:
 All pipelines (both the 15+ previously existing ones and the 3 new ones) follow a strictly modular "Core + Plug-in" architecture to ensure scalability and ease of maintenance:
 
 *   **Standardized Entry Point:** Each pipeline is a standalone folder in `etl/pipelines/<id>/` containing a `pipeline.py` with a standard `run(state)` method.
-*   **State Management:** All pipelines utilize a shared state mechanism (`etl/core/state.py`) that tracks:
-    *   `file_sha256`: Hash of the downloaded file bytes (prevents re-processing identical files).
-    *   `data_sha256`: Hash of the actual extracted data (prevents database updates if the publisher re-uploads the same data with new metadata).
-    *   `latest_period_seen`: Tracks the business date of the data (e.g., "2024-Q3") to enable chronological checks.
-*   **Centralized Utilities:** Common logic for file downloading, hashing, and ELSTAT web scraping is housed in `etl/core/`, preventing code duplication.
-*   **Deliverables:** Each pipeline is responsible for producing two key artifacts:
-    1.  **Raw Download:** The original source file (PDF/XLS) in `data/downloads/`.
-    2.  **Audit Report:** A CSV log (`data/reports/`) detailing exactly what changed in the database during that run.
+*   **State Management:** All pipelines utilize a shared state mechanism (`etl/core/state.py`) that tracks `file_sha256` (raw file) and `data_sha256` (extracted data) to avoid redundant work.
+*   **Deliverables:** Each pipeline produces a raw download in `data/downloads/` and, where implemented, a clean deliverable in `data/outputs/` and an audit report in `data/reports/`.
+*   **Shared Sources:** Some pipelines are grouped (e.g., the 8 Residence Permit pipelines) where one "master" pipeline handles the download, and others extract specific indicators from the same file.
 
 ## Types of Pipelines Implemented
-
-We have categorized the pipelines into three distinct implementation patterns:
-
-### Type 1: Standard ELSTAT Download (Download-Only)
-*   **Examples:** `ed_consumer_price_index`, `ed_employment`
-*   **How it works:**
-    *   Uses `get_latest_publication_url` to find the correct month/quarter page.
-    *   Scrapes the page for the specific file title (e.g., "03. Consumer Price Index...").
-    *   Downloads the file to `data/downloads`.
-    *   **Purpose:** Ensures we always have the raw source file archived. Extraction is either done manually or planned for a future phase.
-
-### Type 2: Direct PDF Extraction
-*   **Example:** `ed_apartments_price_index_table`
-*   **How it works:**
-    *   Downloads a specific PDF URL (static or dynamic).
-    *   **Extraction:** Uses `pdfplumber` (in `extract.py`) to parse complex tables from the PDF into a clean Pandas DataFrame.
-    *   **Validation:** Checks if the extracted data is actually new (using `data_sha256`).
-    *   **Deliverable:** Produces a structured Excel file ready for analysis.
-
-### Type 3: Full-Cycle Sync (Compare & Update)
-*   **Example:** `ed_building_permits_table` (planned/partial), `ed_apartments_price_index_table`
-*   **How it works:**
-    *   **Step 1:** Download & Extract (as above).
-    *   **Step 2:** Load local "Database" (an existing Excel/CSV file in `data/db/`).
-    *   **Step 3:** Compare new data vs. old data.
-    *   **Step 4:** **Update Report:** Generates a CSV showing exactly which rows were added or modified.
-    *   **Step 5:** Writes the updated "Deliverable" file to `data/outputs/`.
+1.  **Type 1: Standard ELSTAT Download** (e.g., `ed_consumer_price_index`). Dynamic resolution of the latest month/quarter.
+2.  **Type 2: Direct PDF Extraction** (e.g., `ed_apartments_price_index_table`). Parsing complex PDF tables into DataFrames.
+3.  **Type 3: Full-Cycle Sync** (e.g., `ed_building_permits_table`). Comparing new data against a local database and generating update reports.
 
 ## Existing Pipelines Overview (Pre-Session)
-
-Before today's work, the repository already contained ~15 pipelines covering key sectors:
-
-1.  **Real Estate & Construction:**
-    *   `ed_apartments_price_index_table`: Extracts table from BoG "Neoi Pinakes..." PDF.
-    *   `ed_construction_index`: ELSTAT Quarterly production index (DKT66).
-    *   `ed_building_permits_...`: Multiple pipelines for different permit tables (Rooms, Table 1, etc.).
-
-2.  **Economic Indicators:**
-    *   `ed_consumer_price_index`: ELSTAT Monthly CPI (DKT87).
-    *   `ed_employment`: ELSTAT Monthly Unemployment (SOP02).
-    *   `ed_imports_exports_millions`: ELSTAT Annual trade data (SEL30).
-    *   `ed_eu_economic_forecast_greece`: Scrapes HTML table from EU Commission website.
-
-3.  **Investment & Migration (Bank of Greece / Ministry):**
-    *   `ed_fdi_activity`: Downloads BoG "BPM6_FDI_HOME_BY_ACTIVITY.xls" (Direct URL).
-    *   `ed_fdi_country`: Downloads BoG "BPM6_FDI_HOME_BY_COUNTRY.xls" (Direct URL).
-    *   `ed_residence_permits_...`: A cluster of ~8 pipelines.
-        *   **Note:** These use a clever "Shared Source" pattern. `ed_geo_distribution_of_issued_and_pending_permits` downloads the master PDF, and the other 7 pipelines (e.g., `_aggregate`, `_golden_visa`) simply read that *same* downloaded PDF to extract specific tables, avoiding redundant downloads.
+The repository already contained key automation for:
+*   **Real Estate:** `ed_apartments_price_index_table`, `ed_construction_index`, and the `ed_building_permits` suite.
+*   **Economic Indicators:** `ed_consumer_price_index`, `ed_employment`, `ed_imports_exports_millions`.
+*   **Investment & Migration:** BoG FDI flows and a comprehensive cluster of **8 Residence Permit** pipelines (handling applications, golden visas, and country breakdowns).
 
 ## Project Status Overview
 Based on the Master Tracking Sheet (`Copy of Economy Data Update Management.xlsx`):
 
-*   **Total Pipelines Defined:** 40
+*   **Total Pipelines to be implemented:** 48
 *   **Currently Completed:** 18
-*   **Remaining (Pending):** 22
+*   **Remaining (Pending):** 30
 
 ## Next Steps (To-Do)
-We are systematically working through the pending list. The next immediate tasks are:
-
-1.  **Bank of Greece Pipelines:**
-    *   `ed_residents_di_activity` (Direct Investment flows by activity)
-    *   `ed_residents_di_country` (Direct Investment flows by country)
-    *   *Note:* These require parsing the Bank of Greece HTML, which may differ from the ELSTAT structure we just perfected.
-
-2.  **Continue down the list:**
-    *   `ed_loan_amounts_millions`
-    *   `ed_loan_interest_rates`
-    *   ...and the remaining ~20 pipelines.
+We are systematically working through the 30 remaining pipelines. Next:
+1.  **Bank of Greece FDI Activity/Country:** `ed_residents_di_activity` and `ed_residents_di_country`.
+2.  **Banking & Loans:** `ed_loan_amounts_millions` and `ed_loan_interest_rates`.
 
 ## How to Resume
-1.  Check the status of pending pipelines:
-    ```bash
-    # Run the audit script to see pending work
-    python -c "import pandas as pd; import os; df = pd.read_excel('Copy of Economy Data Update Management.xlsx'); pipelines = set(os.listdir('etl/pipelines')); df['pipeline_id'] = df['Metabase table'].astype(str).apply(lambda x: x.lower().strip().replace(' ', '_')); print(df[~df['pipeline_id'].isin(pipelines)]['Metabase table'].unique())"
-    ```
-2.  Start with `ed_residents_di_activity` instructions (User will provide specific target file guidelines).
+1.  Continue from the tracking sheet starting with the Bank of Greece FDI pipelines.
+2.  Refer to `etl/core/elstat.py` for the established web scraping patterns.
