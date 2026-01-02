@@ -34,7 +34,7 @@ All pipelines (both the 15+ previously existing ones and the 3 new ones) follow 
 
 ## Types of Pipelines Implemented
 
-We have categorized the existing pipelines into three distinct implementation patterns:
+We have categorized the pipelines into three distinct implementation patterns:
 
 ### Type 1: Standard ELSTAT Download (Download-Only)
 *   **Examples:** `ed_consumer_price_index`, `ed_employment`
@@ -60,6 +60,27 @@ We have categorized the existing pipelines into three distinct implementation pa
     *   **Step 3:** Compare new data vs. old data.
     *   **Step 4:** **Update Report:** Generates a CSV showing exactly which rows were added or modified.
     *   **Step 5:** Writes the updated "Deliverable" file to `data/outputs/`.
+
+## Existing Pipelines Overview (Pre-Session)
+
+Before today's work, the repository already contained ~15 pipelines covering key sectors:
+
+1.  **Real Estate & Construction:**
+    *   `ed_apartments_price_index_table`: Extracts table from BoG "Neoi Pinakes..." PDF.
+    *   `ed_construction_index`: ELSTAT Quarterly production index (DKT66).
+    *   `ed_building_permits_...`: Multiple pipelines for different permit tables (Rooms, Table 1, etc.).
+
+2.  **Economic Indicators:**
+    *   `ed_consumer_price_index`: ELSTAT Monthly CPI (DKT87).
+    *   `ed_employment`: ELSTAT Monthly Unemployment (SOP02).
+    *   `ed_imports_exports_millions`: ELSTAT Annual trade data (SEL30).
+    *   `ed_eu_economic_forecast_greece`: Scrapes HTML table from EU Commission website.
+
+3.  **Investment & Migration (Bank of Greece / Ministry):**
+    *   `ed_fdi_activity`: Downloads BoG "BPM6_FDI_HOME_BY_ACTIVITY.xls" (Direct URL).
+    *   `ed_fdi_country`: Downloads BoG "BPM6_FDI_HOME_BY_COUNTRY.xls" (Direct URL).
+    *   `ed_residence_permits_...`: A cluster of ~8 pipelines.
+        *   **Note:** These use a clever "Shared Source" pattern. `ed_geo_distribution_of_issued_and_pending_permits` downloads the master PDF, and the other 7 pipelines (e.g., `_aggregate`, `_golden_visa`) simply read that *same* downloaded PDF to extract specific tables, avoiding redundant downloads.
 
 ## Project Status Overview
 Based on the Master Tracking Sheet (`Copy of Economy Data Update Management.xlsx`):
