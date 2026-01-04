@@ -24,7 +24,6 @@ This document details the implementation patterns for all data pipelines in the 
 | 12 | `ed_geo_distribution_...` | Migration (PDF) | Type 4: Master Cluster |
 | 13 | `ed_gross_fixed_capital_formation` | ELSTAT (SEL81) | Type 1: Dynamic Download |
 | 14 | `ed_gva_by_sector` | ELSTAT (SEL12) | Type 1: Dynamic Download |
-| 15 | `ed_household_income_allocation` | ELSTAT (SEL60) | Type 1: Dynamic Download |
 | 16 | `ed_housing_finances` | ELSTAT (SEL95) | Type 1: Dynamic Download |
 | 17 | `ed_imports_exports_millions` | ELSTAT (SEL30) | Type 1: Dynamic Download |
 | 18 | `ed_industrial_production_index` | ELSTAT (DKT21) | Type 1: Dynamic Download |
@@ -46,6 +45,11 @@ This document details the implementation patterns for all data pipelines in the 
 | 42 | `ed_tourists_arrivals_revenue` | BoG (Excel) | Type 2: Static URL (2 files) |
 | 43 | `ed_wage_growth_index` | ELSTAT (DKT03) | Type 1: Dynamic Download |
 | 44 | `ed_wholesale_trade_turnover_index`| ELSTAT (DKT42) | Type 1: Dynamic Download |
+| 45 | `ed_services_sector_turnover_monthly_index`| ELSTAT (DKT54) | Type 1: Dynamic Download |
+| 46 | `ed_eu_consumer_confidence_index` | Eurostat (API) | Type 2: Direct API Filter |
+| 47 | `ed_eu_gdp` | Eurostat (API) | Type 2: Direct API Filter |
+| 48 | `ed_eu_hicp` | Eurostat (API) | Type 2: Direct API Filter |
+| 49 | `ed_eu_unemployment_rate` | Eurostat (API) | Type 2: Direct API Filter |
 | 54 | `gdp_greece` | ELSTAT (SEL84) | Type 1: Dynamic Download |
 
 ---
@@ -55,8 +59,8 @@ This document details the implementation patterns for all data pipelines in the 
 ### 1. Type 1: ELSTAT Dynamic Download
 These pipelines handle datasets from ELSTAT. They dynamically resolve the latest publication URL (Monthly, Quarterly, or Annual) by scanning the category landing page.
 
-### 2. Type 2: Static URL Download
-Used for datasets with stable permalinks (e.g., Bank of Greece spreadsheets or fixed EU Commission pages).
+### 2. Type 2: Static URL / API Download
+Used for datasets with stable permalinks (e.g., Bank of Greece spreadsheets) or direct API endpoints (e.g., Eurostat SDMX-JSON) where we can filter for specific countries and units directly.
 
 ### 3. Type 3: Extraction & Sync (Complex)
 Handle data locked in complex formats (like PDF tables) and require historical tracking. They extract, compare with a "master" database file, and update it.
