@@ -13,11 +13,12 @@ class Pipeline:
     # We match a substring because the specific quarter "(3rd Quarter 2024)" changes over time.
     TARGET_TITLE = "Evolution of Gross Wages and Salaries in main sections of the economy"
 
-    def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+    def run(self, state: Dict[str, Any]) -> Dict[str, Any>]:
+        prefix = "43"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        out_path = out_dir / "ed_wage_growth_index.xls"
+        out_path = out_dir / "elstat_wage_growth.xls"
 
         headers = {
             "User-Agent": "Mozilla/5.0",

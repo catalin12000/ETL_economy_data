@@ -19,8 +19,9 @@ class Pipeline:
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        prefix = "07"
         # 1) Download HTML
-        out_dir = Path("data/downloads") / self.pipeline_id
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
         html_path = out_dir / "economic_forecast_greece.html"
 
@@ -56,7 +57,7 @@ class Pipeline:
             return {"status": "skipped", "message": "Page changed, but extracted table is identical (same data SHA256).", "state": new_state}
 
         # 4) Write deliverable CSV
-        out_csv = Path("data/outputs") / self.pipeline_id / "EU Economic Forecast Greece.csv"
+        out_csv = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / "EU Economic Forecast Greece.csv"
         out_csv.parent.mkdir(parents=True, exist_ok=True)
 
         df.to_csv(out_csv, index=False)

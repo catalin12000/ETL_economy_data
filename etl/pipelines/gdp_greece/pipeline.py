@@ -14,11 +14,11 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "02. Τριμηνιαίο Ακαθάριστο Εγχώριο Προϊόν - Εποχικά διορθωμένα στοιχεία"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "54"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # ELSTAT usually serves .xls or .xlsx for these tables
-        out_path = out_dir / "gdp_greece_quarterly.xls"
+        out_path = out_dir / "elstat_gdp_greece.xls"
 
         headers = {
             "User-Agent": "Mozilla/5.0",

@@ -23,7 +23,8 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "Imports-Exports of Goods and Services"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "17"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / "elstat_imports_exports_goods_services.xls"

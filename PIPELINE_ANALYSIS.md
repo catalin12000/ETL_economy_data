@@ -2,105 +2,64 @@
 
 This document details the implementation patterns for all data pipelines in the `ETL_economy_data` project. It serves as a guide for understanding existing logic and creating new pipelines.
 
-## 1. Type 1: ELSTAT Dynamic Download
-These pipelines handle datasets from the Hellenic Statistical Authority (ELSTAT). Since ELSTAT publishes data on new pages (e.g., a new URL for each month/quarter), these pipelines dynamically resolve the latest publication URL.
+## Common Architecture
+*   **Location:** `etl/pipelines/<pipeline_id>/pipeline.py`
+*   **Entry Point:** `run(state: Dict[str, Any]) -> Dict[str, Any]`
+*   **Download Convention:** To align with the Master Tracking Sheet, all raw downloads are stored in `data/downloads/` with a prefix corresponding to the official numbering (e.g., `39_ed_retail_trade_turnover_index`).
 
-**Core Logic:**
-1.  **Resolve Page:** Uses `get_latest_publication_url` (for monthly/quarterly) or `get_latest_publication_year_url` (for annual) to find the current period's page.
-2.  **Find File:** Scrapes the resolved page for a specific file title (exact or substring match) using `get_download_url_by_title`.
-3.  **Download:** Downloads the file to `data/downloads/<id>/`.
-4.  **State:** Tracks `file_sha256` to detect changes.
+## Mapping Table
 
-**Implemented Pipelines:**
-*   **`ed_consumer_price_index`** (Monthly) - *Inflation data.*
-*   **`ed_building_permits_table`** (Monthly) - *Construction permits.*
-*   **`ed_construction_index`** (Quarterly) - *Production index in construction.*
-*   **`ed_employment`** (Monthly) - *Unemployment rates.*
-*   **`ed_imports_exports_millions`** (Annual) - *Trade balance.*
-*   **`ed_key_partners_primary_goods`** (Monthly) - *Trade partners (SFC02).*
-*   **`gdp_greece`** (Quarterly) - *GDP growth (SEL84).*
-*   **`ed_gva_by_sector`** (Annual) - *Gross Value Added (SEL12).*
-*   **`ed_wage_growth_index`** (Quarterly) - *Wage indices (DKT03).*
-*   **`ed_household_income_allocation`** (Quarterly/Annual) - *Gross Savings (SEL60).*
-*   **`ed_housing_finances`** (Quarterly) - *Disposable Income (SEL95).*
-
-## 2. Type 2: Static URL Download
-These pipelines download files from stable, permanent URLs (permalinks). Commonly used for Bank of Greece (BoG) datasets or EU Commission pages.
-
-**Core Logic:**
-1.  **Define URL:** Uses a constant `FILE_URL`.
-2.  **Download:** Downloads directly.
-3.  **State:** Tracks `file_sha256`.
-
-**Implemented Pipelines:**
-*   **`ed_fdi_activity`** (BoG) - *Inward FDI by Activity.*
-*   **`ed_fdi_country`** (BoG) - *Inward FDI by Country.*
-*   **`ed_fdi_real_estate`** (BoG) - *Real Estate FDI.*
-*   **`ed_residents_di_activity`** (BoG) - *Outward FDI by Activity.*
-*   **`ed_residents_di_country`** (BoG) - *Outward FDI by Country.*
-*   **`ed_loan_amounts_millions`** (BoG) - *Housing/Consumer Loans.*
-*   **`ed_loan_interest_rates`** (BoG) - *Interest Rates.*
-*   **`ed_eu_economic_forecast_greece`** (EU Commission) - *Downloads HTML page, extracts table to CSV.*
-
-## 3. Type 3: Extraction & Sync (Complex)
-These pipelines handle data locked in complex formats (like PDF tables) and require historical tracking. They don't just download; they extract, compare with a "database" file, and update it.
-
-**Core Logic:**
-1.  **Download:** Fetches the raw file (PDF/Excel).
-2.  **Extract:** Custom Python logic extracts a clean DataFrame.
-3.  **Hash Data:** Hashes the *content* of the DataFrame (`data_sha256`) to ignore file metadata changes.
-4.  **Sync:** Compares the extracted data with a local Master Excel file (`data/db/`).
-5.  **Report:** specific report on what rows were added or updated.
-
-**Implemented Pipelines:**
-*   **`ed_apartments_price_index_table`** (BoG) - *Extracts indices from PDF.*
-
-## 4. Type 4: Dependent / Cluster Pipelines
-These pipelines are part of a group that shares a single source file. One "Master" pipeline downloads the file, and "Satellite" pipelines extract different parts of it.
-
-**Core Logic:**
-1.  **Check Master:** Checks if the source pipeline (`SOURCE_PIPELINE_ID`) has a new file.
-2.  **Reuse:** Reads the file downloaded by the master pipeline.
-3.  **Extract:** Processes its specific table/indicator.
-
-**Implemented Pipelines:**
-*   **`ed_geo_distribution_of_issued_and_pending_permits`** (Master) - *Downloads the "Appendix B" PDF.*
-*   **`ed_residence_permits_aggregate`** (Satellite) - *Extracts Table 1.*
-*   *Other Residence Permit pipelines follow this pattern.*
+| No. | Pipeline ID | Source | Notes |
+| :-- | :--- | :--- | :--- |
+| 1 | `ed_apartments_price_index_table` | BoG (PDF) | Type 3: Extraction & Sync |
+| 2 | `ed_building_permits_table` | ELSTAT (SOP03) | Type 1: Dynamic Download |
+| 3 | `ed_building_permits_by_no_of_rooms` | ELSTAT (SOP03) | Type 1: Dynamic Download |
+| 4 | `ed_construction_index` | ELSTAT (DKT66) | Type 1: Dynamic Download |
+| 5 | `ed_consumer_price_index` | ELSTAT (DKT01) | Type 1: Dynamic Download |
+| 7 | `ed_economic_forecast` | EU Commission | Type 2: Static URL + Extractor |
+| 8 | `ed_employment` | ELSTAT (SJO02) | Type 1: Dynamic Download |
+| 9 | `ed_fdi_activity` | BoG (BPM6) | Type 2: Static URL |
+| 10 | `ed_fdi_country` | BoG (BPM6) | Type 2: Static URL |
+| 11 | `ed_fdi_real_estate` | BoG (Excel) | Type 2: Static URL |
+| 12 | `ed_geo_distribution_...` | Migration (PDF) | Type 4: Master Cluster |
+| 13 | `ed_gross_fixed_capital_formation` | ELSTAT (SEL81) | Type 1: Dynamic Download |
+| 14 | `ed_gva_by_sector` | ELSTAT (SEL12) | Type 1: Dynamic Download |
+| 15 | `ed_household_income_allocation` | ELSTAT (SEL60) | Type 1: Dynamic Download |
+| 16 | `ed_housing_finances` | ELSTAT (SEL95) | Type 1: Dynamic Download |
+| 17 | `ed_imports_exports_millions` | ELSTAT (SEL30) | Type 1: Dynamic Download |
+| 18 | `ed_industrial_production_index` | ELSTAT (DKT21) | Type 1: Dynamic Download |
+| 19 | `ed_key_partners_primary_goods` | ELSTAT (SFC02) | Type 1: Dynamic Download |
+| 20 | `ed_loan_amounts_millions` | BoG (Excel) | Type 4: Satellite (shares with 21) |
+| 21 | `ed_loan_interest_rates` | BoG (Excel) | Type 2: Master Download |
+| 22 | `ed_motor_trade_turnover_index` | ELSTAT (DKT45) | Type 1: Dynamic Download |
+| 23 | `ed_new_built_properties_per_region` | ELSTAT (SOP03) | Type 1: Dynamic Download |
+| 24 | `ed_new_establishments_building_permits`| ELSTAT (SOP03) | Type 1: Dynamic Download |
+| 25 | `ed_new_residential_building_cost_index`| ELSTAT (DKT63) | Type 1: Dynamic Download |
+| 26 | `ed_new_residential_buildings_work_categories`| ELSTAT (DKT63) | Type 1: Dynamic Download |
+| 27 | `ed_office_price_volume_index` | BoG (PDF) | Type 2: Static URL (2 files) |
+| 29 | `ed_residence_permits_application`| Migration (PDF) | Type 4: Satellite Cluster |
+| 36 | `ed_residents_di_activity` | BoG (BPM6) | Type 2: Static URL |
+| 37 | `ed_residents_di_country` | BoG (BPM6) | Type 2: Static URL |
+| 38 | `ed_retail_price_rental_index` | BoG (PDF) | Type 2: Static URL (2 files) |
+| 39 | `ed_retail_trade_turnover_index` | ELSTAT (DKT39) | Type 1: Dynamic Download |
+| 40 | `ed_retail_trade_volume_index` | ELSTAT (DKT39) | Type 1: Dynamic Download |
+| 42 | `ed_tourists_arrivals_revenue` | BoG (Excel) | Type 2: Static URL (2 files) |
+| 43 | `ed_wage_growth_index` | ELSTAT (DKT03) | Type 1: Dynamic Download |
+| 44 | `ed_wholesale_trade_turnover_index`| ELSTAT (DKT42) | Type 1: Dynamic Download |
+| 54 | `gdp_greece` | ELSTAT (SEL84) | Type 1: Dynamic Download |
 
 ---
 
-## Shared Source Clusters (Master-Satellite Pattern)
+## Detailed Implementation Types
 
-Many indicators share the same raw source file. In these cases, we designate one pipeline as the "Master" (responsible for the download) and others as "Satellites" (responsible for extraction).
+### 1. Type 1: ELSTAT Dynamic Download
+These pipelines handle datasets from ELSTAT. They dynamically resolve the latest publication URL (Monthly, Quarterly, or Annual) by scanning the category landing page.
 
-| Master Pipeline ID | Satellite Pipelines / Shared Indicators | Source / File |
-| :--- | :--- | :--- |
-| `ed_loan_interest_rates` | `ed_loan_amounts_millions` | BoG: `Rates_TABLE_1+1a.xls` |
-| `ed_fdi_activity` | `ed_fdi_construction` (To be built) | BoG: `BPM6_FDI_HOME_BY_ACTIVITY.xls` |
-| `ed_key_partners_primary_goods` | `Primary traded goods` | ELSTAT: `SFC02` (Trade Balance) |
-| `ed_building_permits_table` | `Floor space and volume` | ELSTAT: `SOP03` (Building Activity) |
-| `ed_geo_distribution_...` | Residence Permit Cluster (8 Pipelines) | Ministry of Migration: Appendix B PDF |
+### 2. Type 2: Static URL Download
+Used for datasets with stable permalinks (e.g., Bank of Greece spreadsheets or fixed EU Commission pages).
 
----
+### 3. Type 3: Extraction & Sync (Complex)
+Handle data locked in complex formats (like PDF tables) and require historical tracking. They extract, compare with a "master" database file, and update it.
 
-## Detailed Source Reference (How to Modify)
-
-Use this table to find the specific URL or Code if a source changes.
-
-### Bank of Greece (Type 2)
-| Pipeline ID | Target File URL (Permalink) | Notes |
-| :--- | :--- | :--- |
-| `ed_residents_di_activity` | `.../RelatedDocuments/BPM6_FDI_ABROAD_BY_ACTIVITY.xls` | Outward FDI flows. |
-| `ed_residents_di_country` | `.../RelatedDocuments/BPM6_FDI_ABROAD_BY_COUNTRY.xls` | Outward FDI flows. |
-| `ed_loan_amounts_millions` | `.../RelatedDocuments/Rates_TABLE_1+1a.xls` | Sheet: `Loans_Amounts`. New Business Flows. |
-| `ed_loan_interest_rates` | `.../RelatedDocuments/Rates_TABLE_1+1a.xls` | Sheet: `Loans_Interest rates`. New Business Rates. |
-
-### ELSTAT (Type 1)
-| Pipeline ID | Publication Code | Target Title Substring | Notes |
-| :--- | :--- | :--- | :--- |
-| `gdp_greece` | **SEL84** | `02. Quarterly GDP - Seasonally adjusted` | Quarterly. |
-| `ed_gva_by_sector` | **SEL12** | `Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)` | Annual. |
-| `ed_wage_growth_index` | **DKT03** | `Evolution of Gross Wages and Salaries` | Quarterly. |
-| `ed_household_income_allocation` | **SEL60** | `Households accounts` | Annual/Quarterly. |
-| `ed_housing_finances` | **SEL95** | `Quarterly Non-Financial Sector Accounts` | Quarterly. |
+### 4. Type 4: Dependent / Cluster Pipelines
+One "Master" pipeline downloads the file, and "Satellite" pipelines extract different parts of it. Useful for large PDF reports containing multiple tables.

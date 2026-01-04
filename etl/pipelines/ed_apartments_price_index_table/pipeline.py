@@ -18,7 +18,7 @@ class Pipeline:
     DB_SHEET = "Sheet1"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        out_dir = Path("data/downloads") / f"01_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = out_dir / "Neoi_Pinakes_Timon_Katoikion_full.pdf"
 
@@ -58,9 +58,10 @@ class Pipeline:
             }
 
         # 4) Compare/update -> deliverable + report
-        out_excel = Path("data/outputs") / self.pipeline_id / "Ed Apartments Price Index Table.xlsx"
+        prefix = "01"
+        out_excel = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / "Ed Apartments Price Index Table.xlsx"
         out_excel.parent.mkdir(parents=True, exist_ok=True)
-        out_report = Path("data/reports") / self.pipeline_id / "update_report.csv"
+        out_report = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
         out_report.parent.mkdir(parents=True, exist_ok=True)
 
         result = compare_and_update_excel(

@@ -18,7 +18,8 @@ class Pipeline:
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/Rates_TABLE_1+1a.xls"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "21"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # Keep original extension (.xls)
@@ -46,7 +47,7 @@ class Pipeline:
         if not is_new_by_hash(state.get("file_sha256"), file_hash):
             return {
                 "status": "skipped",
-                "message": "No new file detected (same file SHA256).",
+                "message": f"No new file detected (same file SHA256). Source: {self.FILE_URL}",
                 "state": new_state,
             }
 

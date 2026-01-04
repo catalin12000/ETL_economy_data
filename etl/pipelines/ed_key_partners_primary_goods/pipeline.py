@@ -19,7 +19,8 @@ class Pipeline:
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "19"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / "elstat_sfc02_trade_balance_time_period.xls"

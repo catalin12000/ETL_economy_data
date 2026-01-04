@@ -144,7 +144,8 @@ class Pipeline:
     LINK_TEXT_MATCH = "Νόμιμη Μετανάστευση | Παράρτημα Β"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "12"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         pdf_path = out_dir / "migration_appendix_b.pdf"  # keep extension .pdf

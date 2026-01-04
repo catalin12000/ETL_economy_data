@@ -18,7 +18,8 @@ class Pipeline:
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/BPM6_FDI_HOME_BY_ACTIVITY.xls"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "09"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # Keep original extension (.xls)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, Any
 
 from etl.core.download import is_new_by_hash
@@ -15,6 +16,9 @@ class Pipeline:
     SOURCE_PIPELINE_ID = "ed_geo_distribution_of_issued_and_pending_permits"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        prefix = "29"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
+        out_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = get_latest_pdf_path(self.SOURCE_PIPELINE_ID)
         src_hash, src_period = get_source_fingerprint(self.SOURCE_PIPELINE_ID)
 

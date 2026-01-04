@@ -14,7 +14,8 @@ class Pipeline:
     TARGET_TITLE = "Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "14"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / "ed_gva_by_sector.xls"

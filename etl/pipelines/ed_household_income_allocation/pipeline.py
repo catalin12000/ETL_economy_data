@@ -11,16 +11,15 @@ class Pipeline:
     pipeline_id = "ed_household_income_allocation"
     display_name = "Household Income Allocation (Gross Savings) - Annual"
 
-    # SEL60 is marked as Quarterly in tracking sheet frequency column,
-    # but the title mentions "(2000 - 2021)" which looks annual.
-    # ELSTAT SEL60 is usually the "Main aggregates of Households" page.
+    # SEL60 is the ELSTAT code for Main aggregates of Households
     PUBLICATION_CODE = "SEL60"
 
     # Using a substring to match the title even if years/versions change
     TARGET_TITLE_SUBSTRING = "Households accounts"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "15"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / "elstat_household_income_allocation.xls"
@@ -28,8 +27,6 @@ class Pipeline:
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
         # 1) Resolve latest page dynamically
-        # Frequency is set to quarterly as per tracking sheet,
-        # but the helper will find the latest available item regardless.
         pub_url = get_latest_publication_year_url(
             self.PUBLICATION_CODE,
             locale="en",

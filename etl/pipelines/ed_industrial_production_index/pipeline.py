@@ -18,7 +18,8 @@ class Pipeline:
     TITLE_04 = "04. Seasonally Adjusted Industrial Production Index (2015=100.0)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        prefix = "18"
+        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
