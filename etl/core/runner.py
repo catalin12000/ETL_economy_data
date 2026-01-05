@@ -1,9 +1,9 @@
-﻿# etl/core/runner.py
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from importlib import import_module
 from pathlib import Path
 from typing import Dict, Any, List
+from datetime import datetime, timezone
 
 from etl.core.state import load_state, save_state
 
@@ -42,11 +42,28 @@ def run_one(pipeline_id: str) -> None:
     state: Dict[str, Any] = load_state(pipeline_id)
 
     print(f"\n=== Running pipeline: {pipeline_id} ===")
-    result = pipe.run(state)
+    
+    try:
+        result = pipe.run(state)
+        status = result.get("status", "unknown")
+        message = result.get("message", "")
+        new_state = result.get("state", state)
+    except Exception as e:
+        status = "error"
+        message = str(e)
+        new_state = state
+        print(f"Error: {e}")
 
-    if isinstance(result, dict) and result.get("state") is not None:
-        save_state(pipeline_id, result["state"])
+    # Standardize dashboard metadata
+    new_state["last_run_at_utc"] = datetime.now(timezone.utc).isoformat()
+    new_state["last_status"] = status
+    new_state["last_message"] = message
+    
+    if status in ("delivered", "verified", "skipped"):
+        new_state["last_success_at_utc"] = new_state["last_run_at_utc"]
 
-    print(f"Status: {result.get('status', 'unknown')}")
-    if isinstance(result, dict) and result.get("message"):
-        print(result["message"])
+    save_state(pipeline_id, new_state)
+
+    print(f"Status: {status}")
+    if message:
+        print(message)
