@@ -5,13 +5,16 @@ from typing import Dict, Any
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_year_url, get_download_url_by_title
+from etl.core.compare_csv import compare_and_update_csv
+from .extract import extract_gva
+
 
 class Pipeline:
     pipeline_id = "ed_gva_by_sector"
     display_name = "Ed GVA By Sector - Annual"
 
     PUBLICATION_CODE = "SEL12"
-    TARGET_TITLE = "Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)"
+    TARGET_TITLE_SUBSTRING = "Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "14"
@@ -35,7 +38,7 @@ class Pipeline:
         # 2) Find the correct downloadable file by title
         download_url = get_download_url_by_title(
             publication_url=pub_url,
-            target_title=self.TARGET_TITLE,
+            target_title=self.TARGET_TITLE_SUBSTRING,
             headers=headers,
         )
 
@@ -52,22 +55,38 @@ class Pipeline:
             "file_sha256": file_hash,
             "downloaded_filename": out_path.name,
             "last_download_path": str(out_path),
-            "last_modified": meta.get("last_modified"),
-            "etag": meta.get("etag"),
-            "content_length": meta.get("content_length"),
-            "final_url": meta.get("final_url"),
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash):
+        # Extraction and Sync
+        print(f"Extracting data from {out_path}...")
+        df_new = extract_gva(out_path)
+        
+        db_path = Path("data/db") / f"{self.pipeline_id}.csv"
+        out_csv = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / f"{self.pipeline_id}_updated.csv"
+        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        
+        print(f"Comparing with master DB {db_path}...")
+        res = compare_and_update_csv(db_path, df_new, out_csv, report_csv, key_cols=["Year", "Industry_Code"])
+
+        new_state.update({
+            "rows_before": res.rows_before,
+            "rows_after": res.rows_after,
+            "new_rows": res.new_rows,
+            "updated_cells": res.updated_cells,
+            "output_csv": str(out_csv),
+            "report_csv": str(report_csv),
+        })
+
+        if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0:
             return {
                 "status": "skipped",
-                "message": f"No new file detected for {self.pipeline_id} (same file SHA256).",
+                "message": f"No new file and no data changes.",
                 "state": new_state,
             }
 
         return {
             "status": "delivered",
-            "message": f"Downloaded to {out_path}",
+            "message": f"Extracted {len(df_new)} rows. {res.new_rows} new rows.",
             "state": new_state,
         }

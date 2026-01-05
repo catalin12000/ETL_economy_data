@@ -51,11 +51,17 @@ def _to_num(x):
             return int(f)
         return f
     except Exception:
-        return pd.NA
+        return x # Return as is if not a number
 
 
 def _period_num(df: pd.DataFrame) -> pd.Series:
-    return df["Year"].astype(int) * 100 + df["Month"].astype(int)
+    # Fallback if Month is not present (e.g. Annual)
+    if "Month" in df.columns:
+        return df["Year"].astype(int) * 100 + df["Month"].astype(int)
+    elif "Quarter" in df.columns:
+        return df["Year"].astype(int) * 10 + df["Quarter"].astype(int)
+    else:
+        return df["Year"].astype(int)
 
 
 def compare_and_update_csv(
@@ -79,20 +85,23 @@ def compare_and_update_csv(
         val_cols = [c for c in df_new.columns if c not in key_cols]
 
     # Handle missing DB by creating an empty one with the same schema
-    if not db_csv_path.exists():
+    if not db_csv_path.exists() or db_csv_path.stat().st_size < 10:
         print(f"Creating new baseline DB: {db_csv_path}")
         db_csv_path.parent.mkdir(parents=True, exist_ok=True)
-        # Create empty df with same columns as new data
         df_db = pd.DataFrame(columns=df_new.columns)
         df_db.to_csv(db_csv_path, index=False)
     else:
         df_db = pd.read_csv(db_csv_path)
         df_db = _clean_cols(df_db)
 
-    # normalize types for keys
+    # normalize types for keys (only if they look numeric)
     for c in key_cols:
-        df_db[c] = pd.to_numeric(df_db[c], errors="coerce").astype("Int64")
-        df_new[c] = pd.to_numeric(df_new[c], errors="coerce").astype("Int64")
+        if c in df_db.columns and c in df_new.columns:
+            try:
+                df_db[c] = pd.to_numeric(df_db[c])
+                df_new[c] = pd.to_numeric(df_new[c])
+            except:
+                pass # Keep as string/object
 
     # normalize types for values
     for c in val_cols:
@@ -101,12 +110,21 @@ def compare_and_update_csv(
         if c in df_new.columns:
             df_new[c] = df_new[c].map(_to_num)
 
+    # Filter out empty key rows
     df_db = df_db.dropna(subset=key_cols).copy()
     df_new = df_new.dropna(subset=key_cols).copy()
 
     if prevent_older_than_db and not df_db.empty:
-        min_period = int(_period_num(df_db).min())
-        df_new = df_new[_period_num(df_new) >= min_period].copy()
+        try:
+            min_period = int(_period_num(df_db).min())
+            df_new = df_new[_period_num(df_new) >= min_period].copy()
+        except:
+            pass
+
+    # Ensure keys are the same type for indexing
+    for c in key_cols:
+        df_db[c] = df_db[c].astype(str)
+        df_new[c] = df_new[c].astype(str)
 
     db_idx = df_db.set_index(key_cols)
     new_idx = df_new.set_index(key_cols)
@@ -128,7 +146,7 @@ def compare_and_update_csv(
             if pd.isna(old) and pd.isna(new):
                 continue
                 
-            # Compare values (with float precision handling)
+            # Compare values
             is_different = False
             if pd.isna(old) != pd.isna(new):
                 is_different = True
@@ -137,12 +155,12 @@ def compare_and_update_csv(
                     if abs(float(old) - float(new)) > 1e-9:
                         is_different = True
                 except:
-                    if old != new:
+                    if str(old) != str(new):
                         is_different = True
 
             if is_different:
                 updated_cells += 1
-                row_key = {key_cols[i]: int(k[i]) if isinstance(k, tuple) else int(k) for i in range(len(key_cols))}
+                row_key = {key_cols[i]: k[i] for i in range(len(key_cols))}
                 change_entry = {
                     "ChangeType": "UPDATE",
                     **row_key,
@@ -155,7 +173,7 @@ def compare_and_update_csv(
 
     df_added = new_idx.loc[only_new].reset_index()
     for _, r in df_added.iterrows():
-        row_key = {c: int(r[c]) for c in key_cols}
+        row_key = {c: r[c] for c in key_cols}
         val_summary = ", ".join([f"{c}={r[c]}" for c in val_cols if c in r])
         changes.append({
             "ChangeType": "ADD_ROW",
@@ -165,14 +183,30 @@ def compare_and_update_csv(
             "NewValue": val_summary,
         })
 
+    # Preserve all columns from the original DB (like ID, Created At)
     df_updated = pd.concat([db_idx.reset_index(), df_added], ignore_index=True)
+    
+    # Convert keys back to numeric for proper sorting
+    for c in key_cols:
+        try:
+            df_updated[c] = pd.to_numeric(df_updated[c])
+        except:
+            pass
+
+    # Final sort
     df_updated = df_updated.sort_values(key_cols).reset_index(drop=True)
+
+    # Convert back to numeric where possible before saving
+    for c in df_updated.columns:
+        try:
+            df_updated[c] = pd.to_numeric(df_updated[c])
+        except:
+            pass
 
     out_csv_path.parent.mkdir(parents=True, exist_ok=True)
     report_csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     df_updated.to_csv(out_csv_path, index=False)
-    # Also update the master DB
     df_updated.to_csv(db_csv_path, index=False)
     pd.DataFrame(changes).to_csv(report_csv_path, index=False)
 

@@ -53,30 +53,44 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        # Extraction and Sync
+        # 1. Extraction
         print(f"Extracting data from {xls_path}...")
         df_new = extract_cpi(xls_path)
         
+        # 2. Sync with master DB
         db_path = Path("data/db") / f"{self.pipeline_id}.csv"
-        out_csv = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / f"{self.pipeline_id}_updated.csv"
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
         report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
         
         print(f"Comparing with master DB {db_path}...")
-        res = compare_and_update_csv(db_path, df_new, out_csv, report_csv)
+        res = compare_and_update_csv(db_path, df_new, out_csv_full, report_csv)
+
+        # 3. Create "New Entries" deliverable (Latest Month)
+        output_file = output_dir / "new_entries.csv"
+        
+        # Identify latest period in extracted data
+        max_year = df_new["Year"].max()
+        max_month = df_new[df_new["Year"] == max_year]["Month"].max()
+        
+        df_deliverable = df_new[(df_new["Year"] == max_year) & (df_new["Month"] == max_month)].copy()
+        df_deliverable.to_csv(output_file, index=False)
 
         new_state.update({
             "rows_before": res.rows_before,
             "rows_after": res.rows_after,
             "new_rows": res.new_rows,
             "updated_cells": res.updated_cells,
-            "output_csv": str(out_csv),
-            "report_csv": str(report_csv),
+            "deliverable_path": str(output_file),
+            "mock_db_path": str(out_csv_full),
         })
+
+        print(f"Deliverables created in: {output_dir}")
 
         if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0:
             return {"status": "skipped", "message": "No new file and no data changes.", "state": new_state}
 
         status = "delivered" if (res.new_rows > 0 or res.updated_cells > 0) else "verified"
-        msg = f"Extracted {len(df_new)} rows. {res.new_rows} new rows, {res.updated_cells} cells updated."
+        msg = f"Extracted {len(df_new)} rows. New entries: {len(df_deliverable)}."
 
         return {"status": status, "message": msg, "state": new_state}
