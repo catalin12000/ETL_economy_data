@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any
 
+import pandas as pd
+
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from .extract import extract_eu_consumer_confidence
@@ -12,7 +14,6 @@ class Pipeline:
     pipeline_id = "ed_eu_consumer_confidence_index"
     display_name = "Ed EU Consumer Confidence Index (Eurostat)"
 
-    # Filter: Greece (EL), Romania (RO), Cyprus (CY), EU27 (EU27_2020), EA20
     DATASET_CODE = "ei_bsco_m"
     FILTER = f"M.BS-CSMCI.SA.BAL.EL+RO+CY+EU27_2020+EA20"
     FILE_URL = f"https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2025-01"
@@ -42,15 +43,13 @@ class Pipeline:
         print(f"Extracting data from {out_path}...")
         df_new = extract_eu_consumer_confidence(out_path)
         
-        # 2. Sync with master DB (internal storage)
+        # 2. Sync with master DB
         db_path = Path("data/db") / f"{self.pipeline_id}.csv"
-        # We temporarily match internal DB columns to extracted ones for the sync
-        # Note: Internal DB uses spaces, output uses underscores. 
-        # For simplicity in this step, we'll let compare_csv handle the mismatch or alignment.
-        
-        out_csv_full = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / f"{self.pipeline_id}_full.csv"
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
         report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
         
+        print(f"Comparing with master DB {db_path}...")
         res = compare_and_update_csv(
             db_path, 
             df_new, 
@@ -59,18 +58,12 @@ class Pipeline:
             key_cols=["Year", "Month", "Geopolitical_Entity"]
         )
 
-        # 3. Create requested "New Entries" output (only 2025-11 and updates)
-        # Filter for Month 11, Year 2025 or any row that was actually added/updated
-        # Since compare_and_update_csv updated the DB, we can find what's new.
-        
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        # 3. Create "New Entries" deliverable (Actually new or updated rows)
         output_file = output_dir / "new_entries.csv"
         
-        # Get only the rows for 2025-11 from the extracted data
-        df_deliverable = df_new[((df_new["Year"] == 2025) & (df_new["Month"] >= 11))].copy()
-        
-        # If there were updates to older months, they would be in report_df
-        # For now, following the specific request for "2025 11 month"
+        # Requested Format: Year, Month, Geopolitical_Entity, Consumer_confidence_indicator
+        cols = ["Year", "Month", "Geopolitical_Entity", "Consumer_confidence_indicator"]
+        df_deliverable = res.diff_df[cols] if not res.diff_df.empty else pd.DataFrame(columns=cols)
         df_deliverable.to_csv(output_file, index=False)
 
         new_state.update({
@@ -79,15 +72,14 @@ class Pipeline:
             "new_rows": res.new_rows,
             "updated_cells": res.updated_cells,
             "deliverable_path": str(output_file),
+            "mock_db_path": str(out_csv_full),
         })
 
-        print(f"Deliverable created at: {output_file}")
-
         if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0:
-            return {"status": "skipped", "message": "No new data.", "state": new_state}
+            return {"status": "skipped", "message": "No new data detected.", "state": new_state}
 
         return {
             "status": "delivered", 
-            "message": f"Extracted {len(df_new)} rows. {res.new_rows} new, {res.updated_cells} updated. Deliverable has {len(df_deliverable)} rows.", 
+            "message": f"Extracted {len(df_new)} rows. {res.new_rows} new, {res.updated_cells} updates. Deliverable saved.", 
             "state": new_state
         }

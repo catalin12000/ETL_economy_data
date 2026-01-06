@@ -16,6 +16,7 @@ class CsvUpdateResult:
     new_rows: int
     report_df: pd.DataFrame
     updated_df: pd.DataFrame
+    diff_df: pd.DataFrame # Contains the actual rows that were added or modified
 
 
 def _clean_cols(df: pd.DataFrame) -> pd.DataFrame:
@@ -133,9 +134,11 @@ def compare_and_update_csv(
     only_new = new_idx.index.difference(db_idx.index)
 
     changes: List[Dict[str, Any]] = []
+    changed_keys = [] # Track which common rows were updated
     updated_cells = 0
 
     for k in common:
+        row_differs = False
         for c in val_cols:
             if c not in db_idx.columns or c not in new_idx.columns:
                 continue
@@ -160,6 +163,7 @@ def compare_and_update_csv(
 
             if is_different:
                 updated_cells += 1
+                row_differs = True
                 row_key = {key_cols[i]: k[i] for i in range(len(key_cols))}
                 change_entry = {
                     "ChangeType": "UPDATE",
@@ -170,6 +174,9 @@ def compare_and_update_csv(
                 }
                 changes.append(change_entry)
                 db_idx.at[k, c] = new
+        
+        if row_differs:
+            changed_keys.append(k)
 
     df_added = new_idx.loc[only_new].reset_index()
     for _, r in df_added.iterrows():
@@ -183,6 +190,9 @@ def compare_and_update_csv(
             "NewValue": val_summary,
         })
 
+    # Prepare diff_df (Added + Updated rows in their final state)
+    df_diff = pd.concat([db_idx.loc[changed_keys].reset_index(), df_added], ignore_index=True)
+
     # Preserve all columns from the original DB (like ID, Created At)
     df_updated = pd.concat([db_idx.reset_index(), df_added], ignore_index=True)
     
@@ -190,11 +200,13 @@ def compare_and_update_csv(
     for c in key_cols:
         try:
             df_updated[c] = pd.to_numeric(df_updated[c])
+            df_diff[c] = pd.to_numeric(df_diff[c])
         except:
             pass
 
     # Final sort
     df_updated = df_updated.sort_values(key_cols).reset_index(drop=True)
+    df_diff = df_diff.sort_values(key_cols).reset_index(drop=True)
 
     # Convert back to numeric where possible before saving
     for c in df_updated.columns:
@@ -202,12 +214,19 @@ def compare_and_update_csv(
             df_updated[c] = pd.to_numeric(df_updated[c])
         except:
             pass
+    
+    if not df_diff.empty:
+        for c in df_diff.columns:
+            try:
+                df_diff[c] = pd.to_numeric(df_diff[c])
+            except:
+                pass
 
     out_csv_path.parent.mkdir(parents=True, exist_ok=True)
     report_csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     df_updated.to_csv(out_csv_path, index=False)
-    df_updated.to_csv(db_csv_path, index=False)
+    # Removed: df_updated.to_csv(db_csv_path, index=False) - Keeping DB as baseline reference only
     pd.DataFrame(changes).to_csv(report_csv_path, index=False)
 
     return CsvUpdateResult(
@@ -217,4 +236,5 @@ def compare_and_update_csv(
         new_rows=len(df_added),
         report_df=pd.DataFrame(changes),
         updated_df=df_updated,
+        diff_df=df_diff
     )
