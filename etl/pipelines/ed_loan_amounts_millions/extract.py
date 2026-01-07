@@ -47,7 +47,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Floating Rate 1 Year Fixation": to_f(row[3]),
             "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[4]),
             "Over 1 To 5 Years Rate Fixation": to_f(row[5]),
-            "Over 5 Years Rate Fixation": to_f(row[6])
+            "Over 5 Years Rate Fixation": to_f(row[6]),
+            "_sort_order": 1
         })
         
         # 2. Individuals | Housing Loans
@@ -58,14 +59,16 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[7]),
             "Floating Rate 1 Year Fixation": to_f(row[8]),
             "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[9]),
-            "Over 10 Years Rate Fixation": to_f(row[11])
+            "Over 10 Years Rate Fixation": to_f(row[11]),
+            "_sort_order": 2
         })
 
         # 3. Individuals | Loans with a defined maturity
         records.append({
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
-            "Loan Type": "Loans with a defined maturity"
+            "Loan Type": "Loans with a defined maturity",
+            "_sort_order": 3
         })
 
         # 4. Non-financial corporations | Other loans with defined maturity
@@ -74,7 +77,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Group": "Non-financial corporations",
             "Loan Type": "Other loans with defined maturity",
             "Total Loan Amount": to_f(row[20]),
-            "Total Small Medium Enterprises Loans": to_f(row[21])
+            "Total Small Medium Enterprises Loans": to_f(row[21]),
+            "_sort_order": 4
         })
         
         # 5. NFC | Up to 1M | 0.25 to 1
@@ -85,7 +89,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[25]),
             "Total Collateral Guarantees Loans": to_f(row[26]),
             "Floating Rate 1 Year Fixation": to_f(row[27]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[28])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[28]),
+            "_sort_order": 5
         })
         
         # 6. NFC | Up to 1M | Up to 0.25
@@ -96,7 +101,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[29]),
             "Total Collateral Guarantees Loans": to_f(row[30]),
             "Floating Rate 1 Year Fixation": to_f(row[31]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[32])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[32]),
+            "_sort_order": 6
         })
 
         # 7. NFC | Over 1M
@@ -107,7 +113,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[33]),
             "Total Collateral Guarantees Loans": to_f(row[34]),
             "Floating Rate 1 Year Fixation": to_f(row[35]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[36])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[36]),
+            "_sort_order": 7
         })
         
         # 8. NFC | Original maturity > 1yr | 0.25 to 1
@@ -118,7 +125,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[41]),
             "Total Collateral Guarantees Loans": to_f(row[42]),
             "Floating Rate 1 Year Fixation": to_f(row[41]), # Example has same as Total? No, wait.
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[42])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[42]),
+            "_sort_order": 8
         })
         
         # 9. NFC | Original maturity > 1yr | Over 1M
@@ -129,7 +137,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
             "Total Loan Amount": to_f(row[43]),
             "Total Collateral Guarantees Loans": to_f(row[44]),
             "Floating Rate 1 Year Fixation": to_f(row[43]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[44])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[44]),
+            "_sort_order": 9
         })
 
     out = pd.DataFrame(records)
@@ -143,7 +152,8 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
         "Total Collateral Guarantees Loans", "Total Small Medium Enterprises Loans", 
         "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
         "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
-        "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation"
+        "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation",
+        "_sort_order"
     ]
     for c in cols:
         if c not in out.columns:

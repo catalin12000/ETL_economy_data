@@ -71,12 +71,19 @@ class Pipeline:
             "Total Collateral Guarantees Loans", "Total Small Medium Enterprises Loans", 
             "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
             "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
-            "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation"
+            "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation",
+            "_sort_order"
         ]
 
         # Reorder columns
         snapshot_df = res.updated_df.reindex(columns=final_cols)
         deliverable_df = res.diff_df.reindex(columns=final_cols) if not res.diff_df.empty else pd.DataFrame(columns=final_cols)
+        
+        # Sort by user-specified logical order
+        if "_sort_order" in snapshot_df.columns:
+            snapshot_df = snapshot_df.sort_values(["Year", "Month", "_sort_order"]).drop(columns=["_sort_order"])
+        if "_sort_order" in deliverable_df.columns:
+            deliverable_df = deliverable_df.sort_values(["Year", "Month", "_sort_order"]).drop(columns=["_sort_order"])
         
         # Save snapshot
         snapshot_df.to_csv(out_csv_full, index=False)

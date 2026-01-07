@@ -44,7 +44,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Housing Loans Aprc": to_f(row[59]),
             "Delta Interest Rate Deposits": to_f(row[60]),
             "Weighted Average Interest Rate New Loans In Euro": to_f(row[1]),
-            "Group": "", "Loan Type": ""
+            "Group": "", "Loan Type": "",
+            "_sort_order": 0
         })
         
         # Segment 1: Individuals | Weighted average interest rate
@@ -52,7 +53,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[2])
+            "Weighted Average Interest Rate": to_f(row[2]),
+            "_sort_order": 1
         })
         
         # Segment 2: Individuals | Loans without a defined maturity
@@ -62,7 +64,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Loan Type": "Loans without a defined maturity",
             "Credit Cards": to_f(row[3]),
             "Open Account Loans": to_f(row[4]),
-            "Debit Balances On Current Accounts": to_f(row[5])
+            "Debit Balances On Current Accounts": to_f(row[5]),
+            "_sort_order": 2
         })
         
         # Segment 3: Individuals | Consumer loans with a defined maturity
@@ -73,9 +76,10 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[7]),
             "Total Collateral Guarantees Interest Rates": to_f(row[6]),
             "Floating Rate 1 Year Fixation": to_f(row[9]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[6]), # Example matches Col 6
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[6]), 
             "Over 1 To 5 Years Rate Fixation": to_f(row[10]),
-            "Over 5 Years Rate Fixation": to_f(row[11])
+            "Over 5 Years Rate Fixation": to_f(row[11]),
+            "_sort_order": 3
         })
         
         # Segment 4: Individuals | Housing loans
@@ -86,7 +90,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[13]),
             "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[14]),
             "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[15]),
-            "Over 1 To 5 Years Rate Fixation": to_f(row[17])
+            "Over 1 To 5 Years Rate Fixation": to_f(row[17]),
+            "_sort_order": 4
         })
         
         # Segment 5: Sole proprietors | Loans with a defined maturity
@@ -97,7 +102,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[21]),
             "Total Collateral Guarantees Interest Rates": to_f(row[22]),
             "Floating Rate 1 Year Fixation": to_f(row[23]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[24])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[24]),
+            "_sort_order": 5
         })
         
         # Segment 6: Sole proprietors | Loans without a defined maturity
@@ -105,7 +111,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Year": year, "Month": month,
             "Group": "Sole proprietors and unicorporated businesses",
             "Loan Type": "Loans without a defined maturity (Credit lines - open account loans)",
-            "Credit Lines": to_f(row[20])
+            "Credit Lines": to_f(row[20]),
+            "_sort_order": 6
         })
         
         # Segment 7: Sole proprietors | Weighted average interest rate
@@ -113,7 +120,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Year": year, "Month": month,
             "Group": "Sole proprietors and unicorporated businesses",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[25])
+            "Weighted Average Interest Rate": to_f(row[25]),
+            "_sort_order": 7
         })
 
         # Segment 8: Non-financial corporations | Weighted average interest rate
@@ -121,7 +129,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[28])
+            "Weighted Average Interest Rate": to_f(row[28]),
+            "_sort_order": 8
         })
         
         # Segment 9: Non-financial corporations | Loans without a defined maturity
@@ -132,7 +141,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[29]),
             "Total Small Medium Enterprises Interest Rates": to_f(row[30]),
             "Credit Lines": to_f(row[31]),
-            "Debit Balances Sight Deposits": to_f(row[32])
+            "Debit Balances Sight Deposits": to_f(row[32]),
+            "_sort_order": 9
         })
         
         # Segment 10: Non-financial corporations | Up to 0.25
@@ -143,7 +153,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[38]),
             "Total Collateral Guarantees Interest Rates": to_f(row[39]),
             "Floating Rate 1 Year Fixation": to_f(row[40]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[41])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[41]),
+            "_sort_order": 10
         })
         
         # Segment 11: Non-financial corporations | 0.25 to 1
@@ -154,7 +165,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Total Interest Rate": to_f(row[42]),
             "Total Collateral Guarantees Interest Rates": to_f(row[43]),
             "Floating Rate 1 Year Fixation": to_f(row[44]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[45])
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[45]),
+            "_sort_order": 11
         })
         
         # Segment 12: Non-financial corporations | Over 1
@@ -167,7 +179,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Floating Rate 1 Year Fixation": to_f(row[48]),
             "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[49]),
             "Over 1 To 5 Years Rate Fixation": to_f(row[50]),
-            "Over 5 Years Rate Fixation": to_f(row[51])
+            "Over 5 Years Rate Fixation": to_f(row[51]),
+            "_sort_order": 12
         })
 
     out = pd.DataFrame(records)
@@ -186,7 +199,8 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
         "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
         "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
         "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation", 
-        "Credit Lines", "Debit Balances Sight Deposits"
+        "Credit Lines", "Debit Balances Sight Deposits",
+        "_sort_order"
     ]
     for c in cols:
         if c not in out.columns:
