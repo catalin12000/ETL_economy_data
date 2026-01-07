@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ETL System – Interactive Diagram & Deep Dive</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --text:#e7ecff;
+      --muted:#aab6ff;
+      --border:#2a3a7a;
+      --accent:#7aa2ff;
+      --accent2:#72ffd2;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --good:#66ff9a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 800px at 20% 10%, #14204a 0%, var(--bg) 50%),
+                  radial-gradient(1000px 600px at 80% 30%, #0d3a44 0%, var(--bg) 55%);
+      color:var(--text);
+    }
+    header{
+      padding:22px 18px 14px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(10px);
+    }
+    h1{margin:0 0 6px 0; font-size:20px; letter-spacing:.2px}
+    .sub{color:var(--muted); font-size:13px; line-height:1.35}
+    .wrap{padding:16px 18px 36px; max-width:1200px; margin:0 auto}
+    .grid{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap:14px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:14px;
+      padding:14px;
+      box-shadow: var(--shadow);
+    }
+    .card h2{
+      margin:0 0 10px 0;
+      font-size:15px;
+      color:var(--text);
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .pill{
+      display:inline-flex;
+      padding:3px 9px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.14);
+      color:var(--muted);
+      background: rgba(10,15,40,.35);
+    }
+    .legend{
+      display:flex; flex-wrap:wrap; gap:8px;
+      margin-top:8px;
+    }
+    .legend .k{
+      display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(255,255,255,.09);
+      background: rgba(10,15,40,.32);
+      padding:6px 10px;
+      border-radius:10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .dot{width:10px; height:10px; border-radius:50%}
+    .dot.core{background:var(--accent)}
+    .dot.pipe{background:var(--accent2)}
+    .dot.data{background:var(--warn)}
+    .dot.state{background:#c19bff}
+    .dot.rob{background:#ff8ff0}
+    .dot.err{background:var(--bad)}
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 0}
+    button{
+      cursor:pointer;
+      color:var(--text);
+      background: rgba(122,162,255,.14);
+      border:1px solid rgba(122,162,255,.28);
+      padding:8px 10px;
+      border-radius:10px;
+      font-size:12px;
+    }
+    button:hover{background: rgba(122,162,255,.2)}
+    button.secondary{
+      background: rgba(114,255,210,.12);
+      border-color: rgba(114,255,210,.25);
+    }
+    button.ghost{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.12);
+    }
+    .mono{font-family:var(--mono); font-size:12px; color:#dbe3ff}
+    .small{font-size:12px; color:var(--muted); line-height:1.45}
+    details{
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(10,15,40,.26);
+      border-radius:12px;
+      padding:10px 10px;
+      margin-top:10px;
+    }
+    details > summary{
+      cursor:pointer;
+      list-style:none;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:var(--text);
+      font-size:13px;
+    }
+    details > summary::-webkit-details-marker{display:none}
+    details[open]{background: rgba(10,15,40,.34)}
+    .tag{
+      display:inline-flex;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .hr{height:1px; background:rgba(255,255,255,.08); margin:12px 0}
+    .kv{
+      display:grid;
+      grid-template-columns: 170px 1fr;
+      gap:8px 12px;
+      font-size:12px;
+      align-items:start;
+    }
+    .kv div:nth-child(odd){color:var(--muted)}
+    code{
+      font-family:var(--mono);
+      font-size:12px;
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.12);
+      padding:2px 6px;
+      border-radius:8px;
+    }
+    pre{
+      margin:10px 0 0;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      padding:10px;
+      border-radius:12px;
+      overflow:auto;
+      color:#eaf0ff;
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    /* Modal */
+    .modal{
+      position:fixed; inset:0; display:none;
+      background: rgba(0,0,0,.55);
+      z-index:1000;
+      padding:18px;
+    }
+    .modal.open{display:block}
+    .modal .panel{
+      max-width: 920px;
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:16px;
+      box-shadow: var(--shadow);
+      padding:14px;
+      max-height: calc(100vh - 36px);
+      overflow:auto;
+    }
+    .modal .topbar{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding-bottom:10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .modal h3{margin:0; font-size:15px}
+    .close{
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.14);
+      padding:6px 10px;
+      border-radius:10px;
+      font-size:12px;
+    }
+    .cols2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+    @media (max-width: 900px){ .cols2{grid-template-columns:1fr} }
+    .box{
+      background: rgba(10,15,40,.34);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:12px;
+      padding:12px;
+    }
+    .box h4{margin:0 0 8px 0; font-size:13px}
+    .ul{
+      margin:0;
+      padding-left:18px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    /* Diagram */
+    .diagramWrap{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      overflow:hidden;
+      background: rgba(10,15,40,.22);
+    }
+    svg{display:block; width:100%; height:auto}
+    .node{cursor:pointer}
+    .node rect{
+      fill: rgba(17,26,51,.95);
+      stroke: rgba(122,162,255,.55);
+      stroke-width: 1.3;
+      rx: 12; ry: 12;
+    }
+    .node.core rect{stroke: rgba(122,162,255,.72)}
+    .node.pipe rect{stroke: rgba(114,255,210,.55)}
+    .node.data rect{stroke: rgba(255,204,102,.60)}
+    .node.state rect{stroke: rgba(193,155,255,.65)}
+    .node.rob rect{stroke: rgba(255,143,240,.60)}
+    .node text{fill: var(--text); font-size: 12px}
+    .node .subtext{fill: var(--muted); font-size: 11px}
+    .edge{stroke: rgba(231,236,255,.30); stroke-width:1.4; fill:none; marker-end:url(#arrow)}
+    .edge.emph{stroke: rgba(114,255,210,.55)}
+    .edge.warn{stroke: rgba(255,204,102,.60)}
+    .hint{
+      font-size:12px; color:var(--muted);
+      margin-top:10px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>ETL System – Interactive Architecture Diagram</h1>
+  <div class="sub">
+    Click any box in the diagram to open a deep-dive panel. This view is designed to explain robustness, libraries, artifacts, and run behavior.
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- LEFT: Diagram -->
+    <div class="card">
+      <h2>System Diagram <span class="pill">interactive SVG</span></h2>
+
+      <div class="diagramWrap" aria-label="ETL Diagram">
+        <svg viewBox="0 0 1100 560" role="img">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(231,236,255,.35)"></path>
+            </marker>
+          </defs>
+
+          <!-- Nodes -->
+          <g class="node core" data-modal="core">
+            <rect x="60" y="50" width="260" height="86"></rect>
+            <text x="80" y="82">Runner / Orchestrator</text>
+            <text class="subtext" x="80" y="106">loads pipeline → passes state → saves results</text>
+          </g>
+
+          <g class="node state" data-modal="state">
+            <rect x="60" y="170" width="260" height="86"></rect>
+            <text x="80" y="202">State Store</text>
+            <text class="subtext" x="80" y="226">per pipeline JSON checkpoint</text>
+          </g>
+
+          <g class="node pipe" data-modal="pipeline">
+            <rect x="380" y="50" width="300" height="86"></rect>
+            <text x="400" y="82">Pipeline (example: CBC New Loans)</text>
+            <text class="subtext" x="400" y="106">discover → download → hash → extract → compare → deliver</text>
+          </g>
+
+          <g class="node core" data-modal="download">
+            <rect x="740" y="40" width="300" height="96"></rect>
+            <text x="760" y="72">Core: Download + Fingerprint</text>
+            <text class="subtext" x="760" y="96">requests → file → SHA-256</text>
+            <text class="subtext" x="760" y="118">change detection (skip/verify/deliver)</text>
+          </g>
+
+          <g class="node pipe" data-modal="extractor">
+            <rect x="740" y="170" width="300" height="86"></rect>
+            <text x="760" y="202">Extractor</text>
+            <text class="subtext" x="760" y="226">Excel → clean DataFrame (Year/Month + metrics)</text>
+          </g>
+
+          <g class="node core" data-modal="compare">
+            <rect x="740" y="290" width="300" height="96"></rect>
+            <text x="760" y="322">Core: Compare + Update</text>
+            <text class="subtext" x="760" y="346">key-based diff (Year+Month)</text>
+            <text class="subtext" x="760" y="368">writes snapshot + report + deliverables</text>
+          </g>
+
+          <g class="node data" data-modal="artifacts">
+            <rect x="380" y="300" width="300" height="120"></rect>
+            <text x="400" y="332">Artifacts</text>
+            <text class="subtext" x="400" y="356">downloads/  outputs/  reports/  db/</text>
+            <text class="subtext" x="400" y="378">PDF/XLS → CSV snapshot → new_entries.csv</text>
+            <text class="subtext" x="400" y="400">update_report.csv (audit trail)</text>
+          </g>
+
+          <g class="node rob" data-modal="robustness">
+            <rect x="60" y="300" width="260" height="120"></rect>
+            <text x="80" y="332">Robustness Guarantees</text>
+            <text class="subtext" x="80" y="356">fail-fast + deterministic parsing</text>
+            <text class="subtext" x="80" y="378">hash + diff checks</text>
+            <text class="subtext" x="80" y="400">traceable runs (state + reports)</text>
+          </g>
+
+          <!-- Edges -->
+          <path class="edge" d="M 320 93 C 350 93, 350 93, 380 93"></path>
+          <path class="edge" d="M 190 136 C 190 155, 190 155, 190 170"></path>
+          <path class="edge emph" d="M 380 93 C 700 93, 700 93, 740 93"></path>
+          <path class="edge emph" d="M 680 93 C 710 150, 710 150, 740 210"></path>
+          <path class="edge" d="M 890 256 C 890 275, 890 275, 890 290"></path>
+          <path class="edge warn" d="M 740 338 C 670 338, 670 338, 680 360 C 700 400, 520 420, 380 360"></path>
+          <path class="edge" d="M 320 213 C 350 213, 350 213, 380 93"></path>
+          <path class="edge" d="M 320 343 C 350 343, 350 343, 380 360"></path>
+        </svg>
+      </div>
+
+      <div class="hint">Tip: Click boxes like <span class="tag">Runner</span>, <span class="tag">Pipeline</span>, <span class="tag">Extractor</span>, <span class="tag">Compare</span> to see detailed internals.</div>
+
+      <div class="legend">
+        <div class="k"><span class="dot core"></span> Core framework</div>
+        <div class="k"><span class="dot pipe"></span> Pipeline / Extractor</div>
+        <div class="k"><span class="dot data"></span> Artifacts / datasets</div>
+        <div class="k"><span class="dot state"></span> State / checkpoints</div>
+        <div class="k"><span class="dot rob"></span> Robustness controls</div>
+      </div>
+
+      <div class="btnrow">
+        <button class="ghost" onclick="openModal('pipeline')">Open Pipeline Details</button>
+        <button class="secondary" onclick="openModal('robustness')">Show Robustness Proof Points</button>
+        <button onclick="openModal('libraries')">Libraries & Responsibilities</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Deep navigation / outline -->
+    <div class="card">
+      <h2>System Deep-Dive Index <span class="pill">expandable</span></h2>
+      <div class="small">
+        This index is structured the same way we describe the ETL to stakeholders: lifecycle → modules → artifacts → guarantees.
+      </div>
+
+      <details open>
+        <summary>Lifecycle of a Run <span class="tag">discover → download → extract → diff → deliver</span></summary>
+        <div class="hr"></div>
+        <ol class="small">
+          <li><b>Runner</b> loads pipeline and last known <b>state</b>.</li>
+          <li><b>Pipeline</b> discovers the latest source (dynamic or static URLs).</li>
+          <li><b>Downloader</b> fetches the file(s) to a predictable folder.</li>
+          <li><b>Fingerprint</b> computes SHA-256 to detect source changes.</li>
+          <li><b>Extractor</b> converts raw XLS/PDF into a clean table (DataFrame).</li>
+          <li><b>Comparator</b> merges against baseline DB and emits:
+            <ul>
+              <li>full snapshot (updated DB)</li>
+              <li>diff deliverable (only changes)</li>
+              <li>audit report (exact updates)</li>
+            </ul>
+          </li>
+          <li><b>State</b> is updated with hashes, URLs used, output paths, counts, timestamps.</li>
+          <li>Status becomes <b>skipped</b>, <b>verified</b>, or <b>delivered</b>.</li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>Artifact Layout on Disk <span class="tag">predictable paths</span></summary>
+        <div class="hr"></div>
+        <pre>
+data/
+  downloads/
+    cy_13_cy_13_new_loans_millions/
+      cbc_mfs_monetary_statistics.xls
+  db/
+    2008_Ed_New_Loans_Millions_2025.csv
+  outputs/
+    cy_13_cy_13_new_loans_millions/
+      mock_db_snapshot.csv
+      new_entries.csv
+  reports/
+    cy_13_cy_13_new_loans_millions/
+      update_report.csv
+  state/
+    cy_13_new_loans_millions.json
+        </pre>
+      </details>
+
+      <details>
+        <summary>Statuses & Meaning <span class="tag">operations</span></summary>
+        <div class="hr"></div>
+        <div class="kv">
+          <div><b>skipped</b></div><div>File hash unchanged AND no data diffs. No deliverables generated.</div>
+          <div><b>verified</b></div><div>Checked successfully; outputs match baseline (no diffs), but run was executed (useful when a source republishes).</div>
+          <div><b>delivered</b></div><div>New rows or revised values detected; deliverables + audit report created.</div>
+          <div><b>error</b></div><div>Source structure changed or required link/file missing; fail-fast to avoid silent bad data.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Libraries Used <span class="tag">requests · bs4 · pandas · pathlib · re</span></summary>
+        <div class="hr"></div>
+        <div class="kv">
+          <div><b>requests</b></div><div>Fetches HTML pages and downloads files; uses timeouts and status checks.</div>
+          <div><b>BeautifulSoup</b></div><div>Parses HTML robustly to find links (e.g., Year pages, MFS xls).</div>
+          <div><b>pandas</b></div><div>Reads Excel sheets, builds DataFrames, writes CSV deliverables.</div>
+          <div><b>pathlib</b></div><div>Predictable cross-platform file paths and directory management.</div>
+          <div><b>re</b></div><div>Regex used for robust extraction of years and month tokens.</div>
+          <div><b>SHA-256</b></div><div>Cryptographic fingerprint to prove byte-level change detection.</div>
+        </div>
+        <div class="btnrow">
+          <button onclick="openModal('libraries')">Open full library breakdown</button>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal" id="modal">
+  <div class="panel" role="dialog" aria-modal="true" aria-label="ETL Details Panel">
+    <div class="topbar">
+      <h3 id="modalTitle">Details</h3>
+      <button class="close" onclick="closeModal()">Close</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+
+  function openModal(key){
+    const data = PANELS[key] || PANELS['default'];
+    modalTitle.textContent = data.title;
+    modalBody.innerHTML = data.html;
+    modal.classList.add('open');
+  }
+  function closeModal(){ modal.classList.remove('open'); }
+
+  // Click diagram nodes
+  document.querySelectorAll('.node').forEach(n=>{
+    n.addEventListener('click', ()=> openModal(n.dataset.modal));
+  });
+
+  // close on background click
+  modal.addEventListener('click', (e)=>{
+    if(e.target === modal) closeModal();
+  });
+
+  const PANELS = {
+    default: {
+      title: "ETL Details",
+      html: "<p class='small'>Select a component from the diagram.</p>"
+    },
+
+    core: {
+      title: "Runner / Orchestrator (Core System)",
+      html: `
+        <div class="cols2">
+          <div class="box">
+            <h4>Responsibility</h4>
+            <ul class="ul">
+              <li>Discovers available pipelines.</li>
+              <li>Loads the selected pipeline module (dynamic import).</li>
+              <li>Loads last pipeline state (JSON).</li>
+              <li>Calls <code>Pipeline.run(state)</code>.</li>
+              <li>Stores returned state + standardized run metadata.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Why this is robust</h4>
+            <ul class="ul">
+              <li>One consistent lifecycle for all sources (ELSTAT, BoG, CBC, etc.).</li>
+              <li>Errors are captured as status + message; state still records context.</li>
+              <li>Uniform outputs enable monitoring across all pipelines.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div class="small">
+          The key contract: a pipeline returns a dict containing:
+          <code>{status, message, state}</code>.
+          That makes each pipeline independently testable and operationally consistent.
+        </div>
+      `
+    },
+
+    state: {
+      title: "State Store (Per-Pipeline Checkpoints)",
+      html: `
+        <div class="cols2">
+          <div class="box">
+            <h4>What is stored</h4>
+            <ul class="ul">
+              <li>Source URL(s) used during the run</li>
+              <li>Downloaded file path(s)</li>
+              <li>SHA-256 hashes (fingerprints)</li>
+              <li>Row/cell diff metrics (new rows, updated cells)</li>
+              <li>Output artifact paths (deliverables, reports)</li>
+              <li>Timestamps for audit</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Why it matters</h4>
+            <ul class="ul">
+              <li>Enables incremental runs and change detection.</li>
+              <li>Supports reproducibility: “Which exact file created this output?”</li>
+              <li>Makes failures diagnosable (state shows last good run + last source URL).</li>
+            </ul>
+          </div>
+        </div>
+      `
+    },
+
+    pipeline: {
+      title: "Pipeline (CBC New Loans) – Orchestration Logic",
+      html: `
+        <div class="box">
+          <h4>Pipeline run sequence</h4>
+          <ol class="ul">
+            <li>Fetch CBC root publications page</li>
+            <li>Parse HTML, find all links containing <code>year-YYYY</code>, select latest year</li>
+            <li>Fetch latest-year page, find the MFS Excel (<code>MFS_*.xls</code>) link</li>
+            <li>Download file → compute SHA-256 hash</li>
+            <li>Extract normalized data (Year/Month + metrics) using extractor</li>
+            <li>Compare to baseline DB using key columns (Year, Month)</li>
+            <li>Generate deliverables: snapshot + new_entries + report</li>
+            <li>Update state and return status</li>
+          </ol>
+        </div>
+
+        <div class="cols2">
+          <div class="box">
+            <h4>Statuses</h4>
+            <ul class="ul">
+              <li><b>skipped</b>: no new file hash and no data diffs</li>
+              <li><b>delivered</b>: new rows or updated values detected</li>
+              <li><b>error</b>: expected links missing → fail-fast</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Key inputs / outputs</h4>
+            <ul class="ul">
+              <li><b>Input:</b> CBC website + MFS Excel</li>
+              <li><b>Baseline DB:</b> reference CSV in <code>data/db</code></li>
+              <li><b>Output:</b> <code>new_entries.csv</code> (diff deliverable)</li>
+              <li><b>Audit:</b> <code>update_report.csv</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="small">
+          The core design idea: pipeline code is small, readable orchestration;
+          heavy lifting is delegated to reusable modules (download/hash/compare) and a dataset-specific extractor.
+        </div>
+      `
+    },
+
+    download: {
+      title: "Core: Download + Fingerprint",
+      html: `
+        <div class="cols2">
+          <div class="box">
+            <h4>Download responsibilities</h4>
+            <ul class="ul">
+              <li>HTTP GET (with headers / user-agent)</li>
+              <li>Stream file to disk to avoid memory spikes</li>
+              <li>Capture metadata (timestamp, etc.)</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Fingerprint responsibilities</h4>
+            <ul class="ul">
+              <li>Compute SHA-256 for downloaded file</li>
+              <li>Compare with previous run’s hash in state</li>
+              <li>Decide “unchanged vs changed” objectively</li>
+            </ul>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div class="small">
+          Why SHA-256 is a robustness win: it’s content-based. Even if the source keeps the same filename/URL,
+          we can prove whether bytes changed.
+        </div>
+      `
+    },
+
+    extractor: {
+      title: "Extractor (Excel → Clean DataFrame)",
+      html: `
+        <div class="box">
+          <h4>What it does</h4>
+          <ul class="ul">
+            <li>Reads specific sheets: <code>T12</code>, <code>T9</code>, <code>T6.1</code>, <code>T6.2</code>, <code>T6.3</code></li>
+            <li>Builds a time index by scanning Year + Month labels</li>
+            <li>Maps month abbreviations (Jan., Feb., …) to month numbers</li>
+            <li>Extracts specific columns per sheet into named indicators</li>
+            <li>Creates one canonical table sorted by Year and Month</li>
+          </ul>
+        </div>
+
+        <div class="cols2">
+          <div class="box">
+            <h4>Determinism & correctness</h4>
+            <ul class="ul">
+              <li>Fixed sheet names and fixed column mappings.</li>
+              <li>Rounds numeric values and treats missing values consistently.</li>
+              <li>Produces stable output schema for downstream comparison.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Output schema (example)</h4>
+            <pre>
+Year, Month,
+Consumer_Pure_New_Loans,
+Consumer_Renegotiated_Loans,
+Housing_Pure_New_Loans,
+Housing_Renegotiated_Loans,
+... (rates + outstanding amounts)
+            </pre>
+          </div>
+        </div>
+      `
+    },
+
+    compare: {
+      title: "Core: Compare + Update (Diff Engine)",
+      html: `
+        <div class="box">
+          <h4>How comparison works</h4>
+          <ul class="ul">
+            <li>Load baseline DB CSV (“what we already have”).</li>
+            <li>Use key columns (here: <code>Year</code> + <code>Month</code>) to align rows.</li>
+            <li>Detect:
+              <ul>
+                <li><b>new rows</b> (new periods)</li>
+                <li><b>updated cells</b> (revisions to existing periods)</li>
+              </ul>
+            </li>
+            <li>Write:
+              <ul>
+                <li>Updated snapshot CSV (full dataset)</li>
+                <li>Update report CSV (audit trail)</li>
+                <li>Diff deliverable (only changed/new records)</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div class="cols2">
+          <div class="box">
+            <h4>Why this is robust</h4>
+            <ul class="ul">
+              <li>Key-based alignment prevents accidental duplication.</li>
+              <li>Cell-level diffs catch historical revisions.</li>
+              <li>Audit report proves exactly what changed.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Operational metrics</h4>
+            <ul class="ul">
+              <li><code>rows_before</code>, <code>rows_after</code></li>
+              <li><code>new_rows</code></li>
+              <li><code>updated_cells</code></li>
+            </ul>
+          </div>
+        </div>
+      `
+    },
+
+    artifacts: {
+      title: "Artifacts (What gets produced and where)",
+      html: `
+        <div class="box">
+          <h4>Artifacts are deliberate and reproducible</h4>
+          <div class="kv">
+            <div><b>Downloads</b></div><div>Raw source files (xls/pdf) saved under <code>data/downloads/</code></div>
+            <div><b>DB</b></div><div>Baseline reference CSVs in <code>data/db/</code></div>
+            <div><b>Outputs</b></div><div>Updated snapshot and deliverables in <code>data/outputs/</code></div>
+            <div><b>Reports</b></div><div>Audit reports in <code>data/reports/</code></div>
+            <div><b>State</b></div><div>Per-pipeline checkpoints in <code>data/state/</code></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="small">
+          These artifacts make the ETL provable: you can always point to
+          “this download (hash X) produced this deliverable (report Y)”.
+        </div>
+      `
+    },
+
+    robustness: {
+      title: "Robustness – How we prove it works reliably",
+      html: `
+        <div class="cols2">
+          <div class="box">
+            <h4>Controls against silent failure</h4>
+            <ul class="ul">
+              <li><b>Fail-fast:</b> if expected links/files aren’t found, return <code>error</code>.</li>
+              <li><b>HTTP checks:</b> status validation + timeouts (prevents hanging).</li>
+              <li><b>Deterministic extraction:</b> fixed sheet/column mapping.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Controls against false updates</h4>
+            <ul class="ul">
+              <li><b>SHA-256 hash:</b> proves whether the source file changed.</li>
+              <li><b>Data diff engine:</b> proves whether values actually changed.</li>
+              <li><b>Statuses:</b> <code>skipped</code> vs <code>verified</code> vs <code>delivered</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="cols2">
+          <div class="box">
+            <h4>Auditability / traceability</h4>
+            <ul class="ul">
+              <li>State records URLs used, hashes, timestamps, and output paths.</li>
+              <li>Report CSV records what rows/cells changed.</li>
+              <li>Outputs are generated to predictable folders.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Maintainability / scalability</h4>
+            <ul class="ul">
+              <li>Common logic lives in core modules (download/hash/compare).</li>
+              <li>Each source gets a small pipeline and a focused extractor.</li>
+              <li>Adding a new dataset follows the same template.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="small">
+          The “proof” is not a claim — it’s measurable outputs: hashes, diffs, reports, and stored state for every run.
+        </div>
+      `
+    },
+
+    libraries: {
+      title: "Libraries & Responsibilities (What we use and why)",
+      html: `
+        <div class="cols2">
+          <div class="box">
+            <h4>Networking / Web</h4>
+            <ul class="ul">
+              <li><b>requests</b>: HTTP GET for pages and files; supports timeouts + status checking.</li>
+              <li><b>BeautifulSoup (bs4)</b>: HTML parsing to reliably extract links (avoids fragile string slicing).</li>
+              <li><b>re</b>: regex for year token extraction and month label detection.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h4>Data & Files</h4>
+            <ul class="ul">
+              <li><b>pandas</b>: Excel parsing, table assembly (DataFrame), CSV outputs.</li>
+              <li><b>pathlib</b>: consistent filesystem paths and directory creation.</li>
+              <li><b>hashlib</b> (via helper): SHA-256 fingerprints for change detection.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:12px">
+          <h4>Design principle: Separation of concerns</h4>
+          <ul class="ul">
+            <li>Core modules handle generic reliability: download, hash, compare.</li>
+            <li>Pipelines orchestrate and define dataset-specific rules.</li>
+            <li>Extractors isolate parsing logic for each source’s unique layout.</li>
+          </ul>
+        </div>
+      `
+    }
+  };
+</script>
+</body>
+</html>

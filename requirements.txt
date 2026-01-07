@@ -1,6 +1,7 @@
-﻿requests
+requests
 pandas
 openpyxl
 pdfplumber
 lxml
 tabulate
+xlrd>=2.0.1

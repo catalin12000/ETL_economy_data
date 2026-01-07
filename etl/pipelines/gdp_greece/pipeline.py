@@ -3,8 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any
 
+import pandas as pd
+
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from etl.core.compare_csv import compare_and_update_csv
+from .extract import extract_gdp
+
 
 class Pipeline:
     pipeline_id = "gdp_greece"
@@ -60,15 +65,62 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash):
+        # 5) Extract
+        print(f"Extracting GDP data from {out_path}...")
+        try:
+            df_new = extract_gdp(out_path)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Extraction failed: {str(e)}",
+                "state": new_state,
+            }
+
+        # 6) Sync with Baseline DB
+        db_path = Path("data/db") / f"{self.pipeline_id}.csv"
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
+        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+
+        print(f"Comparing with baseline DB {db_path}...")
+        res = compare_and_update_csv(
+            db_csv_path=db_path,
+            extracted_df=df_new,
+            out_csv_path=out_csv_full,
+            report_csv_path=report_csv,
+            key_cols=["Year", "Quarter"]
+        )
+
+        # 7) Create Deliverables
+        output_file = output_dir / "new_entries.csv"
+        
+        # Save snapshot
+        res.updated_df.to_csv(out_csv_full, index=False)
+        
+        # Save diff (Deliverable)
+        if not res.diff_df.empty:
+            res.diff_df.to_csv(output_file, index=False)
+        else:
+            pd.DataFrame(columns=res.updated_df.columns).to_csv(output_file, index=False)
+
+        new_state.update({
+            "rows_before": res.rows_before,
+            "rows_after": res.rows_after,
+            "new_rows": res.new_rows,
+            "updated_cells": res.updated_cells,
+            "deliverable_path": str(output_file),
+            "mock_db_snapshot_path": str(out_csv_full),
+        })
+
+        if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0:
             return {
                 "status": "skipped",
-                "message": f"No new file detected for {self.pipeline_id} (same file SHA256).",
+                "message": f"No new data detected (same file SHA256).",
                 "state": new_state,
             }
 
         return {
             "status": "delivered",
-            "message": f"Downloaded to {out_path}",
+            "message": f"Extracted {len(df_new)} rows. {res.new_rows} new, {res.updated_cells} updates. Deliverables generated.",
             "state": new_state,
         }
