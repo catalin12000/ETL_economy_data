@@ -65,14 +65,24 @@ class Pipeline:
         # Create Deliverables
         output_file = output_dir / "new_entries.csv"
         
+        # Enforce exact column order
+        final_cols = [
+            "Year", "Month", "Group", "Loan Type", "Total Loan Amount", 
+            "Total Collateral Guarantees Loans", "Total Small Medium Enterprises Loans", 
+            "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
+            "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
+            "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation"
+        ]
+
+        # Reorder columns
+        snapshot_df = res.updated_df.reindex(columns=final_cols)
+        deliverable_df = res.diff_df.reindex(columns=final_cols) if not res.diff_df.empty else pd.DataFrame(columns=final_cols)
+        
         # Save snapshot
-        res.updated_df.to_csv(out_csv_full, index=False)
+        snapshot_df.to_csv(out_csv_full, index=False)
         
         # Save diff (Deliverable)
-        if not res.diff_df.empty:
-            res.diff_df.to_csv(output_file, index=False)
-        else:
-            pd.DataFrame(columns=res.updated_df.columns).to_csv(output_file, index=False)
+        deliverable_df.to_csv(output_file, index=False)
 
         new_state.update({
             "rows_before": res.rows_before,
