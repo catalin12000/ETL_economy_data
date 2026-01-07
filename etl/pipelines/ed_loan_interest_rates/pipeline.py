@@ -70,7 +70,7 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month"]
+            key_cols=["Year", "Month", "Group", "Loan Type"]
         )
 
         # Create Deliverables

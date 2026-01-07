@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 def _engine_for(path: Path) -> str:
@@ -14,85 +15,138 @@ def _engine_for(path: Path) -> str:
 
 def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
     file_path = Path(file_path)
-    # Load sheet 'Loans_Amounts'
-    # Header rows: 3, 4, 5, 6, 7 (0-indexed) -> Excel rows 4-8
-    # Data starts at row 8 (Excel row 9)
-    
     df = pd.read_excel(file_path, sheet_name="Loans_Amounts", header=None, engine=_engine_for(file_path))
     
-    # 1. Parse Headers (Rows 3-7)
-    header_rows = df.iloc[3:8].copy()
+    # Data starts at row 8
+    data_rows = df.iloc[8:].copy()
     
-    # Forward fill headers horizontally to handle merged cells
-    header_rows = header_rows.ffill(axis=1)
+    # Parse Date
+    data_rows[0] = pd.to_datetime(data_rows[0], errors='coerce')
+    data_rows = data_rows.dropna(subset=[0])
     
-    # Construct column names
-    raw_columns = []
-    for col_idx in range(df.shape[1]):
-        if col_idx == 0:
-            raw_columns.append("Date_Raw")
-            continue
-            
-        parts = []
-        for row_idx in range(3, 8):
-            val = df.iloc[row_idx, col_idx]
-            if pd.notna(val) and str(val).strip():
-                parts.append(str(val).strip())
-        
-        # Join parts to form a unique name
-        col_name = " | ".join(parts)
-        # Clean up
-        col_name = col_name.replace("\n", " ").replace("  ", " ")
-        if not col_name:
-            col_name = f"Unknown_{col_idx}"
-        raw_columns.append(col_name)
+    records = []
+    
+    def to_f(val):
+        try:
+            f = float(val)
+            return f if not np.isnan(f) else None
+        except:
+            return None
 
-    # Deduplicate columns
-    seen = {}
-    unique_columns = []
-    for c in raw_columns:
-        if c not in seen:
-            seen[c] = 0
-            unique_columns.append(c)
-        else:
-            seen[c] += 1
-            unique_columns.append(f"{c}___{seen[c]}")
-
-    # 2. Extract Data (Row 8 onwards)
-    data = df.iloc[8:].copy()
-    data.columns = unique_columns
-    
-    # Filter out rows where Date is missing
-    data = data.dropna(subset=["Date_Raw"])
-    
-    # 3. Process Date
-    data["Date_Raw"] = pd.to_datetime(data["Date_Raw"], errors='coerce')
-    data = data.dropna(subset=["Date_Raw"])
-    
-    data["Year"] = data["Date_Raw"].dt.year
-    data["Month"] = data["Date_Raw"].dt.month
-    
-    # 4. Clean Numeric Columns
-    # All columns except Date_Raw, Year, Month are amounts
-    amount_cols = [c for c in unique_columns if c not in ("Date_Raw", "Year", "Month")]
-    
-    # Use a dictionary to build the DataFrame
-    cleaned_dict = {
-        "Year": data["Year"].astype(int),
-        "Month": data["Month"].astype(int)
-    }
-    
-    for col in amount_cols:
-        # Force numeric, coerce errors to NaN
-        series = pd.to_numeric(data[col], errors='coerce')
+    for _, row in data_rows.iterrows():
+        year = int(row[0].year)
+        month = int(row[0].month)
         
-        # Drop columns that are completely empty
-        if not series.isna().all():
-            cleaned_dict[col] = series
+        # 1. Individuals | Consumer loans with a defined maturity
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Individuals and private non-profit institutions",
+            "Loan Type": "Consumer loans with a defined maturity",
+            "Total Loan Amount": to_f(row[1]),
+            "Total Collateral Guarantees Loans": to_f(row[2]),
+            "Floating Rate 1 Year Fixation": to_f(row[3]),
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[4]),
+            "Over 1 To 5 Years Rate Fixation": to_f(row[5]),
+            "Over 5 Years Rate Fixation": to_f(row[6])
+        })
+        
+        # 2. Individuals | Housing Loans
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Individuals and private non-profit institutions",
+            "Loan Type": "Housing Loans",
+            "Total Loan Amount": to_f(row[7]),
+            "Floating Rate 1 Year Fixation": to_f(row[8]),
+            "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[9]),
+            "Over 10 Years Rate Fixation": to_f(row[11])
+        })
+
+        # 3. Individuals | Loans with a defined maturity
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Individuals and private non-profit institutions",
+            "Loan Type": "Loans with a defined maturity"
+        })
+
+        # 4. Non-financial corporations | Other loans with defined maturity
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Other loans with defined maturity",
+            "Total Loan Amount": to_f(row[20]),
+            "Total Small Medium Enterprises Loans": to_f(row[21])
+        })
+        
+        # 5. NFC | Up to 1M | 0.25 to 1
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and over an amount of EUR 0.25 million and up to 1 million",
+            "Total Loan Amount": to_f(row[25]),
+            "Total Collateral Guarantees Loans": to_f(row[26]),
+            "Floating Rate 1 Year Fixation": to_f(row[27]),
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[28])
+        })
+        
+        # 6. NFC | Up to 1M | Up to 0.25
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and up to an amount of EUR 0.25",
+            "Total Loan Amount": to_f(row[29]),
+            "Total Collateral Guarantees Loans": to_f(row[30]),
+            "Floating Rate 1 Year Fixation": to_f(row[31]),
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[32])
+        })
+
+        # 7. NFC | Over 1M
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with a defined maturity over an amount of EUR 1 million",
+            "Total Loan Amount": to_f(row[33]),
+            "Total Collateral Guarantees Loans": to_f(row[34]),
+            "Floating Rate 1 Year Fixation": to_f(row[35]),
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[36])
+        })
+        
+        # 8. NFC | Original maturity > 1yr | 0.25 to 1
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 0.25 million and up to 1 million",
+            "Total Loan Amount": to_f(row[41]),
+            "Total Collateral Guarantees Loans": to_f(row[42]),
+            "Floating Rate 1 Year Fixation": to_f(row[41]), # Example has same as Total? No, wait.
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[42])
+        })
+        
+        # 9. NFC | Original maturity > 1yr | Over 1M
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 1 million",
+            "Total Loan Amount": to_f(row[43]),
+            "Total Collateral Guarantees Loans": to_f(row[44]),
+            "Floating Rate 1 Year Fixation": to_f(row[43]),
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[44])
+        })
+
+    out = pd.DataFrame(records)
+    
+    # Fill None in keys
+    out["Group"] = out["Group"].fillna("")
+    out["Loan Type"] = out["Loan Type"].fillna("")
+    
+    cols = [
+        "Year", "Month", "Group", "Loan Type", "Total Loan Amount", 
+        "Total Collateral Guarantees Loans", "Total Small Medium Enterprises Loans", 
+        "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
+        "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
+        "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation"
+    ]
+    for c in cols:
+        if c not in out.columns:
+            out[c] = None
             
-    result = pd.DataFrame(cleaned_dict)
-    
-    # Sort
-    result = result.sort_values(["Year", "Month"]).reset_index(drop=True)
-    
-    return result
+    return out[cols]
