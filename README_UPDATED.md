@@ -6,6 +6,24 @@ The goal is to scale to many pipelines (e.g., 54 datasets) without rewriting the
 
 ---
 
+## Current Status: Urgent Phase Complete
+
+As of January 7, 2026, we have successfully implemented full **Extraction & Sync** for the 10 most critical datasets. These pipelines produce verified, structured CSV deliverables ready for consumption.
+
+### Completed Extractors (10/10 Urgent)
+1.  **`ed_consumer_price_index`**: Greek CPI (ELSTAT).
+2.  **`ed_employment`**: Employment & Unemployment (ELSTAT).
+3.  **`ed_eu_consumer_confidence_index`**: EU Consumer Confidence (Eurostat API).
+4.  **`ed_eu_gdp`**: EU GDP (Eurostat API).
+5.  **`ed_eu_hicp`**: Harmonized CPI (Eurostat API).
+6.  **`ed_eu_unemployment_rate`**: EU Unemployment (Eurostat API).
+7.  **`cy_13_new_loans_millions`**: Cyprus New Loans (CBC).
+8.  **`gdp_greece`**: Quarterly GDP (ELSTAT).
+9.  **`ed_loan_interest_rates`**: Greece Loan Rates (Bank of Greece).
+10. **`ed_loan_amounts_millions`**: Greece Loan Volumes (Bank of Greece).
+
+---
+
 ## What this framework does
 
 For each dataset (“pipeline”), we do (some pipelines may temporarily run in **download-only** mode while we build extractors):

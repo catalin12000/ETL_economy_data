@@ -15,9 +15,9 @@ This document details the implementation patterns for all data pipelines in the 
 | 2 | `ed_building_permits_table` | ELSTAT (SOP03) | Type 1: Dynamic Download |
 | 3 | `ed_building_permits_by_no_of_rooms` | ELSTAT (SOP03) | Type 1: Dynamic Download |
 | 4 | `ed_construction_index` | ELSTAT (DKT66) | Type 1: Dynamic Download |
-| 5 | `ed_consumer_price_index` | ELSTAT (DKT01) | Type 1: Dynamic Download |
-| 7 | `ed_economic_forecast` | EU Commission | Type 2: Static URL + Extractor |
-| 8 | `ed_employment` | ELSTAT (SJO02) | Type 1: Dynamic Download |
+| 5 | `ed_consumer_price_index` | ELSTAT (DKT01) | Type 3: Extraction & Sync |
+| 7 | `ed_economic_forecast` | EU Commission | Type 3: Extraction & Sync |
+| 8 | `ed_employment` | ELSTAT (SJO02) | Type 3: Extraction & Sync |
 | 9 | `ed_fdi_activity` | BoG (BPM6) | Type 2: Static URL |
 | 10 | `ed_fdi_country` | BoG (BPM6) | Type 2: Static URL |
 | 11 | `ed_fdi_real_estate` | BoG (Excel) | Type 2: Static URL |
@@ -28,8 +28,8 @@ This document details the implementation patterns for all data pipelines in the 
 | 17 | `ed_imports_exports_millions` | ELSTAT (SEL30) | Type 1: Dynamic Download |
 | 18 | `ed_industrial_production_index` | ELSTAT (DKT21) | Type 1: Dynamic Download |
 | 19 | `ed_key_partners_primary_goods` | ELSTAT (SFC02) | Type 1: Dynamic Download |
-| 20 | `ed_loan_amounts_millions` | BoG (Excel) | Type 4: Satellite (shares with 21) |
-| 21 | `ed_loan_interest_rates` | BoG (Excel) | Type 2: Master Download |
+| 20 | `ed_loan_amounts_millions` | BoG (Excel) | Type 3: Extraction & Sync |
+| 21 | `ed_loan_interest_rates` | BoG (Excel) | Type 3: Extraction & Sync |
 | 22 | `ed_motor_trade_turnover_index` | ELSTAT (DKT45) | Type 1: Dynamic Download |
 | 23 | `ed_new_built_properties_per_region` | ELSTAT (SOP03) | Type 1: Dynamic Download |
 | 24 | `ed_new_establishments_building_permits`| ELSTAT (SOP03) | Type 1: Dynamic Download |
@@ -46,11 +46,11 @@ This document details the implementation patterns for all data pipelines in the 
 | 43 | `ed_wage_growth_index` | ELSTAT (DKT03) | Type 1: Dynamic Download |
 | 44 | `ed_wholesale_trade_turnover_index`| ELSTAT (DKT42) | Type 1: Dynamic Download |
 | 45 | `ed_services_sector_turnover_monthly_index`| ELSTAT (DKT54) | Type 1: Dynamic Download |
-| 46 | `ed_eu_consumer_confidence_index` | Eurostat (API) | Type 2: Direct API Filter |
-| 47 | `ed_eu_gdp` | Eurostat (API) | Type 2: Direct API Filter |
-| 48 | `ed_eu_hicp` | Eurostat (API) | Type 2: Direct API Filter |
-| 49 | `ed_eu_unemployment_rate` | Eurostat (API) | Type 2: Direct API Filter |
-| 54 | `gdp_greece` | ELSTAT (SEL84) | Type 1: Dynamic Download |
+| 46 | `ed_eu_consumer_confidence_index` | Eurostat (API) | Type 3: Extraction & Sync |
+| 47 | `ed_eu_gdp` | Eurostat (API) | Type 3: Extraction & Sync |
+| 48 | `ed_eu_hicp` | Eurostat (API) | Type 3: Extraction & Sync |
+| 49 | `ed_eu_unemployment_rate` | Eurostat (API) | Type 3: Extraction & Sync |
+| 54 | `gdp_greece` | ELSTAT (SEL84) | Type 3: Extraction & Sync |
 
 ---
 
