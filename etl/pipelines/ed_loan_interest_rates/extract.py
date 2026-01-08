@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import shutil
+import tempfile
 
 
 def _engine_for(path: Path) -> str:
@@ -15,7 +17,17 @@ def _engine_for(path: Path) -> str:
 
 def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
     file_path = Path(file_path)
-    df = pd.read_excel(file_path, sheet_name="Loans_Interest rates", header=None, engine=_engine_for(file_path))
+    
+    # Bypass file lock on Windows
+    with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
+        shutil.copy2(file_path, tmp.name)
+        tmp_path = Path(tmp.name)
+    
+    try:
+        df = pd.read_excel(tmp_path, sheet_name="Loans_Interest rates", header=None, engine=_engine_for(tmp_path))
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
     
     # Data starts at row 8
     data_rows = df.iloc[8:].copy()
@@ -37,159 +49,213 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
         year = int(row[0].year)
         month = int(row[0].month)
         
-        # Row 1: Totals
+        # 0. Total row
         records.append({
             "Year": year, "Month": month,
-            "Total Consumer Loans Aprc": to_f(row[58]),
-            "Total Housing Loans Aprc": to_f(row[59]),
-            "Delta Interest Rate Deposits": to_f(row[60]),
-            "Weighted Average Interest Rate New Loans In Euro": to_f(row[1]),
+            "Total Consumer Loans Aprc": to_f(row[58]), # BG
+            "Total Housing Loans Aprc": to_f(row[59]), # BH
+            "Delta Interest Rate Deposits": to_f(row[60]), # BI
+            "Weighted Average Interest Rate New Loans In Euro": to_f(row[1]), # B
             "Group": "", "Loan Type": "",
             "_sort_order": 0
         })
         
-        # Segment 1: Individuals | Weighted average interest rate
+        # --- Individuals ---
+        
+        # Weighted average interest rate
         records.append({
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[2]),
+            "Weighted Average Interest Rate": to_f(row[2]), # C
             "_sort_order": 1
         })
         
-        # Segment 2: Individuals | Loans without a defined maturity
+        # Loans without a defined maturity
         records.append({
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
             "Loan Type": "Loans without a defined maturity",
-            "Credit Cards": to_f(row[3]),
-            "Open Account Loans": to_f(row[4]),
-            "Debit Balances On Current Accounts": to_f(row[5]),
+            "Credit Cards": to_f(row[4]), # E
+            "Open Account Loans": to_f(row[5]), # F
+            "Debit Balances On Current Accounts": to_f(row[6]), # G
             "_sort_order": 2
         })
         
-        # Segment 3: Individuals | Consumer loans with a defined maturity
+        # Consumer loans with a defined maturity
         records.append({
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
             "Loan Type": "Consumer loans with a defined maturity",
-            "Total Interest Rate": to_f(row[7]),
-            "Total Collateral Guarantees Interest Rates": to_f(row[6]),
-            "Floating Rate 1 Year Fixation": to_f(row[9]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[6]), 
-            "Over 1 To 5 Years Rate Fixation": to_f(row[10]),
-            "Over 5 Years Rate Fixation": to_f(row[11]),
+            "Total Interest Rate": to_f(row[7]), # H
+            "Total Collateral Guarantees Interest Rates": to_f(row[8]), # I
+            "Floating Rate 1 Year Fixation": to_f(row[9]), # J
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[10]), # K
+            "Over 1 To 5 Years Rate Fixation": to_f(row[11]), # L
+            "Over 5 Years Rate Fixation": to_f(row[12]), # M
             "_sort_order": 3
         })
         
-        # Segment 4: Individuals | Housing loans
+        # Housing loans
         records.append({
             "Year": year, "Month": month,
             "Group": "Individuals and private non-profit institutions",
             "Loan Type": "Housing loans",
-            "Total Interest Rate": to_f(row[13]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[14]),
-            "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[15]),
-            "Over 1 To 5 Years Rate Fixation": to_f(row[17]),
+            "Total Interest Rate": to_f(row[13]), # N
+            "Floating Rate 1 Year Fixation": to_f(row[14]), # O
+            "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[15]), # P
+            "Over 1 To 5 Years Rate Fixation": to_f(row[16]), # Q
+            "Over 5 To 10 Years Rate Fixation": to_f(row[17]), # R
+            "Over 10 Years Rate Fixation": to_f(row[18]), # S
             "_sort_order": 4
         })
         
-        # Segment 5: Sole proprietors | Loans with a defined maturity
+        # Other loans with a defined maturity
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Individuals and private non-profit institutions",
+            "Loan Type": "Other loans with a defined maturity",
+            "Floating Rate 1 Year Fixation": to_f(row[19]), # T
+            "Over 1 To 5 Years Rate Fixation": to_f(row[20]), # U
+            "Over 5 Years Rate Fixation": to_f(row[21]), # V
+            "_sort_order": 5
+        })
+        
+        # --- Sole Proprietors ---
+        
+        # Loans with a defined maturity
         records.append({
             "Year": year, "Month": month,
             "Group": "Sole proprietors and unicorporated businesses",
             "Loan Type": "Loans with a defined maturity",
-            "Total Interest Rate": to_f(row[21]),
-            "Total Collateral Guarantees Interest Rates": to_f(row[22]),
-            "Floating Rate 1 Year Fixation": to_f(row[23]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[24]),
-            "_sort_order": 5
+            "Total Interest Rate": to_f(row[24]), # Y
+            "Total Collateral Guarantees Interest Rates": to_f(row[25]), # Z
+            "Floating Rate 1 Year Fixation": to_f(row[26]), # AA
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[27]), # AB
+            "_sort_order": 6
         })
         
-        # Segment 6: Sole proprietors | Loans without a defined maturity
+        # Loans without a defined maturity (Credit lines - open account loans)
         records.append({
             "Year": year, "Month": month,
             "Group": "Sole proprietors and unicorporated businesses",
             "Loan Type": "Loans without a defined maturity (Credit lines - open account loans)",
-            "Credit Lines": to_f(row[20]),
-            "_sort_order": 6
+            "Credit Lines": to_f(row[23]), # X
+            "_sort_order": 7
         })
         
-        # Segment 7: Sole proprietors | Weighted average interest rate
+        # Weighted average interest rate
         records.append({
             "Year": year, "Month": month,
             "Group": "Sole proprietors and unicorporated businesses",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[25]),
-            "_sort_order": 7
+            "Weighted Average Interest Rate": to_f(row[22]), # W
+            "_sort_order": 8
         })
 
-        # Segment 8: Non-financial corporations | Weighted average interest rate
+        # --- NFC ---
+
+        # Weighted average interest rate
         records.append({
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Weighted average interest rate",
-            "Weighted Average Interest Rate": to_f(row[28]),
-            "_sort_order": 8
+            "Weighted Average Interest Rate": to_f(row[28]), # AC
+            "_sort_order": 9
         })
         
-        # Segment 9: Non-financial corporations | Loans without a defined maturity
+        # Loans without a defined maturity
         records.append({
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Loans without a defined maturity",
-            "Total Interest Rate": to_f(row[29]),
-            "Total Small Medium Enterprises Interest Rates": to_f(row[30]),
-            "Credit Lines": to_f(row[31]),
-            "Debit Balances Sight Deposits": to_f(row[32]),
-            "_sort_order": 9
+            "Total Interest Rate": to_f(row[29]), # AD
+            "Total Small Medium Enterprises Interest Rates": to_f(row[30]), # AE
+            "Credit Lines": to_f(row[31]), # AF
+            "Debit Balances Sight Deposits": to_f(row[32]), # AG
+            "_sort_order": 10
         })
         
-        # Segment 10: Non-financial corporations | Up to 0.25
+        # Loans with a defined maturity and up to an amount of EUR 1 million
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million",
+            "_sort_order": 11
+        })
+        
+        # Loans with a defined maturity and up to an amount of EUR 0.25
         records.append({
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Loans with a defined maturity and up to an amount of EUR 0.25",
-            "Total Interest Rate": to_f(row[38]),
-            "Total Collateral Guarantees Interest Rates": to_f(row[39]),
-            "Floating Rate 1 Year Fixation": to_f(row[40]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[41]),
-            "_sort_order": 10
+            "Total Interest Rate": to_f(row[38]), # AM
+            "Total Collateral Guarantees Interest Rates": to_f(row[39]), # AN
+            "Floating Rate 1 Year Fixation": to_f(row[40]), # AO
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[41]), # AP
+            "_sort_order": 12
         })
         
-        # Segment 11: Non-financial corporations | 0.25 to 1
+        # Loans with a defined maturity and over an amount of EUR 0.25 million and up to 1 million
         records.append({
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Loans with a defined maturity and over an amount of EUR 0.25 million and up to 1 million",
-            "Total Interest Rate": to_f(row[42]),
-            "Total Collateral Guarantees Interest Rates": to_f(row[43]),
-            "Floating Rate 1 Year Fixation": to_f(row[44]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[45]),
-            "_sort_order": 11
+            "Total Interest Rate": to_f(row[42]), # AQ
+            "Total Collateral Guarantees Interest Rates": to_f(row[43]), # AR
+            "Floating Rate 1 Year Fixation": to_f(row[44]), # AS
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[45]), # AT
+            "_sort_order": 13
         })
         
-        # Segment 12: Non-financial corporations | Over 1
+        # Loans with a defined maturity over an amount of EUR 1 million
         records.append({
             "Year": year, "Month": month,
             "Group": "Non-financial corporations",
             "Loan Type": "Loans with a defined maturity over an amount of EUR 1 million",
-            "Total Interest Rate": to_f(row[46]),
-            "Total Collateral Guarantees Interest Rates": to_f(row[47]),
-            "Floating Rate 1 Year Fixation": to_f(row[48]),
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[49]),
-            "Over 1 To 5 Years Rate Fixation": to_f(row[50]),
-            "Over 5 Years Rate Fixation": to_f(row[51]),
-            "_sort_order": 12
+            "Total Interest Rate": to_f(row[46]), # AU
+            "Total Collateral Guarantees Interest Rates": to_f(row[47]), # AV
+            "Floating Rate 1 Year Fixation": to_f(row[48]), # AW
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[49]), # AX
+            "Over 1 To 5 Years Rate Fixation": to_f(row[50]), # AY
+            "Over 5 Years Rate Fixation": to_f(row[51]), # AZ
+            "_sort_order": 14
+        })
+        
+        # NFC Orig Maturity Segments
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with an original maturity over 1 year - Loans up to an amount of EUR 0.25 million",
+            "Floating Rate 1 Year Fixation": to_f(row[52]), # BA
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[53]), # BB
+            "_sort_order": 15
+        })
+        
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 0.25 million and up to 1 million",
+            "Floating Rate 1 Year Fixation": to_f(row[54]), # BC
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[55]), # BD
+            "_sort_order": 16
+        })
+        
+        records.append({
+            "Year": year, "Month": month,
+            "Group": "Non-financial corporations",
+            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 1 million",
+            "Floating Rate 1 Year Fixation": to_f(row[56]), # BE
+            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[57]), # BF
+            "_sort_order": 17
         })
 
     out = pd.DataFrame(records)
     
-    # Fill None in keys with empty strings
+    # Fill None in keys
     out["Group"] = out["Group"].fillna("")
     out["Loan Type"] = out["Loan Type"].fillna("")
     
-    # Final column order
     cols = [
         "Year", "Month", "Total Consumer Loans Aprc", "Total Housing Loans Aprc", 
         "Delta Interest Rate Deposits", "Weighted Average Interest Rate New Loans In Euro", 

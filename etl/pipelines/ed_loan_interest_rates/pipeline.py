@@ -26,7 +26,7 @@ class Pipeline:
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # Keep original extension (.xls)
-        out_path = out_dir / "Rates_TABLE_1+1a.xls"
+        out_path = out_dir / "Rates_TABLE_1+1a_v2.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
