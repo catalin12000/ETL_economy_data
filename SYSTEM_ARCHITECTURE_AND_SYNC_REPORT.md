@@ -41,14 +41,16 @@ Each pipeline now follows a standardized 4-step process:
 | `ed_employment` | Duplicate/Legacy casing (`UnAdjusted` vs `Unadjusted`). | Removed 225 legacy rows; synchronized 217 new rows and 286 precision updates. |
 | `ed_employment` | Schema Mismatch (`modified_dt` missing). | Upgraded `database.py` to automatically detect and skip missing metadata columns. |
 | `ed_eu_consumer_confidence_index` | Missing 2025 aggregate data (EA20/EU27). | Synchronized 30 inserts and 14 precision updates. |
+| `ed_eu_gdp` | Integrated into READ-ONLY architecture. | Comparison found 24 missing and 25 different rows. |
 
 ---
 
 ## 4. Current Status
-- **CPI Pipeline:** Fully stable. Delta deliverable correctly reflects Nov 2025.
-- **Employment Pipeline:** Fully stable and cleaned. No duplicates remain.
-- **EU Consumer Confidence:** Fully stable. Aggregated EU/EA data for 2025 successfully backfilled.
-- **General DB Health:** High. Both tables are now perfectly aligned with official ELSTAT/Eurostat extraction logic.
+- **CPI Pipeline:** Fully stable (Read-Only Comparison enabled).
+- **Employment Pipeline:** Fully stable (Read-Only Comparison enabled).
+- **EU Consumer Confidence:** Fully stable (Read-Only Comparison enabled).
+- **EU GDP:** Fully stable (Read-Only Comparison enabled).
+- **General DB Health:** High. System provides high-precision delta deliverables based on live DB state without write privileges.
 
 ---
 **Next Step:** Implement the same pattern for **Industrial Production Index** (`ed_industrial_production_index`).
