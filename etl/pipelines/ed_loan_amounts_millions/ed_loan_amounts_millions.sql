@@ -1,0 +1,21 @@
+SELECT
+  id,
+  year,
+  month,
+  "group",
+  loan_type,
+  total_loan_amount,
+  total_collateral_guarantees_loans,
+  total_small_medium_enterprises_loans,
+  floating_rate_1_year_fixation,
+  floating_rate_1_year_rate_fixation_collateral_guarantees,
+  floating_rate_1_year_rate_fixation_floating_rate,
+  over_1_to_5_years_rate_fixation,
+  over_5_years_rate_fixation,
+  over_5_to_10_years_rate_fixation,
+  over_10_years_rate_fixation,
+  effective_dt,
+  modified_at,
+  created_at
+FROM
+  "public"."ed_loan_amounts_millions"
