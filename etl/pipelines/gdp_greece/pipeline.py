@@ -77,7 +77,7 @@ class Pipeline:
             }
 
         # 6) Sync with Baseline DB
-        db_path = Path("data/db") / f"{self.pipeline_id}.csv"
+        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
         output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
@@ -94,14 +94,11 @@ class Pipeline:
         # 7) Create Deliverables
         output_file = output_dir / "new_entries.csv"
         
-        # Save snapshot
+        # Snapshot (Full)
         res.updated_df.to_csv(out_csv_full, index=False)
         
-        # Save diff (Deliverable)
-        if not res.diff_df.empty:
-            res.diff_df.to_csv(output_file, index=False)
-        else:
-            pd.DataFrame(columns=res.updated_df.columns).to_csv(output_file, index=False)
+        # New Entries (Deliverable)
+        res.diff_df.to_csv(output_file, index=False)
 
         new_state.update({
             "rows_before": res.rows_before,

@@ -1,0 +1,15 @@
+SELECT
+  id,
+  year,
+  month,
+  seasonally,
+  employed_000s,
+  unemployed_000s,
+  inactives_000s,
+  adjusted_unemployment_rate,
+  unadjusted_unemployment_rate,
+  effective_dt,
+  modified_at,
+  created_at
+FROM
+  "public"."ed_employment"

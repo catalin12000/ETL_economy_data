@@ -14,8 +14,8 @@ def extract_eu_hicp(csv_path: Path) -> pd.DataFrame:
 
     # Mapping Eurostat GEO codes to requested names
     GEO_MAP = {
-        "EU27_2020": "European",
-        "EA20": "Euro area",
+        "EU27_2020": "European Union (EU6-1958, EU9-1973, EU10-1981, EU12-1986, EU15-1995, EU25-2004, EU27-2007, EU28-2013, EU27-2020)",
+        "EA20": "Euro area (EA11-1999, EA12-2001, EA13-2007, EA15-2008, EA16-2009, EA17-2011, EA18-2014, EA19-2015, EA20-2023)",
         "EL": "Greece",
         "CY": "Cyprus",
         "RO": "Romania"

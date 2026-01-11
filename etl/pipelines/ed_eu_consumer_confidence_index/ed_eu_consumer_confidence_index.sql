@@ -1,0 +1,11 @@
+SELECT
+  id,
+  year,
+  month,
+  geopolitical_entity,
+  consumer_confidence_indicator,
+  effective_dt,
+  modified_at,
+  created_at
+FROM
+  "public"."ed_eu_consumer_confidence_index"

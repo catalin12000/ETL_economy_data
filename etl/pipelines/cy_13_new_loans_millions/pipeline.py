@@ -22,7 +22,7 @@ class Pipeline:
     ROOT_URL = "https://www.centralbank.cy/en/publications/monetary-and-financial-statistics/"
     
     # Specific DB file provided by user
-    DB_FILENAME = "2008_Ed_New_Loans_Millions_2025.csv"
+    DB_FILENAME = "cy_13_new_loans_millions.csv"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "13"
@@ -102,20 +102,11 @@ class Pipeline:
         # 6. Create Deliverables
         output_file = output_dir / "new_entries.csv"
         
-        # We want only the columns from the DB in the final output
-        db_cols = pd.read_csv(db_path, nrows=0).columns.tolist()
-        final_cols = [c for c in db_cols if c in res.updated_df.columns]
-        
         # Snapshot (Full)
-        res.updated_df[final_cols].to_csv(out_csv_full, index=False)
+        res.updated_df.to_csv(out_csv_full, index=False)
         
         # New Entries
-        if not res.diff_df.empty:
-            df_deliverable = res.diff_df[final_cols].copy()
-        else:
-            df_deliverable = pd.DataFrame(columns=final_cols)
-            
-        df_deliverable.to_csv(output_file, index=False)
+        res.diff_df.to_csv(output_file, index=False)
 
         new_state.update({
             "rows_before": res.rows_before,

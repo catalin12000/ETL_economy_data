@@ -15,11 +15,11 @@ def extract_eu_consumer_confidence(csv_path: Path) -> pd.DataFrame:
 
     # Mapping Eurostat GEO codes to requested full names
     GEO_MAP = {
-        "CY": "Cyprus",
-        "EL": "Greece",
-        "RO": "Romania",
         "EU27_2020": "European Union - 27 countries (from 2020)",
-        "EA20": "Euro area – 20 countries (from 2023)"
+        "EA20": "Euro area – 20 countries (from 2023)",
+        "EL": "Greece",
+        "CY": "Cyprus",
+        "RO": "Romania"
     }
 
     records = []

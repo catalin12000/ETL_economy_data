@@ -59,7 +59,7 @@ class Pipeline:
             }
 
         # Sync with Baseline DB
-        db_path = Path("data/db") / f"{self.pipeline_id}.csv"
+        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
         output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
@@ -76,37 +76,11 @@ class Pipeline:
         # Create Deliverables
         output_file = output_dir / "new_entries.csv"
         
-        # Enforce exact column order as requested
-        final_cols = [
-            "Year", "Month", "Total Consumer Loans Aprc", "Total Housing Loans Aprc", 
-            "Delta Interest Rate Deposits", "Weighted Average Interest Rate New Loans In Euro", 
-            "Group", "Weighted Average Interest Rate", "Loan Type", "Credit Cards", 
-            "Open Account Loans", "Debit Balances On Current Accounts", "Total Interest Rate", 
-            "Total Collateral Guarantees Interest Rates", "Total Small Medium Enterprises Interest Rates", 
-            "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
-            "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
-            "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation", 
-            "Credit Lines", "Debit Balances Sight Deposits",
-            "_sort_order"
-        ]
+        # Snapshot (full)
+        res.updated_df.to_csv(out_csv_full, index=False)
         
-        # Ensure all columns exist (compare_csv might drop fully empty columns if configured so, 
-        # though standard behavior preserves them from extracted_df)
-        # Reorder columns
-        snapshot_df = res.updated_df.reindex(columns=final_cols)
-        deliverable_df = res.diff_df.reindex(columns=final_cols) if not res.diff_df.empty else pd.DataFrame(columns=final_cols)
-        
-        # Sort by user-specified logical order
-        if "_sort_order" in snapshot_df.columns:
-            snapshot_df = snapshot_df.sort_values(["Year", "Month", "_sort_order"]).drop(columns=["_sort_order"])
-        if "_sort_order" in deliverable_df.columns:
-            deliverable_df = deliverable_df.sort_values(["Year", "Month", "_sort_order"]).drop(columns=["_sort_order"])
-        
-        # Save snapshot
-        snapshot_df.to_csv(out_csv_full, index=False)
-        
-        # Save diff (Deliverable)
-        deliverable_df.to_csv(output_file, index=False)
+        # Diff (deliverable)
+        res.diff_df.to_csv(output_file, index=False)
 
         new_state.update({
             "rows_before": res.rows_before,

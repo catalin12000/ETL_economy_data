@@ -73,7 +73,7 @@ def extract_cpi(xls_path: Path) -> pd.DataFrame:
                 "Year": current_year,
                 "Month": month,
                 "Index": index_val,
-                "Year_over_Year": yoy_val
+                "Year Over Year": yoy_val
             })
 
     out = pd.DataFrame(records).sort_values(["Year", "Month"]).reset_index(drop=True)
