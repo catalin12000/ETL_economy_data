@@ -45,6 +45,7 @@ Each pipeline now follows a standardized 4-step process:
 | `ed_eu_hicp` | Integrated into READ-ONLY architecture. | **Critical Inconsistencies Found:** DB contains truncated names ("European", "Euro area") and lacks 2025 Months 1-7 and 11-12. Comparison identified 48 missing rows. |
 | `ed_eu_unemployment_rate` | Integrated into READ-ONLY architecture. | **Inconsistencies Found:** DB contains mixed dash types in names and lacks 2025 Months 10-11. Comparison identified 52 rows (23 missing, 29 different). |
 | `ed_loan_amounts_millions` | Integrated into READ-ONLY architecture. | **Large Gaps Found:** Database lacks significant historical data (2070 missing rows identified). |
+| `ed_loan_interest_rates` | Integrated into READ-ONLY architecture. | **Massive Gaps Found:** Database lacks significant historical data (3349 missing rows identified). |
 
 ---
 
@@ -56,6 +57,7 @@ Each pipeline now follows a standardized 4-step process:
 - **EU HICP:** Fully stable (Read-Only Comparison enabled).
 - **EU Unemployment Rate:** Fully stable (Read-Only Comparison enabled).
 - **Loan Amounts:** Fully stable (Read-Only Comparison enabled).
+- **Loan Interest Rates:** Fully stable (Read-Only Comparison enabled).
 - **General DB Health:** High monitoring. Read-only architecture is successfully identifying naming and coverage gaps across all tables.
 
 ---
