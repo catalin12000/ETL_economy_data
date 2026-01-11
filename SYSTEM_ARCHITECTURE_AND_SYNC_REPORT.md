@@ -43,6 +43,7 @@ Each pipeline now follows a standardized 4-step process:
 | `ed_eu_consumer_confidence_index` | Missing 2025 aggregate data (EA20/EU27). | Synchronized 30 inserts and 14 precision updates. |
 | `ed_eu_gdp` | Integrated into READ-ONLY architecture. | Comparison found 24 missing and 25 different rows. |
 | `ed_eu_hicp` | Integrated into READ-ONLY architecture. | **Critical Inconsistencies Found:** DB contains truncated names ("European", "Euro area") and lacks 2025 Months 1-7 and 11-12. Comparison identified 48 missing rows. |
+| `ed_eu_unemployment_rate` | Integrated into READ-ONLY architecture. | **Inconsistencies Found:** DB contains mixed dash types in names and lacks 2025 Months 10-11. Comparison identified 52 rows (23 missing, 29 different). |
 
 ---
 
@@ -52,7 +53,8 @@ Each pipeline now follows a standardized 4-step process:
 - **EU Consumer Confidence:** Fully stable (Read-Only Comparison enabled).
 - **EU GDP:** Fully stable (Read-Only Comparison enabled).
 - **EU HICP:** Fully stable (Read-Only Comparison enabled).
-- **General DB Health:** High monitoring. Read-only architecture is successfully identifying naming and coverage gaps across Eurostat tables.
+- **EU Unemployment Rate:** Fully stable (Read-Only Comparison enabled).
+- **General DB Health:** High monitoring. Read-only architecture is successfully identifying naming and coverage gaps across all Eurostat tables.
 
 ---
 **Next Step:** Implement the same pattern for **Industrial Production Index** (`ed_industrial_production_index`).
