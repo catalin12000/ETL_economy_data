@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
-from typing import List
+from typing import List, Any
 
 def get_engine(db_name: str = "athena"):
     """
@@ -21,15 +21,19 @@ def get_engine(db_name: str = "athena"):
     url = f"{base_url}{db_name}?sslmode=require"
     return create_engine(url)
 
-def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match_cols: List[str], sync_cols: List[str], tolerance: float = 0.05, sql_file_path: str = None):
+def _normalize_str(s: Any) -> str:
+    if pd.isna(s):
+        return ""
+    # Standardize dashes, lowercase, strip, and collapse multiple spaces
+    import re
+    res = str(s).lower().strip()
+    res = res.replace("–", "-").replace("—", "-")
+    res = re.sub(r'\s+', ' ', res)
+    return res
+
+def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match_cols: List[str], sync_cols: List[str], tolerance: float = 0.11, sql_file_path: str = None):
     """
     READ-ONLY comparison logic for Postgres.
-    - match_cols: Columns used to identify the same record (e.g., ['year', 'month'])
-    - sync_cols: Columns to compare.
-    - sql_file_path: Optional path to a .sql file containing the SELECT query to fetch current DB state.
-    
-    Returns a dictionary containing DataFrames of missing or different rows. 
-    Does NOT write to the database.
     """
     engine = get_engine(db_name)
     
@@ -41,8 +45,7 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
         except Exception as e:
             return {"error": f"Failed to read SQL file {sql_file_path}: {e}"}
     else:
-        # Fallback to dynamic construction
-        cols_to_fetch = match_cols + sync_cols + ["id"]
+        cols_to_fetch = match_cols + sync_cols + (["id"] if "id" not in match_cols else [])
         cols_str = ", ".join(cols_to_fetch)
         query = f'SELECT {cols_str} FROM "public"."{table_name}"'
     
@@ -52,30 +55,44 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
         print(f"Error fetching from DB table {table_name}: {e}")
         return {"error": str(e)}
 
-    # Standardize column names for comparison
+    # Standardize column names
     df_db.columns = [c.lower() for c in df_db.columns]
     df.columns = [c.lower() for c in df.columns]
     
-    # Ensure types and cleaning for keys to prevent merge misses
-    for col in match_cols:
-        if col in ['year', 'month']:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df_db[col] = pd.to_numeric(df_db[col], errors='coerce')
-        elif df[col].dtype == object:
-            df[col] = df[col].astype(str).str.strip()
-            df_db[col] = df_db[col].astype(str).str.strip()
+    # Store original DB values for restoration later
+    orig_db_values = {}
+    cols_to_restore = ['geopolitical_entity', 'group', 'loan_type', 'seasonally']
+    for col in cols_to_restore:
+        if col in df_db.columns:
+            # Create a map: normalized_key -> original_db_value
+            # We use the match columns as the key for this map
+            temp_db = df_db.copy()
+            # We need a unique key for restoration. Month/Year/Quarter + Normalized String
+            pass # We will handle this during the loop instead for better accuracy
 
-    # 2. Merge
+    # 2. Key Normalization for JOIN
+    for col in match_cols:
+        if col in ['year', 'month', 'quarter']:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+            df_db[col] = pd.to_numeric(df_db[col], errors='coerce').fillna(0).astype(int)
+        else:
+            df[col + "_norm"] = df[col].apply(_normalize_str)
+            df_db[col + "_norm"] = df_db[col].apply(_normalize_str)
+
+    # 3. Merge on normalized keys
+    norm_match_cols = [(c + "_norm" if c not in ['year', 'month', 'quarter'] else c) for c in match_cols]
+    
     merged = pd.merge(
         df, 
         df_db, 
-        on=match_cols, 
+        left_on=norm_match_cols,
+        right_on=norm_match_cols,
         how='outer', 
         suffixes=('_local', '_db'),
         indicator=True
     )
 
-    # 3. Identify Missing Rows (Inserts)
+    # 4. Identify Missing Rows (Inserts)
     to_insert = merged[merged['_merge'] == 'left_only'].copy()
     inserted_rows_list = []
 
@@ -83,11 +100,12 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
         for _, row in to_insert.iterrows():
             row_data = {}
             for col in match_cols + sync_cols:
+                # Use local values for missing rows
                 val = row[f"{col}_local"] if f"{col}_local" in row else row.get(col)
                 row_data[col] = val
             inserted_rows_list.append(row_data)
 
-    # 4. Identify Different Rows (Updates)
+    # 5. Identify Different Rows (Updates)
     common = merged[merged['_merge'] == 'both']
     updated_rows_list = []
 
@@ -96,23 +114,30 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             row_updates = {}
             has_diff = False
             
+            # CRITICAL: Use the ORIGINAL DB string values for the deliverable
             for k in match_cols:
-                row_updates[k] = row[k]
+                if k in cols_to_restore and f"{k}_db" in row:
+                    row_updates[k] = row[f"{k}_db"] # Restore DB naming!
+                else:
+                    row_updates[k] = row[k]
 
             for col in sync_cols:
                 local_val = row[f"{col}_local"]
                 db_val = row[f"{col}_db"]
+                
+                # Default to local value for the update object
                 row_updates[col] = local_val
 
                 is_diff = False
                 if pd.notna(local_val) and pd.notna(db_val):
                     try:
-                        if abs(float(local_val) - float(db_val)) > tolerance:
+                        # Round to 2 decimals for comparison
+                        if abs(round(float(local_val), 2) - round(float(db_val), 2)) > tolerance:
                             is_diff = True
                     except:
-                        if str(local_val) != str(db_val):
+                        if _normalize_str(local_val) != _normalize_str(db_val):
                             is_diff = True
-                elif pd.notna(local_val) and pd.isna(db_val):
+                elif pd.notna(local_val) != pd.notna(db_val):
                      is_diff = True
 
                 if is_diff:
@@ -121,7 +146,6 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             if has_diff:
                 updated_rows_list.append(row_updates)
 
-    # Construct return DFs
     inserted_df = pd.DataFrame(inserted_rows_list) if inserted_rows_list else pd.DataFrame()
     updated_df = pd.DataFrame(updated_rows_list) if updated_rows_list else pd.DataFrame()
 

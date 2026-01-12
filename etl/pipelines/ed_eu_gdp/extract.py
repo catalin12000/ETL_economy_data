@@ -13,10 +13,13 @@ def extract_eu_gdp(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
 
     # Mapping Eurostat GEO codes to requested full names
+    # MUST MATCH DB EXACTLY (including specific dash types and spaces)
     GEO_MAP = {
         "EU27_2020": "European Union - 27 countries (from 2020)",
-        "EA": "Euro area – 20 countries (from 2023)",
         "EA20": "Euro area – 20 countries (from 2023)",
+        "EA": "Euro area – 20 countries (from 2023)",
+        "EA19": "Euro area - 19 countries  (2015-2022)",
+        "EA12": "Euro area - 12 countries (2001-2006)",
         "EL": "Greece",
         "CY": "Cyprus",
         "RO": "Romania"

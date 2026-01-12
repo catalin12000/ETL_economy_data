@@ -47,6 +47,7 @@ Each pipeline now follows a standardized 4-step process:
 | `ed_loan_amounts_millions` | Integrated into READ-ONLY architecture. | **Large Gaps Found:** Database lacks significant historical data (2070 missing rows identified). |
 | `ed_loan_interest_rates` | Integrated into READ-ONLY architecture. | **Massive Gaps Found:** Database lacks significant historical data (3349 missing rows identified). |
 | `gdp_greece` | Integrated into READ-ONLY architecture. | **Gaps Found:** Database lacks historical quarterly data (82 missing rows identified). |
+| `cy_13_new_loans_millions` | Integrated into READ-ONLY architecture (**zeus**). | **First Cyprus Sync:** Identified 160 missing and 81 different rows in the Cyprus database. |
 
 ---
 
@@ -60,7 +61,8 @@ Each pipeline now follows a standardized 4-step process:
 - **Loan Amounts:** Fully stable (Read-Only Comparison enabled).
 - **Loan Interest Rates:** Fully stable (Read-Only Comparison enabled).
 - **GDP Greece:** Fully stable (Read-Only Comparison enabled).
-- **General DB Health:** High monitoring. Read-only architecture is successfully identifying naming and coverage gaps across all tables.
+- **Cyprus New Loans:** Fully stable (Read-Only Comparison enabled against **zeus**).
+- **General DB Health:** High monitoring. System now supports both **athena** (Greece) and **zeus** (Cyprus) read-only comparisons.
 
 ---
 **Next Step:** Implement the same pattern for **Industrial Production Index** (`ed_industrial_production_index`).

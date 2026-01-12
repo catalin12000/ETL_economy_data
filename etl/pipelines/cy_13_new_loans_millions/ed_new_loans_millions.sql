@@ -1,0 +1,22 @@
+SELECT
+  id,
+  year,
+  month,
+  housing_pure_new_loans,
+  housing_renegotiated_loans,
+  housing_floating_rate_up_to_1_year_initial_fixation_rate,
+  housing_annual_percentage_rate_of_charge,
+  outstanding_housing_loans_locals,
+  outstanding_housing_loans_eu,
+  outstanding_housing_loans_non_eu,
+  consumer_annual_percentage_rate_of_charge,
+  consumer_floating_rate_up_to_1_year_initial_fixation_rate,
+  consumer_pure_new_loans,
+  consumer_renegotiated_loans,
+  outstanding_consumer_loans_eu,
+  outstanding_consumer_loans_locals,
+  outstanding_consumer_loans_non_eu,
+  effective_dt,
+  modified_at
+FROM
+  "public"."ed_new_loans_millions"

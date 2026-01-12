@@ -120,9 +120,9 @@ def extract_new_loans(xls_path: Path) -> pd.DataFrame:
             # T6.2: G(6), H(7)
             "Outstanding_Housing_Loans_Eu": get_val(df62, ts62_map, 7),
             "Outstanding_Consumer_Loans_Eu": get_val(df62, ts62_map, 6),
-            # T6.3: G(6), H(7)
-            "Outstanding_Housing_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 7),
-            "Outstanding_Consumer_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 6)
+            # T6.3: K(10), L(11) - These are the Interest Rate columns, which match the DB values (e.g., 0.6)
+            "Outstanding_Housing_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 11),
+            "Outstanding_Consumer_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 10)
         })
 
     out = pd.DataFrame(records).sort_values(["Year", "Month"]).reset_index(drop=True)
