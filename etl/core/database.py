@@ -1,24 +1,21 @@
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from typing import List, Any
 
 def get_engine(db_name: str = "athena"):
     """
     Returns a SQLAlchemy engine for the specified database.
-    athena -> Greece
-    zeus -> Cyprus
-    Fetches base URL from DATABASE_URL environment variable.
+    Works with FULL DATABASE_URL like DigitalOcean:
+      postgresql://user:pass@host:port/defaultdb?sslmode=require
+    Switches defaultdb -> athena/zeus by replacing the database in the URL.
     """
-    base_url = os.getenv("DATABASE_URL")
-    if not base_url:
-        raise EnvironmentError("DATABASE_URL environment variable not set. Please provide connection string without the database name suffix.")
-    
-    # Ensure URL ends with / for suffixing
-    if not base_url.endswith("/"):
-        base_url += "/"
-        
-    url = f"{base_url}{db_name}?sslmode=require"
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise EnvironmentError("DATABASE_URL environment variable not set.")
+
+    url = make_url(db_url).set(database=db_name)
     return create_engine(url)
 
 def _normalize_str(s: Any) -> str:
