@@ -1,0 +1,28 @@
+SELECT
+  id,
+  year,
+  month,
+  single_houses,
+  buildings_with_two_housing_units,
+  residential_apartment_blocks,
+  residential_commercial_apartment_blocks,
+  cottage_apartment_complexes,
+  residencies_for_communities,
+  hotels,
+  tourist_apartments_and_villages,
+  restaurants_coffee_bars,
+  other_tourist_accommodation,
+  office_buildings,
+  wholesale_retail_buildings,
+  transport_communication_buildings,
+  industrial_buildings_and_warehouses,
+  public_entertainment_educational_medical,
+  other_non_residential_buildings,
+  civil_engineering,
+  division_of_plots,
+  road_construction,
+  effective_dt,
+  permits,
+  modified_at
+FROM
+  "public"."ed_building_permits_by_property_type"
