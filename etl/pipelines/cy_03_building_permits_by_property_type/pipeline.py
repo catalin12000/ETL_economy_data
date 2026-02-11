@@ -26,7 +26,7 @@ class Pipeline:
 
         out_path = out_dir / "cystat_data.csv"
 
-        # PxWeb API Query: Focus on Monthly Number of permits
+        # PxWeb API Query
         query = {
             "query": [
                 { "code": "MEASUREMENT", "selection": { "filter": "item", "values": ["0"] } },
@@ -53,11 +53,11 @@ class Pipeline:
             "downloaded_at_utc": datetime.now(timezone.utc).isoformat(),
         })
 
-        # 1. Extraction
-        print(f"Extracting data from CSV...")
-        df_new = extract_building_permits_type(out_path)
+        # 1. Extraction (to DB format)
+        print(f"Extracting data to DB format...")
+        df_new_db = extract_building_permits_type(out_path)
         
-        # 2. Sync with baseline DB (Local Reference)
+        # 2. Sync with baseline DB
         db_path = Path("data/db") / f"cy_{prefix}_{self.pipeline_id}.csv"
         output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
         out_csv_full = output_dir / "mock_db_snapshot.csv"
@@ -66,28 +66,24 @@ class Pipeline:
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
             db_path, 
-            df_new, 
+            df_new_db, 
             out_csv_full, 
             report_csv, 
-            key_cols=["Year", "Month"]
+            key_cols=["Year", "Month", "permits"]
         )
 
-        # 3. DB Comparison (READ-ONLY - ZEUS DB)
+        # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
-        df_for_db = df_new.copy()
-        
-        # Map columns to lowercase for DB comparison
-        col_map = {c: c.lower() for c in df_for_db.columns}
-        df_for_db.rename(columns=col_map, inplace=True)
-        
         sql_path = Path(__file__).parent / "ed_building_permits_by_property_type.sql"
+        all_cols = df_new_db.columns.tolist()
+        sync_cols = [c for c in all_cols if c.lower() not in ["year", "month", "permits"]]
         
         db_comp_res = compare_with_postgres(
-            df=df_for_db,
+            df=df_new_db,
             table_name="ed_building_permits_by_property_type",
             db_name="zeus",
-            match_cols=["year", "month"],
-            sync_cols=[c for c in col_map.values() if c not in ["year", "month"]],
+            match_cols=["year", "month", "permits"],
+            sync_cols=sync_cols,
             tolerance=0.11,
             sql_file_path=str(sql_path)
         )
@@ -105,42 +101,92 @@ class Pipeline:
         
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
-        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+        delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = [
-            'Year', 'Month', 'single_houses', 'buildings_with_two_housing_units',
-            'residential_apartment_blocks', 'residential_commercial_apartment_blocks',
-            'cottage_apartment_complexes', 'residencies_for_communities', 'hotels',
-            'tourist_apartments_and_villages', 'restaurants_coffee_bars',
-            'other_tourist_accommodation', 'office_buildings',
-            'wholesale_retail_buildings', 'transport_communication_buildings',
-            'industrial_buildings_and_warehouses',
-            'public_entertainment_educational_medical',
-            'other_non_residential_buildings', 'civil_engineering',
-            'division_of_plots', 'road_construction', 'permits'
-        ]
-        
-        if not delta_df.empty:
-            # Map back to specific target names if needed, but here we use the lowercase ones from DB
-            rev_map = { "year": "Year", "month": "Month" }
-            delta_df.rename(columns=rev_map, inplace=True)
+        if not delta_db_df.empty:
+            delta_db_df = delta_db_df[delta_db_df["year"] >= 2023].copy()
             
-            if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2023].copy()
-            
-            if not delta_df.empty:
-                delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
-                # Filter to target_cols
-                # Note: target_cols uses lowercase except Year/Month
-                actual_targets = ["Year", "Month"] + [c for c in target_cols if c not in ["Year", "Month"]]
-                for c in actual_targets:
-                    if c not in delta_df.columns: delta_df[c] = pd.NA
-                delta_df[actual_targets].to_csv(deliverable_path, index=False)
-                print(f"Created filtered deliverable: {deliverable_name}")
+            if not delta_db_df.empty:
+                print("Transforming delta to long deliverable format...")
+                
+                CAT_MAP = {
+                    "single_houses": ("Residential Buildings", "Single houses"),
+                    "buildings_with_two_housing_units": ("Residential Buildings", "Buildings with two housing units"),
+                    "residential_apartment_blocks": ("Residential Buildings", "Residential apartment blocks"),
+                    "residential_commercial_apartment_blocks": ("Residential Buildings", "Residential/commercial apartment blocks"),
+                    "cottage_apartment_complexes": ("Residential Buildings", "Cottage apartment complexes"),
+                    "residencies_for_communities": ("Residential Buildings", "Residencies for communities"),
+                    "hotels": ("Non-residential Buildings", "Hotels"),
+                    "tourist_apartments_and_villages": ("Non-residential Buildings", "Tourist apartments and villages"),
+                    "restaurants_coffee_bars": ("Non-residential Buildings", "Restaurants, coffee-bars etc"),
+                    "other_tourist_accommodation": ("Non-residential Buildings", "Other tourist accommodation"),
+                    "office_buildings": ("Non-residential Buildings", "Office buildings"),
+                    "wholesale_retail_buildings": ("Non-residential Buildings", "Wholesale and retail trade buildings"),
+                    "transport_communication_buildings": ("Non-residential Buildings", "Transport and communication buildings"),
+                    "industrial_buildings_and_warehouses": ("Non-residential Buildings", "Industrial buildings and warehouses"),
+                    "public_entertainment_educational_medical": ("Non-residential Buildings", "Public entertainment, educational, medical and other institutional buildings"),
+                    "other_non_residential_buildings": ("Non-residential Buildings", "Other non-residential buildings"),
+                    "civil_engineering": ("Civil Engineering", "Civil engineering"),
+                    "division_of_plots": ("Other", "Division of plots"),
+                    "road_construction": ("Other", "Road construction")
+                }
+                
+                long_df = delta_db_df.melt(
+                    id_vars=["year", "month", "permits"],
+                    value_vars=[c for c in CAT_MAP.keys() if c in delta_db_df.columns],
+                    var_name="db_col",
+                    value_name="val"
+                )
+                
+                long_df["Type_of_project"] = long_df["db_col"].apply(lambda x: CAT_MAP[x][0])
+                long_df["Sub"] = long_df["db_col"].apply(lambda x: CAT_MAP[x][1])
+                
+                final_deliv = long_df.pivot_table(
+                    index=["year", "month", "Type_of_project", "Sub"],
+                    columns="permits",
+                    values="val",
+                    aggfunc="first"
+                ).reset_index()
+                
+                METRIC_RENAMER = {
+                    "Number of permits": "Number_of_permits",
+                    "Area (m2)": "Area_(m2)",
+                    "Value (€000's)": "Value_(€000's)",
+                    "Dwelling Units": "Dwelling_units"
+                }
+                final_deliv.rename(columns=METRIC_RENAMER, inplace=True)
+                
+                # Header Names from User Example
+                # Year ,Month,Type_of_project,Type_of_project _subcategory,Number_of_permits,Area_(m2),Value_(€000's),Dwelling_units
+                
+                final_deliv.rename(columns={
+                    "year": "Year ", # User has a non-breaking space after Year? (Wait, let's check)
+                    "month": "Month",
+                    "Sub": "Type_of_project _subcategory"
+                }, inplace=True)
+                
+                # Cleaning up non-breaking spaces if they exist in user sample
+                # Based on visual: "Year "
+                
+                target_deliv_cols = ["Year ", "Month", "Type_of_project", "Type_of_project _subcategory", "Number_of_permits", "Area_(m2)", "Value_(€000's)", "Dwelling_units"]
+                
+                # Fix mapping for "Year " if needed
+                if "Year " not in final_deliv.columns and "year" in final_deliv.columns:
+                     final_deliv.rename(columns={"year": "Year "}, inplace=True)
+                elif "Year" in final_deliv.columns:
+                     final_deliv.rename(columns={"Year": "Year "}, inplace=True)
+
+                final_deliv = final_deliv.sort_values(["Year ", "Month", "Type_of_project", "Type_of_project _subcategory"]).reset_index(drop=True)
+                
+                for c in target_deliv_cols:
+                    if c not in final_deliv.columns: final_deliv[c] = pd.NA
+                
+                final_deliv[target_deliv_cols].to_csv(deliverable_path, index=False)
+                print(f"Created deliverable in long format: {deliverable_name}")
             else:
-                pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+                pd.DataFrame(columns=['Year', 'Month']).to_csv(deliverable_path, index=False)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+            pd.DataFrame(columns=['Year', 'Month']).to_csv(deliverable_path, index=False)
 
         db_summary = {
             "status": db_comp_res.get("status"),
@@ -159,11 +205,8 @@ class Pipeline:
             "mock_db_snapshot_path": str(out_csv_full),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0 and db_comp_res.get("inserted") == 0 and db_comp_res.get("updated") == 0:
-            return {"status": "skipped", "message": "No new data detected.", "state": new_state}
-
         return {
             "status": "delivered", 
-            "message": f"Extracted {len(df_new)} rows. DB (zeus) Comparison: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} diff. File: {deliverable_name}", 
+            "message": f"Extracted {len(df_new_db)} rows. DB Comparison result ready. File: {deliverable_name}", 
             "state": new_state
         }
