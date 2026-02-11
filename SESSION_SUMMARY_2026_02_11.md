@@ -28,6 +28,11 @@ Today's session focused on standardizing the **Cyprus (zeus)** economic pipeline
 *   **Categories:** Mapped all project types into specific groups: *Residential, Non-residential, Civil Engineering, and Other*.
 *   **Precision:** Matched user headers exactly (e.g., `Year `, `Type_of_project _subcategory`).
 
+### 🟢 `cy_15_residential_price_indices` (Residential Price Indices)
+*   **Structural Refactor:** Developed a **Long Format** extraction from the CBC RPPI Excel file.
+*   **Mapping:** Automatically unpivots database columns into a structured `Year, Quarter, Location, Residence_type, Price_Index` format.
+*   **Status:** Successfully identified missing recent quarters and filtered for **2023 onwards**.
+
 ---
 
 ## 3. Findings: The Broken Link (CYSTAT)
@@ -49,7 +54,7 @@ Today's session focused on standardizing the **Cyprus (zeus)** economic pipeline
 ## 5. System Robustness Updates
 *   **Tolerance:** Standardized to `0.11` to ignore minor rounding differences between source files and DB decimals.
 *   **Normalization:** All string-based comparisons now automatically collapse multiple spaces and standardize dash types (`–` vs `-`) before joining.
-*   **Preservation:** Deliverables now use the **EXACT** string values found in the database for matching rows, ensuring zero naming drift.
+*   **Preservation:** Deliverables now use the **EXACT** string values found in the database for matching rows. The system joins on cleaned keys but restores the original DB casing/characters for the final output, ensuring zero naming drift.
 
 ---
-**Next Step:** Fix the `cy_05` (CPI) mapping and build the `cy_11_lro_transfers` extractor.
+**Next Step:** Build the `cy_11_lro_transfers` extractor and investigate the Employment data source.
