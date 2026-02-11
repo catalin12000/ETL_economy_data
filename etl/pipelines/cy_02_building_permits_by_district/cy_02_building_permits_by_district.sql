@@ -1,0 +1,14 @@
+SELECT
+  id,
+  year,
+  month,
+  district,
+  urban_rural,
+  area_m2,
+  dwelling_units,
+  number,
+  value_000s,
+  effective_dt,
+  modified_at
+FROM
+  "public"."ed_building_permits_by_district"
