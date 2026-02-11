@@ -113,14 +113,18 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             
             # CRITICAL: Use the ORIGINAL DB string values for the deliverable
             for k in match_cols:
-                if k in cols_to_restore and f"{k}_db" in row:
-                    row_updates[k] = row[f"{k}_db"] # Restore DB naming!
+                # After merge, original columns are suffixed _local or _db
+                local_key = f"{k}_local" if f"{k}_local" in row else k
+                db_key = f"{k}_db" if f"{k}_db" in row else k
+                
+                if k in cols_to_restore and db_key in row:
+                    row_updates[k] = row[db_key] # Restore DB naming!
                 else:
-                    row_updates[k] = row[k]
+                    row_updates[k] = row[local_key]
 
             for col in sync_cols:
-                local_val = row[f"{col}_local"]
-                db_val = row[f"{col}_db"]
+                local_val = row[f"{col}_local"] if f"{col}_local" in row else row.get(col)
+                db_val = row[f"{col}_db"] if f"{col}_db" in row else row.get(col)
                 
                 # Default to local value for the update object
                 row_updates[col] = local_val

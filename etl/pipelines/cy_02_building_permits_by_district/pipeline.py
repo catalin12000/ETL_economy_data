@@ -121,7 +121,7 @@ class Pipeline:
             delta_df.rename(columns=rev_map, inplace=True)
             
             if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2024].copy()
+                delta_df = delta_df[delta_df["Year"] >= 2023].copy()
             
             if not delta_df.empty:
                 delta_df = delta_df.sort_values(["Year", "Month", "District", "Urban_Rural"]).reset_index(drop=True)

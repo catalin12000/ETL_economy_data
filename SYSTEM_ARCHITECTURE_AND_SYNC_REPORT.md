@@ -48,7 +48,8 @@ Each pipeline now follows a standardized 4-step process:
 | `ed_loan_interest_rates` | Integrated into READ-ONLY architecture. | **Massive Gaps Found:** Database lacks significant historical data (3349 missing rows identified). |
 | `gdp_greece` | Integrated into READ-ONLY architecture. | **Gaps Found:** Database lacks historical quarterly data (82 missing rows identified). |
 | `cy_13_new_loans_millions` | Integrated into READ-ONLY architecture (**zeus**). | **First Cyprus Sync:** Identified 160 missing and 81 different rows in the Cyprus database. |
-| `cy_16_total_households_loans_millions` | Integrated into READ-ONLY architecture (**zeus**). | **Cyprus NPL Sync:** Identified 30 missing and 66 different rows. Deliverable filtered for 2024+. |
+| `cy_16_total_households_loans_millions` | Integrated into READ-ONLY architecture (**zeus**). | **Cyprus NPL Sync:** Identified 30 missing and 66 different rows. Deliverable filtered for 2023+. |
+| `cy_02_building_permits_by_district` | Integrated into READ-ONLY architecture (**zeus**). | **Corrected Match:** Aligned CYSTAT names with DB. Successfully identified 2023-09 to 2025-09 as missing/different. |
 
 ---
 
@@ -64,6 +65,7 @@ Each pipeline now follows a standardized 4-step process:
 - **GDP Greece:** Fully stable (Read-Only Comparison enabled).
 - **Cyprus New Loans:** Fully stable (Read-Only Comparison enabled against **zeus**).
 - **Cyprus Households Loans (NPLs):** Fully stable (Read-Only Comparison enabled against **zeus**).
+- **Cyprus Building Permits (District):** Fully stable (Read-Only Comparison enabled against **zeus**).
 - **General DB Health:** High monitoring. System now supports both **athena** (Greece) and **zeus** (Cyprus) read-only comparisons.
 
 ---
