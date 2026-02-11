@@ -141,9 +141,9 @@ class Pipeline:
             rev_map = {v: k for k, v in col_map.items()}
             delta_df.rename(columns=rev_map, inplace=True)
             
-            # Apply Filter: Only 2024 onwards
+            # Apply Filter: Only 2023 onwards
             if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2024].copy()
+                delta_df = delta_df[delta_df["Year"] >= 2023].copy()
             
             if not delta_df.empty:
                 delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
