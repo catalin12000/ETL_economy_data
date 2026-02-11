@@ -48,24 +48,72 @@ class Pipeline:
         if not year_links:
             return {"status": "error", "message": "Could not find any Year pages on CBC root.", "state": state}
 
-        latest_year, year_path = max(year_links, key=lambda x: x[0])
-        latest_year_url = "https://www.centralbank.cy" + year_path
-        
-        # 2) Get the year page to find the latest MFS file
-        r_year = requests.get(latest_year_url, headers=headers, timeout=30)
-        r_year.raise_for_status()
-        soup_year = BeautifulSoup(r_year.text, "html.parser")
-        
-        mfs_links = []
-        for a in soup_year.find_all("a", href=True):
-            href = a["href"]
-            if "MFS_" in href and ".xls" in href:
-                mfs_links.append(href)
-        
-        if not mfs_links:
-            return {"status": "error", "message": f"Could not find any MFS Excel files on {latest_year_url}", "state": state}
+        MONTH_ORDER = [
+            "december", "november", "october", "september", "august", "july",
+            "june", "may", "april", "march", "february", "january"
+        ]
 
-        target_mfs_url = "https://www.centralbank.cy" + mfs_links[0]
+        year_links = sorted(year_links, key=lambda x: x[0], reverse=True)
+        
+        target_mfs_url = None
+        for year_val, year_path in year_links:
+            year_url = "https://www.centralbank.cy" + year_path
+            print(f"Checking year page: {year_url}")
+            
+            r_year = requests.get(year_url, headers=headers, timeout=30)
+            r_year.raise_for_status()
+            soup_year = BeautifulSoup(r_year.text, "html.parser")
+            
+            # 2.1) Check for intermediate month pages ("Learn More" buttons)
+            month_links = []
+            for a in soup_year.find_all("a", href=True):
+                href = a["href"]
+                # Look for links ending in month names
+                for m in MONTH_ORDER:
+                    if href.lower().endswith(f"/{m}"):
+                        month_links.append((m, href))
+                        break
+            
+            if month_links:
+                # Sort month links by our MONTH_ORDER
+                month_links.sort(key=lambda x: MONTH_ORDER.index(x[0].lower()))
+                
+                for m_name, m_path in month_links:
+                    month_url = "https://www.centralbank.cy" + m_path
+                    print(f"  Checking month page: {month_url}")
+                    
+                    r_month = requests.get(month_url, headers=headers, timeout=30)
+                    r_month.raise_for_status()
+                    soup_month = BeautifulSoup(r_month.text, "html.parser")
+                    
+                    mfs_links = []
+                    for a in soup_month.find_all("a", href=True):
+                        href = a["href"]
+                        if "MFS" in href.upper() and (".xls" in href.lower() or ".xlsx" in href.lower()):
+                            mfs_links.append(href)
+                    
+                    if mfs_links:
+                        target_mfs_url = "https://www.centralbank.cy" + mfs_links[0]
+                        print(f"Found latest MFS file on month page: {target_mfs_url}")
+                        break
+            
+            # 2.2) Fallback: Check if file links are directly on the Year page (old structure)
+            if not target_mfs_url:
+                mfs_links = []
+                for a in soup_year.find_all("a", href=True):
+                    href = a["href"]
+                    if "MFS" in href.upper() and (".xls" in href.lower() or ".xlsx" in href.lower()):
+                        mfs_links.append(href)
+                
+                if mfs_links:
+                    target_mfs_url = "https://www.centralbank.cy" + mfs_links[0]
+                    print(f"Found latest MFS file on year page: {target_mfs_url}")
+            
+            if target_mfs_url:
+                break
+        
+        if not target_mfs_url:
+            return {"status": "error", "message": "Could not find any MFS Excel files on any Year or Month pages.", "state": state}
         
         out_path = out_dir / "cbc_mfs_monetary_statistics.xls"
 
@@ -148,6 +196,7 @@ class Pipeline:
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
         
+        # Use ONLY the rows that were actually pushed to Postgres
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
@@ -174,11 +223,26 @@ class Pipeline:
             rev_map["outstanding_consumer_loans_non_eu"] = "Outstanding_Consumer_Loans_Non_Eu"
             
             delta_df.rename(columns=rev_map, inplace=True)
-            for c in target_cols:
-                if c not in delta_df.columns: delta_df[c] = pd.NA
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            
+            # Apply Filter: Only 2024 onwards
+            if "Year" in delta_df.columns:
+                delta_df = delta_df[delta_df["Year"] >= 2024].copy()
+            
+            if not delta_df.empty:
+                # Sort
+                sort_cols = ["Year", "Month"]
+                delta_df = delta_df.sort_values(sort_cols).reset_index(drop=True)
+                
+                for c in target_cols:
+                    if c not in delta_df.columns: delta_df[c] = pd.NA
+                delta_df[target_cols].to_csv(deliverable_path, index=False)
+                print(f"Created filtered deliverable with {len(delta_df)} rows: {deliverable_name}")
+            else:
+                pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+                print("No data from 2024+ found in delta. Deliverable is empty.")
         else:
             pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+            print("No changes detected in DB. Deliverable is empty.")
 
         db_summary = {
             "status": db_comp_res.get("status"),
