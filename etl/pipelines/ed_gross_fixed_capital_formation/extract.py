@@ -1,54 +1,80 @@
-# etl/pipelines/ed_gross_fixed_capital_formation/extract.py
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
 import pandas as pd
 
 
 def _engine_for(path: Path) -> str:
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         sig = f.read(2)
-        if sig == b'PK':
+        if sig == b"PK":
             return "openpyxl"
     return "xlrd"
 
 
-def extract_gfcf(xls_path: Path) -> pd.DataFrame:
-    """
-    Extracts Quarterly Gross Fixed Capital Formation (GFCF).
-    Layout observed in SEL81:
-    - Row 7 onwards: Data
-    - Col 0: Period like '1995-Q1'
-    - Col 1: Total gross fixed capital formation
-    """
-    xls_path = Path(xls_path)
-    df = pd.read_excel(xls_path, sheet_name=0, header=None, engine=_engine_for(xls_path))
-
-    records = []
+def _parse_sheet(xls_path: Path, sheet_name: str, seasonality: str) -> pd.DataFrame:
+    df = pd.read_excel(xls_path, sheet_name=sheet_name, header=None, engine=_engine_for(xls_path))
+    records: list[dict[str, object]] = []
 
     for i in range(7, len(df)):
-        row = df.iloc[i]
-        period = str(row[0]).strip()
-        
-        # Match YYYY-QN
-        m = re.match(r"(\d{4})-Q([1-4])", period)
-        if m:
-            year = int(m.group(1))
-            quarter = int(m.group(2))
-            
-            total_val = row[1]
-            try:
-                total_val = round(float(total_val), 2)
-            except:
-                total_val = pd.NA
-                
-            if pd.notna(total_val):
-                records.append({
-                    "Year": year,
-                    "Quarter": quarter,
-                    "Index": total_val
-                })
+        period = str(df.iat[i, 0]).strip()
+        m = re.match(r"(\d{4})-Q([1-4])$", period)
+        if not m:
+            continue
 
-    out = pd.DataFrame(records).sort_values(["Year", "Quarter"]).reset_index(drop=True)
+        year = int(m.group(1))
+        quarter = int(m.group(2))
+
+        vals = [pd.to_numeric(df.iat[i, c], errors="coerce") for c in range(1, 9)]
+        if all(pd.isna(v) for v in vals):
+            continue
+
+        records.append(
+            {
+                "Year": year,
+                "Quarter": quarter,
+                "Seasonally": seasonality,
+                "Total gross fixed capital formation": pd.NA if pd.isna(vals[0]) else int(round(float(vals[0]))),
+                "Dwellings": pd.NA if pd.isna(vals[1]) else int(round(float(vals[1]))),
+                "Other buildings and structures": pd.NA if pd.isna(vals[2]) else int(round(float(vals[2]))),
+                "Cultivated biological resources": pd.NA if pd.isna(vals[3]) else int(round(float(vals[3]))),
+                "Transport equipment": pd.NA if pd.isna(vals[4]) else int(round(float(vals[4]))),
+                "Information Communication Technology (ICT) equipment": pd.NA
+                if pd.isna(vals[5])
+                else int(round(float(vals[5]))),
+                "Other machinery and equipment +weapon systems": pd.NA
+                if pd.isna(vals[6])
+                else int(round(float(vals[6]))),
+                "Intellectual property products": pd.NA if pd.isna(vals[7]) else int(round(float(vals[7]))),
+            }
+        )
+
+    return pd.DataFrame(records)
+
+
+def extract_gfcf(xls_path: Path) -> pd.DataFrame:
+    """
+    Extract SEL81 table 02 from both sheets:
+      - NSA -> Unadjusted
+      - SA  -> Adjusted
+    Output columns:
+      Year, Quarter, Seasonally, Total gross fixed capital formation, Dwellings,
+      Other buildings and structures, Cultivated biological resources,
+      Transport equipment, Information Communication Technology (ICT) equipment,
+      Other machinery and equipment +weapon systems, Intellectual property products
+    """
+    xls_path = Path(xls_path)
+
+    df_unadj = _parse_sheet(xls_path, "NSA", "Unadjusted")
+    df_adj = _parse_sheet(xls_path, "SA", "Adjusted")
+    out = pd.concat([df_unadj, df_adj], ignore_index=True)
+
+    if out.empty:
+        raise RuntimeError("No rows extracted from gross fixed capital formation source.")
+
+    season_order = {"Unadjusted": 0, "Adjusted": 1}
+    out["_season_order"] = out["Seasonally"].map(season_order).fillna(9).astype(int)
+    out = out.sort_values(["Year", "Quarter", "_season_order"]).drop(columns=["_season_order"]).reset_index(drop=True)
     return out

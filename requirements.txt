@@ -2,6 +2,8 @@ requests
 pandas
 openpyxl
 pdfplumber
+beautifulsoup4
+PyMuPDF
 lxml
 tabulate
 xlrd>=2.0.1

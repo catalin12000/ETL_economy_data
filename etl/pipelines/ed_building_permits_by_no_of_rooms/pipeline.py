@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
+import shutil
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
@@ -20,9 +21,12 @@ class Pipeline:
         prefix = "03"
         out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # Keep .xls (do NOT rename)
         xls_path = out_dir / "elstat_building_permits_by_no_of_rooms.xls"
+        deliverable_path = output_dir / "deliverable_ed_building_permits_by_no_of_rooms.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
@@ -50,10 +54,15 @@ class Pipeline:
             "content_length": meta.get("content_length"),
             "final_url": meta.get("final_url"),
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
+            "deliverable_path": str(deliverable_path),
         })
 
         # Skip if unchanged
         if not is_new_by_hash(state.get("file_sha256"), file_hash):
+            if xls_path.exists() and not deliverable_path.exists():
+                shutil.copy2(xls_path, deliverable_path)
             return {"status": "skipped", "message": "No new file detected (same file SHA256).", "state": new_state}
 
-        return {"status": "delivered", "message": f"Downloaded to {xls_path}", "state": new_state}
+        # Deliverable for this pipeline is the raw downloaded file.
+        shutil.copy2(xls_path, deliverable_path)
+        return {"status": "delivered", "message": f"Downloaded and delivered file to {deliverable_path}", "state": new_state}

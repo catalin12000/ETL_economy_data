@@ -3,6 +3,37 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from typing import List, Any
+from pathlib import Path
+
+
+def _load_dotenv_if_present() -> None:
+    """
+    Minimal .env loader (no external dependency).
+    Loads variables from project-root .env only if they are not already set.
+    """
+    env_path = Path(__file__).resolve().parents[2] / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or key in os.environ:
+            continue
+
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+
+        os.environ[key] = value
 
 def get_engine(db_name: str = "athena"):
     """
@@ -11,6 +42,7 @@ def get_engine(db_name: str = "athena"):
       postgresql://user:pass@host:port/defaultdb?sslmode=require
     Switches defaultdb -> athena/zeus by replacing the database in the URL.
     """
+    _load_dotenv_if_present()
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         raise EnvironmentError("DATABASE_URL environment variable not set.")

@@ -4,17 +4,52 @@ from __future__ import annotations
 import pandas as pd
 from pathlib import Path
 
+
+def _read_pxweb_csv(csv_path: Path) -> pd.DataFrame:
+    # CYSTAT CSV files are UTF-8 with BOM; fallback kept for safety.
+    try:
+        df = pd.read_csv(csv_path, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        df = pd.read_csv(csv_path, encoding="latin-1")
+
+    # Normalize header artifacts (BOM, quotes, extra spaces).
+    df.columns = [
+        str(c).replace("\ufeff", "").replace('"', "").strip()
+        for c in df.columns
+    ]
+    return df
+
+
+def _require_column(df: pd.DataFrame, candidates: list[str]) -> str:
+    for c in candidates:
+        if c in df.columns:
+            return c
+    upper_map = {col.upper(): col for col in df.columns}
+    for c in candidates:
+        if c.upper() in upper_map:
+            return upper_map[c.upper()]
+    raise KeyError(f"Missing expected columns {candidates}. Found: {list(df.columns)}")
+
+
 def extract_building_permits_district(csv_path: Path) -> pd.DataFrame:
     """
     Extracts Cyprus Building Permits by District from PxWeb CSV.
     """
-    df = pd.read_csv(csv_path, encoding='latin-1')
-    
+    df = _read_pxweb_csv(csv_path)
+
+    month_col = _require_column(df, ["MONTH"])
+    district_col = _require_column(df, ["DISTRICT"])
+    urban_col = _require_column(df, ["URBAN/RURAL"])
+
     # 1. Parse Year and Month
     # Format: "2003M01"
-    df["Year"] = df["MONTH"].str[:4].astype(int)
-    df["Month"] = df["MONTH"].str[5:7].astype(int)
-    
+    period = df[month_col].astype(str).str.strip().str.replace('"', "", regex=False)
+    df["Year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
+    df["Month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
+    df = df.dropna(subset=["Year", "Month"]).copy()
+    df["Year"] = df["Year"].astype(int)
+    df["Month"] = df["Month"].astype(int)
+
     # 2. Rename Columns and Map Labels
     # DISTRICT Mapping to match zeus DB
     DISTRICT_MAP = {
@@ -24,10 +59,10 @@ def extract_building_permits_district(csv_path: Path) -> pd.DataFrame:
         "Ammochostos": "Famagusta",
         "Pafos": "Paphos"
     }
-    
-    df["District"] = df["DISTRICT"].map(lambda x: DISTRICT_MAP.get(x, x))
-    df["Urban_Rural"] = df["URBAN/RURAL"]
-    
+
+    df["District"] = df[district_col].map(lambda x: DISTRICT_MAP.get(x, x))
+    df["Urban_Rural"] = df[urban_col]
+
     # CSV columns are named like: "Number Monthly data Number of permits", etc.
     col_map = {}
     for col in df.columns:

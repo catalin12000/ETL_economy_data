@@ -4,17 +4,51 @@ from __future__ import annotations
 import pandas as pd
 from pathlib import Path
 
+
+def _read_pxweb_csv(csv_path: Path) -> pd.DataFrame:
+    # CYSTAT CSV files are UTF-8 with BOM; fallback kept for safety.
+    try:
+        df = pd.read_csv(csv_path, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        df = pd.read_csv(csv_path, encoding="latin-1")
+
+    # Normalize header artifacts (BOM, quotes, extra spaces).
+    df.columns = [
+        str(c).replace("\ufeff", "").replace('"', "").strip()
+        for c in df.columns
+    ]
+    return df
+
+
+def _require_column(df: pd.DataFrame, candidates: list[str]) -> str:
+    for c in candidates:
+        if c in df.columns:
+            return c
+    upper_map = {col.upper(): col for col in df.columns}
+    for c in candidates:
+        if c.upper() in upper_map:
+            return upper_map[c.upper()]
+    raise KeyError(f"Missing expected columns {candidates}. Found: {list(df.columns)}")
+
+
 def extract_building_permits_type(csv_path: Path) -> pd.DataFrame:
     """
     Extracts Cyprus Building Permits by Property Type from PxWeb CSV.
     Outputs a DataFrame in the DB format (Pivoted by Project Type, Long by Metric).
     """
-    df = pd.read_csv(csv_path, encoding='latin-1')
-    
+    df = _read_pxweb_csv(csv_path)
+
+    month_col = _require_column(df, ["MONTH"])
+    project_type_col = _require_column(df, ["TYPE OF PROJECT"])
+
     # 1. Parse Year and Month
-    df["Year"] = df["MONTH"].str[:4].astype(int)
-    df["Month"] = df["MONTH"].str[5:7].astype(int)
-    
+    period = df[month_col].astype(str).str.strip().str.replace('"', "", regex=False)
+    df["Year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
+    df["Month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
+    df = df.dropna(subset=["Year", "Month"]).copy()
+    df["Year"] = df["Year"].astype(int)
+    df["Month"] = df["Month"].astype(int)
+
     # 2. Map Metrics to DB Strings
     # CSV columns are like: "Number Monthly data Number of permits", etc.
     # We map them to the exact strings found in the DB 'permits' column.
@@ -60,11 +94,11 @@ def extract_building_permits_type(csv_path: Path) -> pd.DataFrame:
     # The DB schema has individual columns for these types.
     
     records = []
-    
+
     for _, row in df.iterrows():
-        project_type_raw = row["TYPE OF PROJECT"]
+        project_type_raw = row[project_type_col]
         db_col = TYPE_MAP.get(project_type_raw)
-        
+
         if db_col:
             for csv_col, db_metric in csv_metric_cols:
                 val = row[csv_col]

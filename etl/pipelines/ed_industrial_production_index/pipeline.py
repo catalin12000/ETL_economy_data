@@ -13,9 +13,9 @@ class Pipeline:
 
     PUBLICATION_CODE = "DKT21"
 
-    # Use stable substrings (titles contain changing date ranges like "... - October 2025")
-    TITLE_03 = "03. Evolution of the Overall Industrial Production Index (2015=100.0)"
-    TITLE_04 = "04. Seasonally Adjusted Industrial Production Index (2015=100.0)"
+    # Use stable substrings (titles contain changing base years like "... 2021=100.0")
+    TITLE_03 = "Evolution of the Overall Industrial Production Index"
+    TITLE_04 = "Seasonally Adjusted Industrial Production Index"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "18"
