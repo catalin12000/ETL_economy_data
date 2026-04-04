@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
+import pandas as pd
+
+from etl.core.compare_csv import compare_and_update_csv
+from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from .extract import extract_housing_finances
 
 
 class Pipeline:
@@ -16,6 +22,7 @@ class Pipeline:
         "Quarterly Non-Financial Sector Accounts - Households and Non-Profit "
         "Institutions serving Households (S.1M)"
     )
+    MIN_DB_YEAR = 2019
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "16"
@@ -62,7 +69,161 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash):
-            return {"status": "skipped", "message": "No new file detected (same file SHA256).", "state": new_state}
+        print(f"Extracting data from {out_path}...")
+        df_new = extract_housing_finances(out_path)
+        df_new = df_new[pd.to_numeric(df_new["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        if df_new.empty:
+            return {
+                "status": "error",
+                "message": f"No rows found for Year >= {self.MIN_DB_YEAR}.",
+                "state": new_state,
+            }
 
-        return {"status": "delivered", "message": f"Downloaded to {out_path}", "state": new_state}
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
+        output_file = output_dir / "new_entries.csv"
+        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+
+        # Local baseline compare (display shape)
+        df_local = df_new[["Group", "Category", "Year", "Quarter", "Value (mln)"]].copy()
+        print(f"Comparing with baseline DB {db_path}...")
+        res = compare_and_update_csv(
+            db_csv_path=db_path,
+            extracted_df=df_local,
+            out_csv_path=out_csv_full,
+            report_csv_path=report_csv,
+            key_cols=["Group", "Category", "Year", "Quarter"],
+        )
+        res.updated_df.to_csv(out_csv_full, index=False)
+        res.diff_df.to_csv(output_file, index=False)
+
+        # DB compare (read-only)
+        print("Comparing extraction with live Postgres DB (athena)...")
+        df_for_db = pd.DataFrame({
+            "year": pd.to_numeric(df_new["Year"], errors="coerce"),
+            "quarter": pd.to_numeric(df_new["Quarter"], errors="coerce"),
+            "group": df_new["Group"],
+            "category": df_new["DB_Category"],
+            "sub_category": df_new["DB_Sub_Category"],
+            "value_millions": pd.to_numeric(df_new["Value (mln)"], errors="coerce"),
+            "category_display": df_new["Category"],
+            "group_order": pd.to_numeric(df_new["Group_Order"], errors="coerce"),
+            "category_order": pd.to_numeric(df_new["Category_Order"], errors="coerce"),
+        })
+        df_for_db = df_for_db.dropna(subset=["year", "quarter", "group", "category", "value_millions"]).copy()
+
+        sql_path = Path(__file__).parent / "ed_housing_finances.sql"
+        db_comp_res = compare_with_postgres(
+            df=df_for_db,
+            table_name=self.pipeline_id,
+            db_name="athena",
+            match_cols=["year", "quarter", "group", "category", "sub_category"],
+            sync_cols=["value_millions"],
+            tolerance=0.11,
+            sql_file_path=str(sql_path),
+        )
+        if db_comp_res.get("error"):
+            return {"status": "error", "message": db_comp_res["error"], "state": new_state}
+        print(
+            f"Postgres (athena) comparison result: {db_comp_res.get('inserted')} missing, "
+            f"{db_comp_res.get('updated')} different."
+        )
+
+        # Deliverable: DB delta only + ID
+        now = datetime.now()
+        deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
+        deliverable_path = output_dir / deliverable_name
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+
+        target_cols = ["ID", "Year", "Quarter", "Group", "Category", "Subcategory", "Value (mln)"]
+
+        if not delta_df.empty:
+            lookup_cols = [
+                "year", "quarter", "group", "category", "sub_category",
+                "category_display", "group_order", "category_order"
+            ]
+            lookup = (
+                df_for_db[lookup_cols]
+                .sort_values(["year", "quarter", "group_order", "category_order"], na_position="last")
+                .drop_duplicates(["year", "quarter", "group", "category", "sub_category"], keep="first")
+            )
+            delta_df = delta_df.merge(
+                lookup,
+                on=["year", "quarter", "group", "category", "sub_category"],
+                how="left",
+            )
+            # Keep DB category/sub_category structure explicit in deliverable.
+            # Fallback to display label only when category is missing.
+            delta_df["Category"] = delta_df["category"]
+            delta_df["Category"] = delta_df["Category"].fillna(delta_df["category_display"])
+            delta_df["Subcategory"] = delta_df["sub_category"]
+            delta_df["Subcategory"] = delta_df["Subcategory"].replace("", pd.NA)
+
+            delta_df = delta_df.rename(
+                columns={
+                    "id": "ID",
+                    "group": "Group",
+                    "year": "Year",
+                    "quarter": "Quarter",
+                    "value_millions": "Value (mln)",
+                }
+            )
+            if "ID" in delta_df.columns:
+                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
+            delta_df["Quarter"] = pd.to_numeric(delta_df["Quarter"], errors="coerce").astype("Int64")
+            delta_df["Value (mln)"] = pd.to_numeric(delta_df["Value (mln)"], errors="coerce")
+
+            delta_df["group_order"] = pd.to_numeric(delta_df["group_order"], errors="coerce").fillna(99)
+            delta_df["category_order"] = pd.to_numeric(delta_df["category_order"], errors="coerce").fillna(9999)
+            delta_df = delta_df.sort_values(
+                ["Year", "Quarter", "group_order", "category_order", "Category"],
+                na_position="last",
+            )
+            delta_df = delta_df.reset_index(drop=True)
+
+            for c in target_cols:
+                if c not in delta_df.columns:
+                    delta_df[c] = pd.NA
+            delta_df[target_cols].to_csv(deliverable_path, index=False)
+        else:
+            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+
+        db_summary = {
+            "status": db_comp_res.get("status"),
+            "missing_in_db": db_comp_res.get("inserted"),
+            "different_in_db": db_comp_res.get("updated"),
+        }
+        new_state.update({
+            "rows_before": res.rows_before,
+            "rows_after": res.rows_after,
+            "new_rows": res.new_rows,
+            "updated_cells": res.updated_cells,
+            "db_comparison": db_summary,
+            "deliverable_path": str(deliverable_path),
+            "delta_path": str(output_file),
+            "mock_db_snapshot_path": str(out_csv_full),
+        })
+
+        if (
+            not is_new_by_hash(state.get("file_sha256"), file_hash)
+            and res.new_rows == 0
+            and res.updated_cells == 0
+            and db_comp_res.get("inserted") == 0
+            and db_comp_res.get("updated") == 0
+        ):
+            return {"status": "skipped", "message": "No new data detected.", "state": new_state}
+
+        return {
+            "status": "delivered",
+            "message": (
+                f"Extracted {len(df_new)} rows. DB (athena) Comparison: "
+                f"{db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} diff. "
+                f"File: {deliverable_name}"
+            ),
+            "state": new_state,
+        }

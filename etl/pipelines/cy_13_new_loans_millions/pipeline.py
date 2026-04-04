@@ -202,7 +202,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'Year', 'Month', 'Housing_Pure_New_Loans', 'Housing_Renegotiated_Loans',
+            'ID', 'Year', 'Month', 'Housing_Pure_New_Loans', 'Housing_Renegotiated_Loans',
             'Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
             'Housing_Annual_Percentage_Rate_Of_Charge', 'Outstanding_Housing_Loans_Locals',
             'Outstanding_Housing_Loans_Eu', 'Outstanding_Housing_Loans_Non_Eu',
@@ -217,12 +217,15 @@ class Pipeline:
             # Map back to Capitalized for deliverable
             rev_map = {v: k for k, v in col_map.items()}
             # Specific fixes for casing
+            rev_map["id"] = "ID"
             rev_map["year"] = "Year"
             rev_map["month"] = "Month"
             rev_map["outstanding_housing_loans_non_eu"] = "Outstanding_Housing_Loans_Non_Eu"
             rev_map["outstanding_consumer_loans_non_eu"] = "Outstanding_Consumer_Loans_Non_Eu"
             
             delta_df.rename(columns=rev_map, inplace=True)
+            if "ID" in delta_df.columns:
+                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
             
             # Apply Filter: Only 2024 onwards
             if "Year" in delta_df.columns:

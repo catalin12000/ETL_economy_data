@@ -112,13 +112,14 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'Year', 'Month', 'Seasonally', 'Employed_000s', 'Unemployed_000s', 
+            'ID', 'Year', 'Month', 'Seasonally', 'Employed_000s', 'Unemployed_000s', 
             'Inactives_000s', 'Adjusted_Unemployment_Rate', 'Unadjusted_Unemployment_Rate'
         ]
         
         if not delta_df.empty:
             # Map database columns (lowercase) back to Capitalized for deliverable
             rev_col_map = {
+                "id": "ID",
                 "year": "Year",
                 "month": "Month",
                 "seasonally": "Seasonally",
@@ -133,7 +134,21 @@ class Pipeline:
             for c in target_cols:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA
-            
+
+            season_order = {"Adjusted": 0, "Unadjusted": 1}
+            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
+            delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
+            if "ID" in delta_df.columns:
+                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            delta_df["__season_order"] = (
+                delta_df["Seasonally"].astype(str).map(season_order).fillna(99).astype(int)
+            )
+            delta_df = (
+                delta_df.sort_values(["Year", "Month", "__season_order"], kind="stable")
+                .drop(columns=["__season_order"])
+                .reset_index(drop=True)
+            )
+
             delta_df[target_cols].to_csv(deliverable_path, index=False)
         else:
             # If no changes were made to the DB, create an empty file with headers

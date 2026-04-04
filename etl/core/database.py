@@ -60,6 +60,24 @@ def _normalize_str(s: Any) -> str:
     res = re.sub(r'\s+', ' ', res)
     return res
 
+def _normalize_match_value(col: str, s: Any) -> str:
+    """
+    Column-aware key normalization used only for matching.
+    Handles known wording drift between source files and DB labels.
+    """
+    v = _normalize_str(s)
+
+    if col == "loan_type":
+        if v in {
+            "loans with a defined maturity",
+            "loans with defined maturity",
+            "other loans with a defined maturity",
+            "other loans with defined maturity",
+        }:
+            return "loans with defined maturity"
+
+    return v
+
 def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match_cols: List[str], sync_cols: List[str], tolerance: float = 0.11, sql_file_path: str = None):
     """
     READ-ONLY comparison logic for Postgres.
@@ -105,8 +123,8 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
             df_db[col] = pd.to_numeric(df_db[col], errors='coerce').fillna(0).astype(int)
         else:
-            df[col + "_norm"] = df[col].apply(_normalize_str)
-            df_db[col + "_norm"] = df_db[col].apply(_normalize_str)
+            df[col + "_norm"] = df[col].apply(lambda x: _normalize_match_value(col, x))
+            df_db[col + "_norm"] = df_db[col].apply(lambda x: _normalize_match_value(col, x))
 
     # 3. Merge on normalized keys
     norm_match_cols = [(c + "_norm" if c not in ['year', 'month', 'quarter'] else c) for c in match_cols]
@@ -124,6 +142,7 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
     # 4. Identify Missing Rows (Inserts)
     to_insert = merged[merged['_merge'] == 'left_only'].copy()
     inserted_rows_list = []
+    has_id_col = ("id" in merged.columns) or ("id_db" in merged.columns)
 
     if not to_insert.empty:
         for _, row in to_insert.iterrows():
@@ -132,6 +151,8 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
                 # Use local values for missing rows
                 val = row[f"{col}_local"] if f"{col}_local" in row else row.get(col)
                 row_data[col] = val
+            if has_id_col:
+                row_data["id"] = row.get("id_db", row.get("id", pd.NA))
             inserted_rows_list.append(row_data)
 
     # 5. Identify Different Rows (Updates)
@@ -153,6 +174,9 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
                     row_updates[k] = row[db_key] # Restore DB naming!
                 else:
                     row_updates[k] = row[local_key]
+
+            if has_id_col:
+                row_updates["id"] = row.get("id_db", row.get("id", pd.NA))
 
             for col in sync_cols:
                 local_val = row[f"{col}_local"] if f"{col}_local" in row else row.get(col)

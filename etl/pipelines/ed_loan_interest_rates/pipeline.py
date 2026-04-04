@@ -6,7 +6,7 @@ import pandas as pd
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
-from etl.core.database import compare_with_postgres
+from etl.core.database import compare_with_postgres, get_engine, _normalize_match_value
 from .extract import extract_loan_interest_rates
 
 
@@ -20,6 +20,49 @@ class Pipeline:
     )
 
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/Rates_TABLE_1+1a.xls"
+
+    @staticmethod
+    def _build_full_replace_df(df_for_db: pd.DataFrame, sql_path: Path) -> pd.DataFrame:
+        """
+        Build a full replacement deliverable:
+        - keep all extracted rows
+        - attach DB id when keys match
+        - use DB key labels for group/loan_type when matched
+        """
+        match_cols = ["year", "month", "group", "loan_type"]
+        df_local = df_for_db.copy()
+
+        query = sql_path.read_text(encoding="utf-8")
+        df_db = pd.read_sql(query, get_engine("athena"))
+        df_db.columns = [c.lower() for c in df_db.columns]
+        df_local.columns = [c.lower() for c in df_local.columns]
+
+        for col in match_cols:
+            if col in {"year", "month", "quarter"}:
+                df_local[col] = pd.to_numeric(df_local[col], errors="coerce").fillna(0).astype(int)
+                df_db[col] = pd.to_numeric(df_db[col], errors="coerce").fillna(0).astype(int)
+            else:
+                df_local[f"{col}_norm"] = df_local[col].apply(lambda x: _normalize_match_value(col, x))
+                df_db[f"{col}_norm"] = df_db[col].apply(lambda x: _normalize_match_value(col, x))
+
+        norm_match_cols = [
+            c if c in {"year", "month", "quarter"} else f"{c}_norm"
+            for c in match_cols
+        ]
+
+        lookup_cols = norm_match_cols + ["id", "group", "loan_type"]
+        df_lookup = df_db[lookup_cols].copy()
+        df_lookup = df_lookup.sort_values("id", na_position="last").drop_duplicates(norm_match_cols, keep="first")
+
+        merged = df_local.merge(df_lookup, on=norm_match_cols, how="left", suffixes=("", "_db"))
+        merged["group"] = merged["group_db"].combine_first(merged["group"])
+        merged["loan_type"] = merged["loan_type_db"].combine_first(merged["loan_type"])
+        merged["id"] = pd.to_numeric(merged["id"], errors="coerce").astype("Int64")
+
+        drop_cols = [f"{c}_norm" for c in match_cols if c not in {"year", "month", "quarter"}]
+        drop_cols += ["group_db", "loan_type_db"]
+        merged = merged.drop(columns=[c for c in drop_cols if c in merged.columns], errors="ignore")
+        return merged
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "21"
@@ -53,6 +96,13 @@ class Pipeline:
                 "message": f"Extraction failed: {str(e)}",
                 "state": new_state,
             }
+
+        # Internal ordering helper: keep stable ordering, but do not persist helper column.
+        if "_sort_order" in df_new.columns:
+            df_new = df_new.sort_values(
+                ["Year", "Month", "_sort_order", "Group", "Loan Type"],
+                kind="stable"
+            ).drop(columns=["_sort_order"]).reset_index(drop=True)
 
         # 2. Sync with Baseline DB (Local Reference)
         db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
@@ -124,18 +174,16 @@ class Pipeline:
         # New Entries (Local delta)
         res.diff_df.to_csv(output_file, index=False)
 
-        # 5. Timestamped Deliverable (DB Delta ONLY)
+        # 5. Timestamped Deliverable (FULL REPLACEMENT WITH ID MATCH)
         import datetime
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
-        
-        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
-        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
-        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+
+        full_replace_df = self._build_full_replace_df(df_for_db=df_for_db, sql_path=sql_path)
         
         target_cols = [
-            'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc', 
+            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc', 
             'Total_Housing_Loans_Aprc', 'Delta_Interest_Rate_Deposits', 
             'Weighted_Average_Interest_Rate_New_Loans_In_Euro', 'Weighted_Average_Interest_Rate', 
             'Credit_Cards', 'Open_Account_Loans', 'Debit_Balances_On_Current_Accounts', 
@@ -147,19 +195,44 @@ class Pipeline:
             'Credit_Lines', 'Debit_Balances_Sight_Deposits'
         ]
         
-        if not delta_df.empty:
-            rev_map = {k: k.replace(" ", "_").title() for k in col_map.values()}
-            # Specific fixes for case consistency
-            rev_map["year"] = "Year"
-            rev_map["month"] = "Month"
-            rev_map["group"] = "Group"
-            rev_map["loan_type"] = "Loan_Type"
-            
-            delta_df.rename(columns=rev_map, inplace=True)
+        if not full_replace_df.empty:
+            rev_map = {
+                "id": "ID",
+                "year": "Year",
+                "month": "Month",
+                "group": "Group",
+                "loan_type": "Loan_Type",
+                "total_consumer_loans_aprc": "Total_Consumer_Loans_Aprc",
+                "total_housing_loans_aprc": "Total_Housing_Loans_Aprc",
+                "delta_interest_rate_deposits": "Delta_Interest_Rate_Deposits",
+                "weighted_average_interest_rate_new_loans_in_euro": "Weighted_Average_Interest_Rate_New_Loans_In_Euro",
+                "weighted_average_interest_rate": "Weighted_Average_Interest_Rate",
+                "credit_cards": "Credit_Cards",
+                "open_account_loans": "Open_Account_Loans",
+                "debit_balances_on_current_accounts": "Debit_Balances_On_Current_Accounts",
+                "total_interest_rate": "Total_Interest_Rate",
+                "total_collateral_guarantees_interest_rates": "Total_Collateral_Guarantees_Interest_Rates",
+                "total_small_medium_enterprises_interest_rates": "Total_Small_Medium_Enterprises_Interest_Rates",
+                "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
+                "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
+                "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
+                "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
+                "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
+                "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
+                "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation",
+                "credit_lines": "Credit_Lines",
+                "debit_balances_sight_deposits": "Debit_Balances_Sight_Deposits",
+            }
+            full_replace_df.rename(columns=rev_map, inplace=True)
+            if "ID" in full_replace_df.columns:
+                full_replace_df["ID"] = pd.to_numeric(full_replace_df["ID"], errors="coerce").astype("Int64")
             for c in target_cols:
-                if c not in delta_df.columns: delta_df[c] = pd.NA
-            
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+                if c not in full_replace_df.columns:
+                    full_replace_df[c] = pd.NA
+
+            sort_cols = ["Year", "Month", "Group", "Loan_Type"]
+            full_replace_df = full_replace_df.sort_values(sort_cols).reset_index(drop=True)
+            full_replace_df[target_cols].to_csv(deliverable_path, index=False)
         else:
             pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
 

@@ -55,6 +55,10 @@ def extract_gdp(file_path: Path) -> pd.DataFrame:
         "Year_Over_Year": data[4].apply(to_float),             # Col 4
         "Current_prices": data[5].apply(to_float)              # Col 5
     })
+
+    # ELSTAT exports QoQ / YoY as ratios (e.g. 0.0069). Convert to percentage points.
+    for c in ["Quarter_Over_Quarter", "Year_Over_Year"]:
+        result[c] = result[c].apply(lambda x: (x * 100.0) if pd.notna(x) else pd.NA)
     
     # Sort
     result = result.sort_values(["Year", "Quarter"]).reset_index(drop=True)

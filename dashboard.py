@@ -2,12 +2,23 @@ import json
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
+import sys
 
 STATE_DIR = Path("data/state")
 
+
+def _safe_print(text: str) -> None:
+    """Print text even when terminal encoding cannot represent all characters."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        enc = sys.stdout.encoding or "utf-8"
+        safe = text.encode(enc, errors="backslashreplace").decode(enc, errors="ignore")
+        print(safe)
+
 def generate_dashboard():
     if not STATE_DIR.exists():
-        print("No state directory found.")
+        _safe_print("No state directory found.")
         return
 
     stats = []
@@ -85,10 +96,10 @@ def generate_dashboard():
                 "Message": message
             })
         except Exception as e:
-            print(f"Error reading {f}: {e}")
+            _safe_print(f"Error reading {f}: {e}")
 
     if not stats:
-        print("No pipeline states found.")
+        _safe_print("No pipeline states found.")
         return
 
     df = pd.DataFrame(stats)
@@ -99,8 +110,8 @@ def generate_dashboard():
     df_console["Source"] = df_console["Source"].apply(lambda x: (x[:47] + "...") if len(str(x)) > 50 else x)
     
     pd.set_option('display.max_colwidth', 50)
-    print("\n--- Pipeline Status Dashboard ---")
-    print(df_console.to_string(index=False))
+    _safe_print("\n--- Pipeline Status Dashboard ---")
+    _safe_print(df_console.to_string(index=False))
 
     # Markdown Output (full URLs)
     md_content = "# ETL Pipeline Dashboard\n\n"
@@ -109,7 +120,7 @@ def generate_dashboard():
     
     with open("DASHBOARD.md", "w", encoding="utf-8") as md:
         md.write(md_content)
-    print(f"\nDashboard saved to DASHBOARD.md")
+    _safe_print("\nDashboard saved to DASHBOARD.md")
 
 if __name__ == "__main__":
     generate_dashboard()

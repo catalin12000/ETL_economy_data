@@ -98,6 +98,18 @@ class Pipeline:
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
+
+        def _write_deliverable(df_to_write: pd.DataFrame, path: Path) -> Path:
+            try:
+                df_to_write.to_csv(path, index=False)
+                return path
+            except PermissionError:
+                fallback = path.with_name(
+                    f"{path.stem}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}{path.suffix}"
+                )
+                df_to_write.to_csv(fallback, index=False)
+                print(f"Deliverable locked; wrote fallback file: {fallback.name}")
+                return fallback
         
         # Use ONLY the rows that are actually missing or different in Postgres
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
@@ -105,13 +117,14 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'Geopolitical_Entity', 'Year', 'Month', 
+            'ID', 'Geopolitical_Entity', 'Year', 'Month', 
             'Adjusted_Unemployed_000s', 'Adjusted_Unemployment_Rate'
         ]
         
         if not delta_df.empty:
             # Map back to Capitalized for deliverable
             rev_map = {
+                "id": "ID",
                 "geopolitical_entity": "Geopolitical_Entity",
                 "year": "Year",
                 "month": "Month",
@@ -119,11 +132,13 @@ class Pipeline:
                 "adjusted_unemployment_rate": "Adjusted_Unemployment_Rate"
             }
             delta_df.rename(columns=rev_map, inplace=True)
+            if "ID" in delta_df.columns:
+                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
             for c in target_cols:
                 if c not in delta_df.columns: delta_df[c] = pd.NA
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            deliverable_path = _write_deliverable(delta_df[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+            deliverable_path = _write_deliverable(pd.DataFrame(columns=target_cols), deliverable_path)
 
         db_summary = {
             "status": db_comp_res.get("status"),

@@ -8,6 +8,13 @@ from datetime import datetime, timezone
 from etl.core.state import load_state, save_state
 
 
+def _safe_print(text: str) -> None:
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(str(text).encode("ascii", errors="backslashreplace").decode("ascii"))
+
+
 def _pipelines_root() -> Path:
     # .../etl/core/runner.py -> .../etl/pipelines
     return Path(__file__).resolve().parents[1] / "pipelines"
@@ -41,7 +48,7 @@ def run_one(pipeline_id: str) -> None:
     pipe = _load_pipeline(pipeline_id)
     state: Dict[str, Any] = load_state(pipeline_id)
 
-    print(f"\n=== Running pipeline: {pipeline_id} ===")
+    _safe_print(f"\n=== Running pipeline: {pipeline_id} ===")
     
     try:
         result = pipe.run(state)
@@ -52,7 +59,7 @@ def run_one(pipeline_id: str) -> None:
         status = "error"
         message = str(e)
         new_state = state
-        print(f"Error: {e}")
+        _safe_print(f"Error: {e}")
 
     # Standardize dashboard metadata
     new_state["last_run_at_utc"] = datetime.now(timezone.utc).isoformat()
@@ -64,6 +71,6 @@ def run_one(pipeline_id: str) -> None:
 
     save_state(pipeline_id, new_state)
 
-    print(f"Status: {status}")
+    _safe_print(f"Status: {status}")
     if message:
-        print(message)
+        _safe_print(message)
