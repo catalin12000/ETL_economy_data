@@ -49,6 +49,20 @@ Important:
 - Use stable title substrings, not fragile full titles.
 - If a table can lag behind latest month, add month lookback logic (example used in `ed_key_partners_primary_goods`).
 
+### Shared Source Note
+
+- `12 ed_geo_distribution_of_issued_and_pending_permits` downloads the shared Migration Appendix B PDF.
+- That file is stored at `data/downloads/12_ed_geo_distribution_of_issued_and_pending_permits/migration_appendix_b.pdf`.
+- The following pipelines reuse that same PDF instead of downloading separate copies:
+  - `12 ed_geo_distribution_of_issued_and_pending_permits`
+  - `28 ed_residence_permits_aggregate`
+  - `29 ed_residence_permits_application`
+  - `30 ed_residence_permits_current`
+  - `31 ed_residence_permits_golden_visa`
+  - `32 ed_residence_permits_issued`
+  - `33 ed_residence_permits_top10_countries`
+  - `34 ed_residence_permits_top10_countries_golden_visa`
+
 ## 4) Extraction Strategy
 
 Keep extraction deterministic.
@@ -58,6 +72,19 @@ Best practice:
 - Parse year/month/quarter carefully (carry-forward year when source does that).
 - Round numeric metrics only at final output stage (normally to 2 decimals).
 - Reject placeholder blocks (for example all-zero future quarter placeholders).
+
+### PDF Pipelines Are High Risk
+
+- Any pipeline that extracts data from PDF files must be treated as high risk.
+- PDF layouts can change without warning even when the source URL stays the same.
+- For PDF-based pipelines, automated extraction is not enough on its own.
+- After every run, do a manual check against the raw PDF before trusting the deliverable.
+- Minimum manual check:
+  - confirm the latest period extracted is present in the PDF
+  - confirm the main output columns match the PDF table headings
+  - spot-check the newest rows against the source values
+  - confirm no rows are missing or shifted because of layout changes
+- If the PDF structure looks different than previous runs, treat the pipeline output as untrusted until the extractor is reviewed.
 
 ## 5) Local Compare Outputs
 

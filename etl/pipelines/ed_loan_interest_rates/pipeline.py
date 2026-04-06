@@ -64,6 +64,63 @@ class Pipeline:
         merged = merged.drop(columns=[c for c in drop_cols if c in merged.columns], errors="ignore")
         return merged
 
+    @staticmethod
+    def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
+        target_cols = [
+            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc',
+            'Total_Housing_Loans_Aprc', 'Delta_Interest_Rate_Deposits',
+            'Weighted_Average_Interest_Rate_New_Loans_In_Euro', 'Weighted_Average_Interest_Rate',
+            'Credit_Cards', 'Open_Account_Loans', 'Debit_Balances_On_Current_Accounts',
+            'Total_Interest_Rate', 'Total_Collateral_Guarantees_Interest_Rates',
+            'Total_Small_Medium_Enterprises_Interest_Rates', 'Floating_Rate_1_Year_Fixation',
+            'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees',
+            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation',
+            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation',
+            'Credit_Lines', 'Debit_Balances_Sight_Deposits'
+        ]
+
+        if df.empty:
+            return pd.DataFrame(columns=target_cols)
+
+        out = df.copy()
+        rev_map = {
+            "id": "ID",
+            "year": "Year",
+            "month": "Month",
+            "group": "Group",
+            "loan_type": "Loan_Type",
+            "total_consumer_loans_aprc": "Total_Consumer_Loans_Aprc",
+            "total_housing_loans_aprc": "Total_Housing_Loans_Aprc",
+            "delta_interest_rate_deposits": "Delta_Interest_Rate_Deposits",
+            "weighted_average_interest_rate_new_loans_in_euro": "Weighted_Average_Interest_Rate_New_Loans_In_Euro",
+            "weighted_average_interest_rate": "Weighted_Average_Interest_Rate",
+            "credit_cards": "Credit_Cards",
+            "open_account_loans": "Open_Account_Loans",
+            "debit_balances_on_current_accounts": "Debit_Balances_On_Current_Accounts",
+            "total_interest_rate": "Total_Interest_Rate",
+            "total_collateral_guarantees_interest_rates": "Total_Collateral_Guarantees_Interest_Rates",
+            "total_small_medium_enterprises_interest_rates": "Total_Small_Medium_Enterprises_Interest_Rates",
+            "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
+            "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
+            "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
+            "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
+            "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
+            "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation",
+            "credit_lines": "Credit_Lines",
+            "debit_balances_sight_deposits": "Debit_Balances_Sight_Deposits",
+        }
+        out.rename(columns=rev_map, inplace=True)
+        if "ID" in out.columns:
+            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        for c in target_cols:
+            if c not in out.columns:
+                out[c] = pd.NA
+
+        sort_cols = ["Year", "Month", "Group", "Loan_Type"]
+        out = out.sort_values(sort_cols).reset_index(drop=True)
+        return out[target_cols]
+
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "21"
         out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
@@ -174,67 +231,22 @@ class Pipeline:
         # New Entries (Local delta)
         res.diff_df.to_csv(output_file, index=False)
 
-        # 5. Timestamped Deliverable (FULL REPLACEMENT WITH ID MATCH)
+        db_diff_only_file = output_dir / "db_differences_only.csv"
+
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        db_diff_only_df = self._format_db_compare_output(updated_df)
+        db_diff_only_df.to_csv(db_diff_only_file, index=False)
+
+        # 5. Timestamped Deliverable (DB delta only: missing + different)
         import datetime
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 
-        full_replace_df = self._build_full_replace_df(df_for_db=df_for_db, sql_path=sql_path)
-        
-        target_cols = [
-            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc', 
-            'Total_Housing_Loans_Aprc', 'Delta_Interest_Rate_Deposits', 
-            'Weighted_Average_Interest_Rate_New_Loans_In_Euro', 'Weighted_Average_Interest_Rate', 
-            'Credit_Cards', 'Open_Account_Loans', 'Debit_Balances_On_Current_Accounts', 
-            'Total_Interest_Rate', 'Total_Collateral_Guarantees_Interest_Rates', 
-            'Total_Small_Medium_Enterprises_Interest_Rates', 'Floating_Rate_1_Year_Fixation', 
-            'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees', 
-            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation', 
-            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation', 
-            'Credit_Lines', 'Debit_Balances_Sight_Deposits'
-        ]
-        
-        if not full_replace_df.empty:
-            rev_map = {
-                "id": "ID",
-                "year": "Year",
-                "month": "Month",
-                "group": "Group",
-                "loan_type": "Loan_Type",
-                "total_consumer_loans_aprc": "Total_Consumer_Loans_Aprc",
-                "total_housing_loans_aprc": "Total_Housing_Loans_Aprc",
-                "delta_interest_rate_deposits": "Delta_Interest_Rate_Deposits",
-                "weighted_average_interest_rate_new_loans_in_euro": "Weighted_Average_Interest_Rate_New_Loans_In_Euro",
-                "weighted_average_interest_rate": "Weighted_Average_Interest_Rate",
-                "credit_cards": "Credit_Cards",
-                "open_account_loans": "Open_Account_Loans",
-                "debit_balances_on_current_accounts": "Debit_Balances_On_Current_Accounts",
-                "total_interest_rate": "Total_Interest_Rate",
-                "total_collateral_guarantees_interest_rates": "Total_Collateral_Guarantees_Interest_Rates",
-                "total_small_medium_enterprises_interest_rates": "Total_Small_Medium_Enterprises_Interest_Rates",
-                "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
-                "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
-                "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
-                "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
-                "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
-                "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
-                "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation",
-                "credit_lines": "Credit_Lines",
-                "debit_balances_sight_deposits": "Debit_Balances_Sight_Deposits",
-            }
-            full_replace_df.rename(columns=rev_map, inplace=True)
-            if "ID" in full_replace_df.columns:
-                full_replace_df["ID"] = pd.to_numeric(full_replace_df["ID"], errors="coerce").astype("Int64")
-            for c in target_cols:
-                if c not in full_replace_df.columns:
-                    full_replace_df[c] = pd.NA
-
-            sort_cols = ["Year", "Month", "Group", "Loan_Type"]
-            full_replace_df = full_replace_df.sort_values(sort_cols).reset_index(drop=True)
-            full_replace_df[target_cols].to_csv(deliverable_path, index=False)
-        else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+        deliverable_df = self._format_db_compare_output(delta_db_df)
+        deliverable_df.to_csv(deliverable_path, index=False)
 
         db_summary = {
             "status": db_comp_res.get("status"),
@@ -250,6 +262,7 @@ class Pipeline:
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path),
             "delta_path": str(output_file),
+            "db_differences_only_path": str(db_diff_only_file),
             "mock_db_snapshot_path": str(out_csv_full),
         })
 

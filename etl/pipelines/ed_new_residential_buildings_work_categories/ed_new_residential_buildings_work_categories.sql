@@ -1,0 +1,27 @@
+SELECT
+  "public"."ed_new_residential_buildings_work_categories"."id" AS "id",
+  "public"."ed_new_residential_buildings_work_categories"."year" AS "year",
+  "public"."ed_new_residential_buildings_work_categories"."quarter" AS "quarter",
+  "public"."ed_new_residential_buildings_work_categories"."overall_index" AS "overall_index",
+  "public"."ed_new_residential_buildings_work_categories"."earth_moving" AS "earth_moving",
+  "public"."ed_new_residential_buildings_work_categories"."concrete_reinforced" AS "concrete_reinforced",
+  "public"."ed_new_residential_buildings_work_categories"."wall_building" AS "wall_building",
+  "public"."ed_new_residential_buildings_work_categories"."plastering" AS "plastering",
+  "public"."ed_new_residential_buildings_work_categories"."electrical_installations" AS "electrical_installations",
+  "public"."ed_new_residential_buildings_work_categories"."hydraulic_installations" AS "hydraulic_installations",
+  "public"."ed_new_residential_buildings_work_categories"."central_heating_installations" AS "central_heating_installations",
+  "public"."ed_new_residential_buildings_work_categories"."coverings_coatings" AS "coverings_coatings",
+  "public"."ed_new_residential_buildings_work_categories"."carpentry" AS "carpentry",
+  "public"."ed_new_residential_buildings_work_categories"."iron_steel_structures" AS "iron_steel_structures",
+  "public"."ed_new_residential_buildings_work_categories"."aluminium_structures" AS "aluminium_structures",
+  "public"."ed_new_residential_buildings_work_categories"."painting" AS "painting",
+  "public"."ed_new_residential_buildings_work_categories"."insulation" AS "insulation",
+  "public"."ed_new_residential_buildings_work_categories"."glazing" AS "glazing",
+  "public"."ed_new_residential_buildings_work_categories"."elevators" AS "elevators",
+  "public"."ed_new_residential_buildings_work_categories"."plaster_structures" AS "plaster_structures",
+  "public"."ed_new_residential_buildings_work_categories"."special_installations_without_appliances_accessories" AS "special_installations_without_appliances_accessories",
+  "public"."ed_new_residential_buildings_work_categories"."effective_dt" AS "effective_dt",
+  "public"."ed_new_residential_buildings_work_categories"."modified_at" AS "modified_at",
+  "public"."ed_new_residential_buildings_work_categories"."created_at" AS "created_at"
+FROM
+  "public"."ed_new_residential_buildings_work_categories"

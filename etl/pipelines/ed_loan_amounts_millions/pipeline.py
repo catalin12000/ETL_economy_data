@@ -60,6 +60,115 @@ class Pipeline:
         merged = merged.drop(columns=[c for c in drop_cols if c in merged.columns], errors="ignore")
         return merged
 
+    @staticmethod
+    def _attach_ids_to_local_output(local_df: pd.DataFrame, full_replace_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Fill local compare outputs with DB ids when a business-key match exists.
+        This keeps `new_entries.csv` / `mock_db_snapshot.csv` aligned with the
+        DB-backed deliverable rather than leaving ids blank for post-baseline rows.
+        """
+        if local_df.empty:
+            return local_df
+
+        out = local_df.copy()
+        if "ID" in out.columns:
+            existing_id = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        else:
+            existing_id = pd.Series(pd.NA, index=out.index, dtype="Int64")
+
+        lookup = full_replace_df.copy()
+        if lookup.empty or "id" not in lookup.columns:
+            if "ID" not in out.columns:
+                insert_at = out.columns.get_loc("Loan Type") + 1 if "Loan Type" in out.columns else len(out.columns)
+                out.insert(insert_at, "ID", existing_id)
+            else:
+                out["ID"] = existing_id
+            return out
+
+        local_key_map = {
+            "Year": "year",
+            "Month": "month",
+            "Group": "group",
+            "Loan Type": "loan_type",
+        }
+
+        local_keys = out[list(local_key_map.keys())].copy()
+        ref_keys = lookup[list(local_key_map.values()) + ["id"]].copy()
+
+        local_keys["year"] = pd.to_numeric(local_keys["Year"], errors="coerce").fillna(0).astype(int)
+        local_keys["month"] = pd.to_numeric(local_keys["Month"], errors="coerce").fillna(0).astype(int)
+        ref_keys["year"] = pd.to_numeric(ref_keys["year"], errors="coerce").fillna(0).astype(int)
+        ref_keys["month"] = pd.to_numeric(ref_keys["month"], errors="coerce").fillna(0).astype(int)
+
+        for local_col, ref_col in [("Group", "group"), ("Loan Type", "loan_type")]:
+            local_keys[f"{ref_col}_norm"] = local_keys[local_col].apply(lambda x: _normalize_match_value(ref_col, x))
+            ref_keys[f"{ref_col}_norm"] = ref_keys[ref_col].apply(lambda x: _normalize_match_value(ref_col, x))
+
+        ref_lookup = (
+            ref_keys[["year", "month", "group_norm", "loan_type_norm", "id"]]
+            .sort_values("id", na_position="last")
+            .drop_duplicates(["year", "month", "group_norm", "loan_type_norm"], keep="first")
+        )
+
+        matched = local_keys.merge(
+            ref_lookup,
+            on=["year", "month", "group_norm", "loan_type_norm"],
+            how="left",
+        )
+        matched_id = pd.to_numeric(matched["id"], errors="coerce").astype("Int64")
+        final_id = existing_id.combine_first(matched_id)
+
+        if "ID" not in out.columns:
+            out.insert(0, "ID", final_id)
+        else:
+            out["ID"] = final_id
+            cols = ["ID"] + [c for c in out.columns if c != "ID"]
+            out = out[cols]
+
+        return out
+
+    @staticmethod
+    def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert DB-compare output frames (`inserted_df` / `updated_df`) to the
+        public CSV column layout used by this pipeline.
+        """
+        target_cols = [
+            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Loan_Amount',
+            'Total_Collateral_Guarantees_Loans', 'Total_Small_Medium_Enterprises_Loans',
+            'Floating_Rate_1_Year_Fixation', 'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees',
+            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation',
+            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation'
+        ]
+
+        if df.empty:
+            return pd.DataFrame(columns=target_cols)
+
+        out = df.copy()
+        rev_map = {
+            "id": "ID",
+            "year": "Year", "month": "Month", "group": "Group", "loan_type": "Loan_Type",
+            "total_loan_amount": "Total_Loan_Amount",
+            "total_collateral_guarantees_loans": "Total_Collateral_Guarantees_Loans",
+            "total_small_medium_enterprises_loans": "Total_Small_Medium_Enterprises_Loans",
+            "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
+            "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
+            "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
+            "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
+            "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
+            "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation"
+        }
+        out.rename(columns=rev_map, inplace=True)
+        if "ID" in out.columns:
+            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        for c in target_cols:
+            if c not in out.columns:
+                out[c] = pd.NA
+        sort_cols = ["Year", "Month", "Group", "Loan_Type"]
+        out = out.sort_values(sort_cols).reset_index(drop=True)
+        return out[target_cols]
+
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "20"
         
@@ -138,59 +247,39 @@ class Pipeline:
         )
         print(f"Postgres comparison result: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} different.")
 
+        full_replace_df = self._build_full_replace_df(df_for_db=df_for_db, sql_path=sql_path)
+        db_diff_only_file = output_dir / "db_differences_only.csv"
+
         # 4. Create Deliverables
         output_file = output_dir / "new_entries.csv"
-        
-        # Save snapshot
-        res.updated_df.to_csv(out_csv_full, index=False)
-        
-        # New Entries (Local delta)
-        res.diff_df.to_csv(output_file, index=False)
 
-        # 5. Timestamped Deliverable (FULL REPLACEMENT WITH ID MATCH)
+        enriched_snapshot_df = self._attach_ids_to_local_output(res.updated_df, full_replace_df)
+        enriched_diff_df = self._attach_ids_to_local_output(res.diff_df, full_replace_df)
+
+        for df_local_output in (enriched_snapshot_df, enriched_diff_df):
+            if "_sort_order" in df_local_output.columns:
+                df_local_output.drop(columns=["_sort_order"], inplace=True)
+
+        # Save snapshot
+        enriched_snapshot_df.to_csv(out_csv_full, index=False)
+
+        # New Entries (Local delta)
+        enriched_diff_df.to_csv(output_file, index=False)
+
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        db_diff_only_df = self._format_db_compare_output(updated_df)
+        db_diff_only_df.to_csv(db_diff_only_file, index=False)
+
+        # 5. Timestamped Deliverable (DB delta only: missing + different)
         import datetime
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 
-        full_replace_df = self._build_full_replace_df(df_for_db=df_for_db, sql_path=sql_path)
-        
-        target_cols = [
-            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Loan_Amount', 
-            'Total_Collateral_Guarantees_Loans', 'Total_Small_Medium_Enterprises_Loans', 
-            'Floating_Rate_1_Year_Fixation', 'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees', 
-            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation', 
-            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation'
-        ]
-        
-        if not full_replace_df.empty:
-            rev_map = {
-                "id": "ID",
-                "year": "Year", "month": "Month", "group": "Group", "loan_type": "Loan_Type",
-                "total_loan_amount": "Total_Loan_Amount",
-                "total_collateral_guarantees_loans": "Total_Collateral_Guarantees_Loans",
-                "total_small_medium_enterprises_loans": "Total_Small_Medium_Enterprises_Loans",
-                "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
-                "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
-                "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
-                "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
-                "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
-                "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
-                "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation"
-            }
-            full_replace_df.rename(columns=rev_map, inplace=True)
-            if "ID" in full_replace_df.columns:
-                full_replace_df["ID"] = pd.to_numeric(full_replace_df["ID"], errors="coerce").astype("Int64")
-            for c in target_cols:
-                if c not in full_replace_df.columns:
-                    full_replace_df[c] = pd.NA
-
-            # Keep newest period at the bottom of the deliverable.
-            sort_cols = ["Year", "Month", "Group", "Loan_Type"]
-            full_replace_df = full_replace_df.sort_values(sort_cols).reset_index(drop=True)
-            full_replace_df[target_cols].to_csv(deliverable_path, index=False)
-        else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+        deliverable_df = self._format_db_compare_output(delta_db_df)
+        deliverable_df.to_csv(deliverable_path, index=False)
 
         db_summary = {
             "status": db_comp_res.get("status"),
@@ -206,6 +295,7 @@ class Pipeline:
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path),
             "delta_path": str(output_file),
+            "db_differences_only_path": str(db_diff_only_file),
             "mock_db_snapshot_path": str(out_csv_full),
         })
 
