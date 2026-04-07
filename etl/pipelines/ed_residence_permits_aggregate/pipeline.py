@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Dict, Any
+from pathlib import Path
+from typing import Any
 
-from etl.core.download import is_new_by_hash
-from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprint
+from etl.core.migration_appendix_b_runner import run_shared_appendix_b_pipeline
+
+from .extract import extract_residence_permits_aggregate
 
 
 class Pipeline:
@@ -11,37 +13,31 @@ class Pipeline:
     display_name = "Ed Residence Permits Aggregate"
     TABLE_SPEC = "Appendix B Table 1"
 
-    # Pipeline that downloads the shared Appendix B PDF
-    SOURCE_PIPELINE_ID = "ed_geo_distribution_of_issued_and_pending_permits"
-
-    def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        pdf_path = get_latest_pdf_path(self.SOURCE_PIPELINE_ID)
-        src_hash, src_period = get_source_fingerprint(self.SOURCE_PIPELINE_ID)
-
-        # Skip if Appendix B PDF hasn't changed since this pipeline last ran
-        if not is_new_by_hash(state.get("source_file_sha256"), src_hash):
-            new_state = dict(state)
-            new_state.update({
-                "source_pipeline_id": self.SOURCE_PIPELINE_ID,
-                "source_file_sha256": src_hash,
-                "source_latest_period_seen": src_period,
-                "source_pdf_path": str(pdf_path),
-                "table_spec": self.TABLE_SPEC,
-            })
-            return {"status": "skipped", "message": "Source Appendix B PDF unchanged.", "state": new_state}
-
-        # Later: df = extract_table_1(pdf_path) and write CSV
-        new_state = dict(state)
-        new_state.update({
-            "source_pipeline_id": self.SOURCE_PIPELINE_ID,
-            "source_file_sha256": src_hash,
-            "source_latest_period_seen": src_period,
-            "source_pdf_path": str(pdf_path),
-            "table_spec": self.TABLE_SPEC,
-        })
-
-        return {
-            "status": "delivered",
-            "message": f"Ready to extract {self.TABLE_SPEC} from shared PDF: {pdf_path}",
-            "state": new_state,
-        }
+    def run(self, state: dict[str, Any]) -> dict[str, Any]:
+        return run_shared_appendix_b_pipeline(
+            state=state,
+            prefix="28",
+            pipeline_id=self.pipeline_id,
+            table_spec=self.TABLE_SPEC,
+            extractor=extract_residence_permits_aggregate,
+            key_cols=["Year", "Month"],
+            target_to_db={
+                "Year": "year",
+                "Month": "month",
+                "Eu Citizens Of Greek Origin": "eu_citizens_of_greek_origin",
+                "Third Country Nationals": "third_country_nationals",
+                "Political Refugees": "political_refugees",
+            },
+            match_cols=["year", "month"],
+            sync_cols=["eu_citizens_of_greek_origin", "third_country_nationals", "political_refugees"],
+            sql_file_path=str(Path(__file__).with_name("ed_residence_permits_aggregate.sql")),
+            target_cols=[
+                "ID",
+                "Month",
+                "Year",
+                "Eu Citizens Of Greek Origin",
+                "Third Country Nationals",
+                "Political Refugees",
+            ],
+            snapshot_backfill=True,
+        )

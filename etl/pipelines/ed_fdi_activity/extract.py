@@ -51,13 +51,13 @@ def _find_year_columns(df: pd.DataFrame) -> tuple[int, list[tuple[int, int]]]:
     raise RuntimeError("Could not find year header row in FDI activity source.")
 
 
-def extract_fdi_activity(xls_path: Path) -> pd.DataFrame:
+def extract_fdi_activity_sheet(xls_path: Path, sheet_name: str) -> pd.DataFrame:
     """
-    Extract BoG FDI Home by Activity as:
+    Extract a BoG FDI activity sheet as:
       Year, Section Code, Section Name, Subsection Code, Subsection Name, Amount
     """
     xls_path = Path(xls_path)
-    df = pd.read_excel(xls_path, sheet_name="INDUSTRY-IN", header=None, engine=_engine_for(xls_path))
+    df = pd.read_excel(xls_path, sheet_name=sheet_name, header=None, engine=_engine_for(xls_path))
     if df.empty:
         raise RuntimeError("Empty FDI activity source file.")
 
@@ -128,3 +128,7 @@ def extract_fdi_activity(xls_path: Path) -> pd.DataFrame:
     return out[
         ["Year", "Section Code", "Section Name", "Subsection Code", "Subsection Name", "Amount"]
     ]
+
+
+def extract_fdi_activity(xls_path: Path) -> pd.DataFrame:
+    return extract_fdi_activity_sheet(xls_path, "INDUSTRY-IN")

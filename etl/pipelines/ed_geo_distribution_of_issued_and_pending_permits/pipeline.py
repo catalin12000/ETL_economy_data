@@ -1,37 +1,42 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
-from typing import Dict, Any, Optional, Tuple, List
+from datetime import datetime
 from html.parser import HTMLParser
+from pathlib import Path
+from typing import Any
 
+import pandas as pd
 import requests
 
-from etl.core.download import download_file, sha256_file, is_new_by_hash
+from etl.core.compare_csv import compare_and_update_csv
+from etl.core.database import compare_with_postgres, get_engine
+from etl.core.download import download_file, is_new_by_hash, sha256_file
+
+from .extract import extract_geo_distribution_of_issued_and_pending_permits
 
 
 class _LinkParser(HTMLParser):
-    """Collect <a href="...">TEXT</a> links."""
     def __init__(self) -> None:
         super().__init__()
-        self.links: List[Tuple[str, str]] = []
+        self.links: list[tuple[str, str]] = []
         self._in_a = False
         self._href = ""
-        self._text_parts: List[str] = []
+        self._text_parts: list[str] = []
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag.lower() == "a":
             self._in_a = True
             self._href = dict(attrs).get("href", "") or ""
             self._text_parts = []
 
-    def handle_data(self, data):
+    def handle_data(self, data: str) -> None:
         if self._in_a:
-            t = (data or "").strip()
-            if t:
-                self._text_parts.append(t)
+            text = (data or "").strip()
+            if text:
+                self._text_parts.append(text)
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag: str) -> None:
         if tag.lower() == "a" and self._in_a:
             text = " ".join(self._text_parts).strip()
             href = self._href.strip()
@@ -42,144 +47,254 @@ class _LinkParser(HTMLParser):
             self._text_parts = []
 
 
-# Greek month name -> month number
 _MONTHS_GR = {
-    "ιανουάριος": 1, "ιανουαριος": 1,
-    "φεβρουάριος": 2, "φεβρουαριος": 2,
-    "μάρτιος": 3, "μαρτιος": 3,
-    "απρίλιος": 4, "απριλιος": 4,
-    "μάιος": 5, "μαιος": 5,
-    "ιούνιος": 6, "ιουνιος": 6,
-    "ιούλιος": 7, "ιουλιος": 7,
-    "αύγουστος": 8, "αυγουστος": 8,
-    "σεπτέμβριος": 9, "σεπτεμβριος": 9,
-    "οκτώβριος": 10, "οκτωβριος": 10,
-    "νοέμβριος": 11, "νοεμβριος": 11,
-    "δεκέμβριος": 12, "δεκεμβριος": 12,
+    "Ιανουάριος": 1,
+    "Φεβρουάριος": 2,
+    "Μάρτιος": 3,
+    "Απρίλιος": 4,
+    "Μάιος": 5,
+    "Ιούνιος": 6,
+    "Ιούλιος": 7,
+    "Αύγουστος": 8,
+    "Σεπτέμβριος": 9,
+    "Οκτώβριος": 10,
+    "Νοέμβριος": 11,
+    "Δεκέμβριος": 12,
 }
-
-
-def _get_html(url: str, headers: Dict[str, str]) -> str:
-    r = requests.get(url, headers=headers, timeout=60)
-    r.raise_for_status()
-    return r.text
 
 
 def _abs_url(href: str) -> str:
     if href.startswith("http://") or href.startswith("https://"):
         return href
-    # migration.gov.gr uses absolute site root links
     if href.startswith("/"):
         return "https://migration.gov.gr" + href
     return "https://migration.gov.gr/" + href.lstrip("/")
 
 
-def _parse_month_year_from_title(title: str) -> Optional[Tuple[int, int]]:
-    """
-    Extract (year, month) from strings like:
-    'Νοέμβριος 2025 – Νόμιμη Μετανάστευση | Παράρτημα Β'
-    """
-    t = " ".join(title.split()).strip().lower()
-
-    # capture "<monthname> <year>"
-    m = re.search(r"([α-ωάέήίόύώϊΐϋΰ]+)\s+(\d{4})", t)
-    if not m:
+def _parse_month_year_from_title(title: str) -> tuple[int, int] | None:
+    match = re.search(r"(Ιανουάριος|Φεβρουάριος|Μάρτιος|Απρίλιος|Μάιος|Ιούνιος|Ιούλιος|Αύγουστος|Σεπτέμβριος|Οκτώβριος|Νοέμβριος|Δεκέμβριος)\s+(\d{4})", title)
+    if not match:
         return None
-
-    month_name = m.group(1)
-    year = int(m.group(2))
-
-    month = _MONTHS_GR.get(month_name)
-    if not month:
-        return None
-
-    return year, month
+    return int(match.group(2)), _MONTHS_GR[match.group(1)]
 
 
-def resolve_latest_migration_appendix_b_pdf_url(
-    index_url: str,
-    must_contain_text: str,
-    headers: Dict[str, str],
-) -> Tuple[str, str]:
-    """
-    Returns (pdf_url, period_string) for the latest link matching the criteria.
-    period_string example: '2025-11'
-    """
-    html = _get_html(index_url, headers=headers)
-    p = _LinkParser()
-    p.feed(html)
+def resolve_latest_migration_appendix_b_pdf_url(index_url: str, headers: dict[str, str]) -> tuple[str, str]:
+    response = requests.get(index_url, headers=headers, timeout=60)
+    response.raise_for_status()
+    parser = _LinkParser()
+    parser.feed(response.text)
 
-    needle = must_contain_text.lower()
-
-    candidates: List[Tuple[int, int, str, str]] = []  # (year, month, href, text)
-    for href, text in p.links:
-        if needle in text.lower():
-            ym = _parse_month_year_from_title(text)
-            if ym:
-                y, mth = ym
-                candidates.append((y, mth, href, text))
+    candidates: list[tuple[int, int, str]] = []
+    for href, text in parser.links:
+        if "Παράρτημα Β" not in text:
+            continue
+        period = _parse_month_year_from_title(text)
+        if not period:
+            continue
+        year, month = period
+        candidates.append((year, month, href))
 
     if not candidates:
-        # give useful debugging info
-        sample = "\n".join([f"- {txt}" for _, txt in p.links[:20]])
-        raise RuntimeError(
-            f"Could not find any links containing '{must_contain_text}' on {index_url}.\n"
-            f"Sample links seen:\n{sample}"
-        )
+        raise RuntimeError(f"Could not resolve Appendix B PDF from {index_url}")
 
-    # latest by (year, month)
-    y, mth, href, _text = max(candidates, key=lambda x: (x[0], x[1]))
-    pdf_url = _abs_url(href)
-    period = f"{y}-{mth:02d}"
-    return pdf_url, period
+    year, month, href = max(candidates, key=lambda item: (item[0], item[1]))
+    return _abs_url(href), f"{year}-{month:02d}"
+
+
+def _latest_db_period(table_name: str) -> tuple[int | None, int | None]:
+    engine = get_engine("athena")
+    result = pd.read_sql(f'SELECT MAX(year * 100 + month) AS period_key FROM "public"."{table_name}"', engine)
+    value = result.iloc[0, 0]
+    if pd.isna(value):
+        return None, None
+    value = int(value)
+    return value // 100, value % 100
+
+
+def _parse_archive_period(path: Path) -> tuple[int | None, int | None]:
+    parts = path.stem.rsplit("_", 2)
+    if len(parts) < 3:
+        return None, None
+    try:
+        return int(parts[-2]), int(parts[-1])
+    except ValueError:
+        return None, None
 
 
 class Pipeline:
     pipeline_id = "ed_geo_distribution_of_issued_and_pending_permits"
-    display_name = "Geo distribution of issued and pending permits (Migration.gov.gr)"
+    display_name = "Ed Geo Distribution of Issued and Pending Permits"
 
     INDEX_URL = "https://migration.gov.gr/en/statistika/"
+    TABLE_SPEC = "Appendix B Tables 4c and 4d"
 
-    # This is the stable part we match in the link text
-    LINK_TEXT_MATCH = "Νόμιμη Μετανάστευση | Παράρτημα Β"
-
-    def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, state: dict[str, Any]) -> dict[str, Any]:
         prefix = "12"
         out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        pdf_path = out_dir / "migration_appendix_b.pdf"  # keep extension .pdf
-
+        pdf_path = out_dir / "migration_appendix_b.pdf"
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
+        pdf_url, period = resolve_latest_migration_appendix_b_pdf_url(self.INDEX_URL, headers=headers)
 
-        # 1) Resolve latest PDF URL by scanning the index page
-        pdf_url, period = resolve_latest_migration_appendix_b_pdf_url(
-            index_url=self.INDEX_URL,
-            must_contain_text=self.LINK_TEXT_MATCH,
-            headers=headers,
-        )
-
-        # 2) Download
         meta = download_file(pdf_url, pdf_path, headers=headers)
         file_hash = sha256_file(pdf_path)
+        report_year, report_month = [int(part) for part in period.split("-")]
 
-        # 3) State
+        latest_db_year, latest_db_month = _latest_db_period(self.pipeline_id)
+        latest_db_key = (latest_db_year or 0) * 100 + (latest_db_month or 0)
+        sources: list[tuple[int, int, Path]] = []
+        if report_year * 100 + report_month > latest_db_key:
+            sources.append((report_year, report_month, pdf_path))
+
+        archive_dir = pdf_path.parent / "archive"
+        if archive_dir.exists():
+            for archived_pdf in archive_dir.glob("migration_appendix_b_*.pdf"):
+                year, month = _parse_archive_period(archived_pdf)
+                if year is None or month is None:
+                    continue
+                if year * 100 + month > latest_db_key:
+                    sources.append((year, month, archived_pdf))
+
+        frames: list[pd.DataFrame] = []
+        seen_periods: set[tuple[int, int]] = set()
+        for year, month, source_pdf in sorted(sources, key=lambda item: (item[0], item[1])):
+            key = (year, month)
+            if key in seen_periods:
+                continue
+            seen_periods.add(key)
+            frames.append(
+                extract_geo_distribution_of_issued_and_pending_permits(
+                    source_pdf, report_year=year, report_month=month
+                )
+            )
+        if frames:
+            df_new = pd.concat(frames, ignore_index=True)
+        else:
+            df_new = extract_geo_distribution_of_issued_and_pending_permits(
+                pdf_path, report_year=report_year, report_month=report_month
+            )
+
+        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
+        output_file = output_dir / "new_entries.csv"
+        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+
+        res = compare_and_update_csv(
+            db_csv_path=db_path,
+            extracted_df=df_new,
+            out_csv_path=out_csv_full,
+            report_csv_path=report_csv,
+            key_cols=["Year", "Month", "Permit Type", "Period", "Area"],
+        )
+        res.updated_df.to_csv(out_csv_full, index=False)
+        res.diff_df.to_csv(output_file, index=False)
+
+        df_for_db = df_new.rename(
+            columns={
+                "Year": "year",
+                "Month": "month",
+                "Permit Type": "permit_type",
+                "Period": "period",
+                "Area": "area",
+                "Issued": "issued",
+                "Rejected": "rejected",
+                "Revoked": "revoked",
+                "Pending": "pending",
+            }
+        )
+
+        db_comp_res = compare_with_postgres(
+            df=df_for_db,
+            table_name=self.pipeline_id,
+            db_name="athena",
+            match_cols=["year", "month", "permit_type", "period", "area"],
+            sync_cols=["issued", "rejected", "revoked", "pending"],
+            tolerance=0.11,
+            sql_file_path=str(Path(__file__).with_name("ed_geo_distribution_of_issued_and_pending_permits.sql")),
+        )
+        if db_comp_res.get("error"):
+            return {"status": "error", "message": db_comp_res["error"], "state": dict(state)}
+
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+        target_cols = ["ID", "Year", "Month", "Permit Type", "Period", "Area", "Issued", "Rejected", "Revoked", "Pending"]
+        if not delta_df.empty:
+            delta_df = delta_df.rename(
+                columns={
+                    "id": "ID",
+                    "year": "Year",
+                    "month": "Month",
+                    "permit_type": "Permit Type",
+                    "period": "Period",
+                    "area": "Area",
+                    "issued": "Issued",
+                    "rejected": "Rejected",
+                    "revoked": "Revoked",
+                    "pending": "Pending",
+                }
+            )
+            for col in target_cols:
+                if col not in delta_df.columns:
+                    delta_df[col] = pd.NA
+            for col in ["ID", "Year", "Month"]:
+                delta_df[col] = pd.to_numeric(delta_df[col], errors="coerce").astype("Int64")
+            delta_df = delta_df[target_cols].sort_values(["Year", "Month", "Permit Type", "Period", "Area"]).reset_index(drop=True)
+        else:
+            delta_df = pd.DataFrame(columns=target_cols)
+
+        deliverable_name = f"deliverable_{self.pipeline_id}_{datetime.now().strftime('%B_%Y')}.csv"
+        deliverable_path = output_dir / deliverable_name
+        delta_df.to_csv(deliverable_path, index=False)
+
         new_state = dict(state)
-        new_state.update({
-            "source_page": self.INDEX_URL,
-            "resolved_pdf_url": pdf_url,
-            "latest_period_seen": period,
-            "file_sha256": file_hash,
-            "downloaded_filename": pdf_path.name,
-            "last_download_path": str(pdf_path),
-            "last_modified": meta.get("last_modified"),
-            "etag": meta.get("etag"),
-            "content_length": meta.get("content_length"),
-            "final_url": meta.get("final_url"),
-            "downloaded_at_utc": meta.get("downloaded_at_utc"),
-        })
+        new_state.update(
+            {
+                "source_page": self.INDEX_URL,
+                "resolved_pdf_url": pdf_url,
+                "latest_period_seen": period,
+                "file_sha256": file_hash,
+                "downloaded_filename": pdf_path.name,
+                "last_download_path": str(pdf_path),
+                "last_modified": meta.get("last_modified"),
+                "etag": meta.get("etag"),
+                "content_length": meta.get("content_length"),
+                "final_url": meta.get("final_url"),
+                "downloaded_at_utc": meta.get("downloaded_at_utc"),
+                "table_spec": self.TABLE_SPEC,
+                "rows_before": res.rows_before,
+                "rows_after": res.rows_after,
+                "new_rows": res.new_rows,
+                "updated_cells": res.updated_cells,
+                "db_comparison": {
+                    "status": db_comp_res.get("status"),
+                    "missing_in_db": db_comp_res.get("inserted"),
+                    "different_in_db": db_comp_res.get("updated"),
+                },
+                "deliverable_path": str(deliverable_path),
+                "delta_path": str(output_file),
+                "mock_db_snapshot_path": str(out_csv_full),
+            }
+        )
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash):
-            return {"status": "skipped", "message": "No new file detected (same file SHA256).", "state": new_state}
+        if (
+            not is_new_by_hash(state.get("file_sha256"), file_hash)
+            and res.new_rows == 0
+            and res.updated_cells == 0
+            and db_comp_res.get("inserted") == 0
+            and db_comp_res.get("updated") == 0
+        ):
+            return {"status": "skipped", "message": "Source Appendix B PDF unchanged and no data differences detected.", "state": new_state}
 
-        return {"status": "delivered", "message": f"Downloaded latest Appendix B PDF ({period}) to {pdf_path}", "state": new_state}
+        return {
+            "status": "delivered",
+            "message": (
+                f"Downloaded latest Appendix B PDF ({period}) and extracted {len(df_new)} rows. "
+                f"DB (athena) comparison: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} diff. "
+                f"File: {deliverable_name}"
+            ),
+            "state": new_state,
+        }

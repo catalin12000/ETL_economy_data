@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime
+
+import pandas as pd
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.fingerprint import dataframe_sha256
-from etl.pipelines.cy_06_economic_forecast_cy.extract import extract_forecast_table
+from etl.core.compare_csv import compare_and_update_csv
+from etl.core.database import compare_with_postgres
+from etl.pipelines.cy_06_economic_forecast_cy.extract import extract_forecast_deliverable
 
 
 class Pipeline:
@@ -43,28 +47,150 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash):
-            return {"status": "skipped", "message": "No change detected in EU forecast page.", "state": new_state}
-
-        # 2) Extract the exact table
-        df = extract_forecast_table(out_path)
+        # 2) Extract deliverable-shaped table
+        print(f"Extracting forecast data from {out_path}...")
+        df_new = extract_forecast_deliverable(out_path)
 
         # 3) Data hash
-        data_hash = dataframe_sha256(df, sort_cols=["Indicators"])
-        if state.get("data_sha256") == data_hash:
-            new_state["data_sha256"] = data_hash
-            return {"status": "skipped", "message": "Page changed, but extracted table is identical.", "state": new_state}
+        data_hash = dataframe_sha256(df_new, sort_cols=["Year"])
 
-        # 4) Write deliverable CSV
-        out_csv = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}" / "EU Economic Forecast Cyprus.csv"
-        out_csv.parent.mkdir(parents=True, exist_ok=True)
+        # 4) Sync with local baseline
+        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out_csv_full = output_dir / "mock_db_snapshot.csv"
+        output_file = output_dir / "new_entries.csv"
+        db_path = Path("data/db") / f"cy_{prefix}_{self.pipeline_id}.csv"
+        report_csv = Path("data/reports") / f"cy_{prefix}_{self.pipeline_id}" / "update_report.csv"
 
-        df.to_csv(out_csv, index=False)
+        print(f"Comparing with baseline DB {db_path}...")
+        res = compare_and_update_csv(
+            db_csv_path=db_path,
+            extracted_df=df_new,
+            out_csv_path=out_csv_full,
+            report_csv_path=report_csv,
+            key_cols=["Year"],
+        )
+        res.updated_df.to_csv(out_csv_full, index=False)
+        res.diff_df.to_csv(output_file, index=False)
 
-        # 5) Update state
-        new_state.update({
-            "data_sha256": data_hash,
-            "deliverable_path": str(out_csv),
-        })
+        # 5) Compare with live Postgres (READ-ONLY)
+        print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
+        df_for_db = df_new.rename(
+            columns={
+                "Year": "year",
+                "Gdp Growth": "gdp_growth",
+                "Inflation": "inflation",
+                "Unemployment": "unemployment",
+                "General Government Balance": "general_government_balance",
+                "Gross Public Debt": "gross_public_debt",
+                "Current Account Balance": "current_account_balance",
+            }
+        ).copy()
 
-        return {"status": "delivered", "message": f"Extracted {len(df)} rows. Deliverable={out_csv}", "state": new_state}
+        sql_path = Path(__file__).parent / "ed_economic_forecast_cy.sql"
+        db_comp_res = compare_with_postgres(
+            df=df_for_db,
+            table_name="ed_economic_forecast_cy",
+            db_name="zeus",
+            match_cols=["year"],
+            sync_cols=[
+                "gdp_growth",
+                "inflation",
+                "unemployment",
+                "general_government_balance",
+                "gross_public_debt",
+                "current_account_balance",
+            ],
+            tolerance=0.05,
+            sql_file_path=str(sql_path),
+        )
+        if db_comp_res.get("error"):
+            return {"status": "error", "message": db_comp_res["error"], "state": new_state}
+
+        print(
+            "Postgres comparison result: "
+            f"{db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} different."
+        )
+
+        # 6) Write DB-delta deliverable with ID
+        now = datetime.now()
+        deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
+        deliverable_path = output_dir / deliverable_name
+
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
+
+        target_cols = [
+            "ID",
+            "Year",
+            "Gdp Growth",
+            "Inflation",
+            "Unemployment",
+            "General Government Balance",
+            "Gross Public Debt",
+            "Current Account Balance",
+        ]
+        if not delta_df.empty:
+            delta_df = delta_df.rename(
+                columns={
+                    "id": "ID",
+                    "year": "Year",
+                    "gdp_growth": "Gdp Growth",
+                    "inflation": "Inflation",
+                    "unemployment": "Unemployment",
+                    "general_government_balance": "General Government Balance",
+                    "gross_public_debt": "Gross Public Debt",
+                    "current_account_balance": "Current Account Balance",
+                }
+            )
+            if "ID" in delta_df.columns:
+                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            for c in target_cols:
+                if c not in delta_df.columns:
+                    delta_df[c] = pd.NA
+            delta_df[target_cols].sort_values(["Year"]).to_csv(deliverable_path, index=False)
+        else:
+            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
+
+        db_summary = {
+            "status": db_comp_res.get("status"),
+            "missing_in_db": db_comp_res.get("inserted"),
+            "different_in_db": db_comp_res.get("updated"),
+        }
+
+        new_state.update(
+            {
+                "data_sha256": data_hash,
+                "rows_before": res.rows_before,
+                "rows_after": res.rows_after,
+                "new_rows": res.new_rows,
+                "updated_cells": res.updated_cells,
+                "db_comparison": db_summary,
+                "deliverable_path": str(deliverable_path),
+                "delta_path": str(output_file),
+                "mock_db_snapshot_path": str(out_csv_full),
+            }
+        )
+
+        no_source_change = not is_new_by_hash(state.get("file_sha256"), file_hash)
+        no_data_change = state.get("data_sha256") == data_hash
+        no_local_change = res.new_rows == 0 and res.updated_cells == 0
+        no_db_change = db_comp_res.get("inserted", 0) == 0 and db_comp_res.get("updated", 0) == 0
+
+        if no_source_change and no_data_change and no_local_change and no_db_change:
+            return {
+                "status": "skipped",
+                "message": f"No new data detected. Deliverable refreshed: {deliverable_name}",
+                "state": new_state,
+            }
+
+        return {
+            "status": "delivered",
+            "message": (
+                f"Extracted {len(df_new)} rows. "
+                f"DB Comparison: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} diff. "
+                f"File: {deliverable_name}"
+            ),
+            "state": new_state,
+        }

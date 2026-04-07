@@ -1,51 +1,36 @@
 from __future__ import annotations
 
-from typing import Dict, Any
 from pathlib import Path
+from typing import Any
 
-from etl.core.download import is_new_by_hash
-from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprint
+from etl.core.migration_appendix_b_runner import run_shared_appendix_b_pipeline
+
+from .extract import extract_residence_permits_current
 
 
 class Pipeline:
     pipeline_id = "ed_residence_permits_current"
     display_name = "Ed Residence Permits Current"
     TABLE_SPEC = "Appendix B Table 2a"
-    SOURCE_PIPELINE_ID = "ed_geo_distribution_of_issued_and_pending_permits"
 
-
-    # ✅ This is the pipeline that downloads Appendix B PDF
-    SOURCE_PIPELINE_ID = "ed_geo_distribution_of_issued_and_pending_permits"
-
-    def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        pdf_path = get_latest_pdf_path(self.SOURCE_PIPELINE_ID)
-        src_hash, src_period = get_source_fingerprint(self.SOURCE_PIPELINE_ID)
-
-        # Skip if the source PDF (Appendix B) hasn't changed since THIS pipeline last ran
-        if not is_new_by_hash(state.get("source_file_sha256"), src_hash):
-            new_state = dict(state)
-            new_state.update({
-                "source_pipeline_id": self.SOURCE_PIPELINE_ID,
-                "source_file_sha256": src_hash,
-                "source_latest_period_seen": src_period,
-                "source_pdf_path": str(pdf_path),
-                "table_spec": self.TABLE_SPEC,
-            })
-            return {"status": "skipped", "message": "Source Appendix B PDF unchanged.", "state": new_state}
-
-        # For now we are "download-only dependent":
-        # Later we will add: df = extract_<table>(pdf_path) and write CSV.
-        new_state = dict(state)
-        new_state.update({
-            "source_pipeline_id": self.SOURCE_PIPELINE_ID,
-            "source_file_sha256": src_hash,
-            "source_latest_period_seen": src_period,
-            "source_pdf_path": str(pdf_path),
-            "table_spec": self.TABLE_SPEC,
-        })
-
-        return {
-            "status": "delivered",
-            "message": f"Ready to extract {self.TABLE_SPEC} from shared PDF: {pdf_path}",
-            "state": new_state,
-        }
+    def run(self, state: dict[str, Any]) -> dict[str, Any]:
+        return run_shared_appendix_b_pipeline(
+            state=state,
+            prefix="30",
+            pipeline_id=self.pipeline_id,
+            table_spec=self.TABLE_SPEC,
+            extractor=extract_residence_permits_current,
+            key_cols=["Year", "Month"],
+            target_to_db={
+                "Year": "year",
+                "Month": "month",
+                "Work": "work",
+                "Other": "other",
+                "Family Reunification": "family_reunion",
+                "Studies": "studies",
+            },
+            match_cols=["year", "month"],
+            sync_cols=["work", "other", "family_reunion", "studies"],
+            sql_file_path=str(Path(__file__).with_name("ed_residence_permits_current.sql")),
+            target_cols=["ID", "Month", "Year", "Work", "Other", "Family Reunification", "Studies"],
+        )

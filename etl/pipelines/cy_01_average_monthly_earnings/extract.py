@@ -20,9 +20,9 @@ def _detect_sex(col_name: str) -> str | None:
     if "συνολο" in n or "total" in n:
         return "Total"
     if "αντρες" in n or "male" in n or "men" in n:
-        return "Male"
+        return "Males"
     if "γυναικες" in n or "female" in n or "women" in n:
-        return "Female"
+        return "Females"
     return None
 
 
@@ -45,7 +45,7 @@ def _extract_year_quarter(period_label: str) -> tuple[int, int] | None:
 
 def extract_average_monthly_earnings(csv_path: Path) -> pd.DataFrame:
     """
-    Extracts quarterly average monthly earnings by sex with both:
+    Extract quarterly average monthly earnings by sex with both:
     - unadjusted
     - seasonally adjusted
     """
@@ -53,7 +53,7 @@ def extract_average_monthly_earnings(csv_path: Path) -> pd.DataFrame:
     df.columns = [str(c).replace("\ufeff", "").replace('"', "").strip() for c in df.columns]
 
     period_col = df.columns[0]
-    metric_cols: list[tuple[str, str, str]] = []  # (column_name, sex, metric)
+    metric_cols: list[tuple[str, str, str]] = []
     for c in df.columns[1:]:
         sex = _detect_sex(c)
         metric = _detect_metric(c)
@@ -88,4 +88,3 @@ def extract_average_monthly_earnings(csv_path: Path) -> pd.DataFrame:
 
     out = out.sort_values(["Year", "Quarter", "Sex"]).reset_index(drop=True)
     return out
-

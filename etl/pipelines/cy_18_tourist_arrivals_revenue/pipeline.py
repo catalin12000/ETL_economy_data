@@ -140,6 +140,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
+            "ID",
             "Year",
             "Month",
             "Arrivals",
@@ -149,9 +150,10 @@ class Pipeline:
         ]
 
         if not delta_df.empty:
-            month_keys = delta_df[["year", "month"]].drop_duplicates().rename(
-                columns={"year": "Year", "month": "Month"}
+            month_keys = delta_df[["id", "year", "month"]].drop_duplicates().rename(
+                columns={"id": "ID", "year": "Year", "month": "Month"}
             )
+            month_keys["ID"] = pd.to_numeric(month_keys["ID"], errors="coerce").astype("Int64")
             month_keys["Year"] = pd.to_numeric(month_keys["Year"], errors="coerce").astype("Int64")
             month_keys["Month"] = pd.to_numeric(month_keys["Month"], errors="coerce").astype("Int64")
 

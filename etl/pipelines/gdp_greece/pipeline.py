@@ -16,8 +16,10 @@ class Pipeline:
     pipeline_id = "gdp_greece"
     display_name = "GDP Greece - Quarterly"
 
-    # Robust substring to match the target file even if years/periods change
-    TARGET_TITLE_SUBSTRING = "02. Τριμηνιαίο Ακαθάριστο Εγχώριο Προϊόν - Εποχικά διορθωμένα στοιχεία"
+    TARGET_TITLE_SUBSTRING = (
+        "02. Τριμηνιαίο Ακαθάριστο Εγχώριο Προϊόν - Εποχικά διορθωμένα στοιχεία, "
+        "Τρέχουσες Τιμές και Αλυσωτοί δείκτες όγκου σε σταθερές τιμές 2020"
+    )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "54"
@@ -31,7 +33,6 @@ class Pipeline:
             "Accept": "*/*",
         }
 
-        # 1) Resolve latest quarterly page dynamically (SEL84)
         pub_url = get_latest_publication_url(
             publication_code="SEL84",
             locale="el",
@@ -39,14 +40,12 @@ class Pipeline:
             headers=headers,
         )
 
-        # 2) Find the correct downloadable file by title substring
         download_url = get_download_url_by_title(
             publication_url=pub_url,
             target_title=self.TARGET_TITLE_SUBSTRING,
             headers=headers,
         )
 
-        # 3) Download
         meta = download_file(download_url, out_path, headers=headers)
         file_hash = sha256_file(out_path)
 
@@ -61,7 +60,6 @@ class Pipeline:
             "downloaded_at_utc": meta.get("downloaded_at_utc"),
         })
 
-        # 1. Extraction
         print(f"Extracting GDP data from {out_path}...")
         try:
             df_new = extract_gdp(out_path)
@@ -72,7 +70,6 @@ class Pipeline:
                 "state": new_state,
             }
 
-        # 2. Sync with Baseline DB (Local Reference)
         db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
         output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
         out_csv_full = output_dir / "mock_db_snapshot.csv"
@@ -87,7 +84,6 @@ class Pipeline:
             key_cols=["Year", "Quarter"]
         )
 
-        # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
         col_map = {
@@ -99,16 +95,16 @@ class Pipeline:
             "Current_prices": "current_prices"
         }
         df_for_db.rename(columns=col_map, inplace=True)
-            
+
         sql_path = Path(__file__).parent / "gdp_greece.sql"
-        
+
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.pipeline_id,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=[
-                "chain_linked_volumes", "quarter_over_quarter", 
+                "chain_linked_volumes", "quarter_over_quarter",
                 "year_over_year", "current_prices"
             ],
             tolerance=0.05,
@@ -116,33 +112,26 @@ class Pipeline:
         )
         print(f"Postgres comparison result: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} different.")
 
-        # 4. Create Deliverables
         output_file = output_dir / "new_entries.csv"
-        
-        # Save snapshot
+
         res.updated_df.to_csv(out_csv_full, index=False)
-        
-        # New Entries (Local delta)
         res.diff_df.to_csv(output_file, index=False)
 
-        # 5. Timestamped Deliverable (DB Delta ONLY)
         import datetime
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
-        
-        # Use ONLY the rows that are actually missing or different in Postgres
+
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
-        
+
         target_cols = [
-            'ID', 'Year', 'Quarter', 'Chain_Linked_Volumes',
-            'Quarter_Over_Quarter', 'Year_Over_Year', 'Current_Prices'
+            "ID", "Year", "Quarter", "Chain_Linked_Volumes",
+            "Quarter_Over_Quarter", "Year_Over_Year", "Current_Prices"
         ]
-        
+
         if not delta_df.empty:
-            # Map back to Capitalized for deliverable
             rev_map = {
                 "id": "ID",
                 "year": "Year",
@@ -156,8 +145,9 @@ class Pipeline:
             if "ID" in delta_df.columns:
                 delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
             for c in target_cols:
-                if c not in delta_df.columns: delta_df[c] = pd.NA
-            
+                if c not in delta_df.columns:
+                    delta_df[c] = pd.NA
+
             delta_df[target_cols].to_csv(deliverable_path, index=False)
         else:
             pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)

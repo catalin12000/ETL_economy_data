@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 
 from etl.core.compare_csv import compare_and_update_csv
-from etl.core.database import compare_with_postgres
+from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import is_new_by_hash, sha256_file
 from .extract import extract_tourist_arrivals_country
 
@@ -306,9 +306,26 @@ class Pipeline:
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 
-        target_cols = ["Year", "Month", "Country_of_origin", "Arrivals"]
+        target_cols = ["ID", "Year", "Month", "Country_of_origin", "Arrivals"]
         deliver_df = df_new[pd.to_numeric(df_new["Year"], errors="coerce") >= self.MIN_DELIVERABLE_YEAR].copy()
         if not deliver_df.empty:
+            engine = get_engine("zeus")
+            id_lookup = pd.read_sql(
+                'SELECT id, year, month FROM "public"."ed_tourist_arrivals_country"',
+                engine,
+            )
+            id_lookup.columns = [c.lower() for c in id_lookup.columns]
+            id_lookup["year"] = pd.to_numeric(id_lookup["year"], errors="coerce").astype("Int64")
+            id_lookup["month"] = pd.to_numeric(id_lookup["month"], errors="coerce").astype("Int64")
+
+            deliver_df["Year"] = pd.to_numeric(deliver_df["Year"], errors="coerce").astype("Int64")
+            deliver_df["Month"] = pd.to_numeric(deliver_df["Month"], errors="coerce").astype("Int64")
+            deliver_df = deliver_df.merge(
+                id_lookup.rename(columns={"id": "ID", "year": "Year", "month": "Month"}),
+                on=["Year", "Month"],
+                how="left",
+            )
+            deliver_df["ID"] = pd.to_numeric(deliver_df["ID"], errors="coerce").astype("Int64")
             deliver_df = deliver_df.sort_values(["Year", "Month", "Country_order"]).copy()
             deliver_df[target_cols].to_csv(deliverable_path, index=False)
         else:

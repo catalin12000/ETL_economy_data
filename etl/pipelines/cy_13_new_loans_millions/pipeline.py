@@ -202,15 +202,21 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'ID', 'Year', 'Month', 'Housing_Pure_New_Loans', 'Housing_Renegotiated_Loans',
-            'Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
-            'Housing_Annual_Percentage_Rate_Of_Charge', 'Outstanding_Housing_Loans_Locals',
-            'Outstanding_Housing_Loans_Eu', 'Outstanding_Housing_Loans_Non_Eu',
-            'Consumer_Annual_Percentage_Rate_Of_Charge',
+            'ID', 'Year', 'Month',
             'Consumer_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
-            'Consumer_Pure_New_Loans', 'Consumer_Renegotiated_Loans',
-            'Outstanding_Consumer_Loans_Eu', 'Outstanding_Consumer_Loans_Locals',
-            'Outstanding_Consumer_Loans_Non_Eu'
+            'Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
+            'Consumer_Annual_Percentage_Rate_Of_Charge',
+            'Housing_Annual_Percentage_Rate_Of_Charge',
+            'Consumer_Pure_New_Loans',
+            'Consumer_Renegotiated_Loans',
+            'Housing_Pure_New_Loans',
+            'Housing_Renegotiated_Loans',
+            'Outstanding_Consumer_Loans_Locals',
+            'Outstanding_Housing_Loans_Locals',
+            'Outstanding_Consumer_Loans_Eu',
+            'Outstanding_Housing_Loans_Eu',
+            'Outstanding_Consumer_Loans_Non_Eu',
+            'Outstanding_Housing_Loans_Non_Eu'
         ]
         
         if not delta_df.empty:

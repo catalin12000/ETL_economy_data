@@ -106,6 +106,8 @@ Deliverable rules:
 - include `ID` as first column
 - rows existing in DB carry DB `id`
 - new rows have blank `ID`
+- exception: if one deliverable row is an aggregated business row built from multiple DB rows, do not force a single `ID` into the deliverable
+- example: `cy_03_building_permits_by_property_type` stays in business format without `ID` because each output row combines multiple `permits` rows from the DB
 
 ## 7) Deliverable Rules
 

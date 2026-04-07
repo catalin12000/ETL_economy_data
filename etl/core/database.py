@@ -57,6 +57,7 @@ def _normalize_str(s: Any) -> str:
     import re
     res = str(s).lower().strip()
     res = res.replace("–", "-").replace("—", "-")
+    res = res.replace("–", "-").replace("—", "-")
     res = re.sub(r'\s+', ' ', res)
     return res
 
@@ -75,6 +76,18 @@ def _normalize_match_value(col: str, s: Any) -> str:
             "other loans with defined maturity",
         }:
             return "loans with defined maturity"
+
+    if col == "area":
+        if v in {"euro_area", "euro_area_countries"}:
+            return "euro_area"
+        if v in {"eu_countries", "eu_countries_excl_euro_area"}:
+            return "eu_countries"
+
+    if col == "country_of_origin":
+        if v in {"czech rep", "czech republic", "czech_ republic"}:
+            return "czech republic"
+        if v in {"united kingdom", "united_kingdom"}:
+            return "united kingdom"
 
     return v
 

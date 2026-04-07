@@ -132,9 +132,10 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["Year", "Month", "Index"]
+        target_cols = ["ID", "Year", "Month", "Index"]
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"year": "Year", "month": "Month", "index": "Index"})
+            delta_df = delta_df.rename(columns={"id": "ID", "year": "Year", "month": "Month", "index": "Index"})
+            delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce")
             delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
             delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
             delta_df["Index"] = pd.to_numeric(delta_df["Index"], errors="coerce").round(2)
@@ -146,6 +147,7 @@ class Pipeline:
 
             # User format asks for comma decimal separator, e.g. "119,06".
             delta_df["Index"] = delta_df["Index"].map(lambda x: f"{x:.2f}".replace(".", ","))
+            delta_df["ID"] = delta_df["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
             for c in target_cols:
                 if c not in delta_df.columns:

@@ -111,6 +111,10 @@ class Pipeline:
             df = df.rename(columns={"year": "Year"})
         if "sex" in df.columns:
             df = df.rename(columns={"sex": "Category"})
+        if "id" in df.columns:
+            df = df.rename(columns={"id": "ID"})
+        if "ID" not in df.columns:
+            df["ID"] = pd.NA
 
         db_cols = [db_col for _, db_col in self.BUCKET_TO_DB_COL]
         for col in db_cols:
@@ -118,7 +122,7 @@ class Pipeline:
                 df[col] = pd.NA
 
         melted = df.melt(
-            id_vars=["Year", "Category"],
+            id_vars=["ID", "Year", "Category"],
             value_vars=db_cols,
             var_name="db_col",
             value_name="Percentage_of_employees",
@@ -135,6 +139,7 @@ class Pipeline:
         ).copy()
         melted["Year"] = melted["Year"].astype(int)
         melted = melted[melted["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+        melted["ID"] = pd.to_numeric(melted["ID"], errors="coerce")
 
         category_order = {"Total": 0, "Males": 1, "Females": 2}
         bucket_order = {bucket: i for i, bucket in enumerate(BUCKETS_IN_ORDER)}
@@ -142,6 +147,7 @@ class Pipeline:
         melted["__bucket_ord"] = melted["Gross_monthly_earnings"].map(bucket_order).fillna(999)
         melted = melted.sort_values(["Year", "__cat_ord", "__bucket_ord"]).reset_index(drop=True)
         melted = melted.drop(columns=["db_col", "__cat_ord", "__bucket_ord"])
+        melted["ID"] = melted["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
         # Match manual deliverable formatting (no forced trailing zero).
         melted["Percentage_of_employees"] = (
@@ -150,7 +156,7 @@ class Pipeline:
             .map(lambda x: f"{x:.1f}".rstrip("0").rstrip("."))
         )
         return melted[
-            ["Year", "Category", "Gross_monthly_earnings", "Percentage_of_employees"]
+            ["ID", "Year", "Category", "Gross_monthly_earnings", "Percentage_of_employees"]
         ]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -231,6 +237,7 @@ class Pipeline:
         delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
+            "ID",
             "Year",
             "Category",
             "Gross_monthly_earnings",

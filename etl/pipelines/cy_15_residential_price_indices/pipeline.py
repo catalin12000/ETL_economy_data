@@ -156,6 +156,7 @@ class Pipeline:
                     for col, (loc, res_type) in VAL_MAP.items():
                         if col in row and pd.notna(row[col]):
                             long_rows.append({
+                                "ID": int(row["id"]) if pd.notna(row.get("id")) else pd.NA,
                                 "Year": int(row["year"]),
                                 "Quarter": int(row["quarter"]),
                                 "Location": loc,
@@ -165,17 +166,19 @@ class Pipeline:
                 
                 final_deliv = pd.DataFrame(long_rows)
                 final_deliv = final_deliv.sort_values(["Year", "Quarter", "Location", "Residence_type"]).reset_index(drop=True)
+                if "ID" in final_deliv.columns:
+                    final_deliv["ID"] = pd.to_numeric(final_deliv["ID"], errors="coerce").astype("Int64")
                 
                 # Header Names from User Example: Year,Quarter,Location,Residence_type,Price_Index,,Price_Index
                 # Sample shows 5 columns data, but header has empty and duplicate Price_Index.
                 # We will stick to the 5 columns data structure.
                 
-                final_deliv.to_csv(deliverable_path, index=False)
+                final_deliv[["ID", "Year", "Quarter", "Location", "Residence_type", "Price_Index"]].to_csv(deliverable_path, index=False)
                 print(f"Created correctly formatted deliverable: {deliverable_name}")
             else:
-                pd.DataFrame(columns=['Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
+                pd.DataFrame(columns=['ID', 'Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
         else:
-            pd.DataFrame(columns=['Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
+            pd.DataFrame(columns=['ID', 'Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
 
         db_summary = {
             "status": db_comp_res.get("status"),

@@ -46,13 +46,13 @@ def _find_year_columns(df: pd.DataFrame) -> tuple[int, list[tuple[int, int]]]:
     raise RuntimeError("Could not find year header row in FDI country source.")
 
 
-def extract_fdi_country(xls_path: Path) -> pd.DataFrame:
+def extract_fdi_country_sheet(xls_path: Path, sheet_name: int | str) -> pd.DataFrame:
     """
-    Extract BoG FDI Home by Country as:
+    Extract a BoG FDI country sheet as:
       Year, Country, Area, Amount, Continent
     """
     xls_path = Path(xls_path)
-    df = pd.read_excel(xls_path, sheet_name=0, header=None, engine=_engine_for(xls_path))
+    df = pd.read_excel(xls_path, sheet_name=sheet_name, header=None, engine=_engine_for(xls_path))
     if df.empty:
         raise RuntimeError("Empty FDI country source file.")
 
@@ -121,3 +121,7 @@ def extract_fdi_country(xls_path: Path) -> pd.DataFrame:
 
     out = out.sort_values(["Year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
     return out[["Year", "Country", "Area", "Amount", "Continent"]]
+
+
+def extract_fdi_country(xls_path: Path) -> pd.DataFrame:
+    return extract_fdi_country_sheet(xls_path, 0)

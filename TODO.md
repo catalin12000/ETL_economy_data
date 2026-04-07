@@ -47,3 +47,6 @@ This file tracks the repo-level work we do not want to lose between sessions.
 - [ ] Create a gap list for the built pipelines that still differ from the standard pattern.
 - [ ] Prioritize stale or misleading repo docs before adding more pipelines.
 - [ ] Decide whether `TODO.md` should become the main cross-session engineering backlog.
+- [ ] Clarify pipeline `45 ed_services_sector_turnover_monthly_index`: the target CSV is monthly with 26 codes, but the current DB table `ed_services_sector_turnover_index` is quarterly with 16 codes. Decide whether `45` should follow the target CSV/workbook shape or the existing SQL table before building the extractor.
+- [ ] Clarify pipeline `cy_05_consumer_price_index`: ask why the pipeline was explicitly switched to base year `2025` in commit `b6fb38c`, and confirm whether that is the intended long-term business rule or just a temporary choice.
+- [ ] Clarify pipeline `cy_16_total_households_loans_millions`: the current output/deliverable logic is not yet understood well enough, so review the source-to-output mapping before changing it further.
