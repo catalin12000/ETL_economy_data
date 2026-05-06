@@ -1,132 +1,141 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
 import fitz
 import pandas as pd
-import re
 
-DISTRICT_MAP = {
-    "ΛΕΥΚΩΣΙΑ": "Nicosia",
-    "ΛΕΜΕΣΟΣ": "Limassol",
-    "ΛΑΡΝΑΚΑ": "Larnaca",
-    "ΑΜΜΟΧΩΣΤΟΣ": "Famagusta",
-    "ΠΑΦΟΣ": "Paphos"
-}
+from etl.pipelines.lro_pdf_common import (
+    detect_district,
+    extract_tokens_between,
+    parse_currency_token,
+    parse_foreigners_blocks,
+    parse_int_token,
+)
 
-MONTH_MAP = {
-    "ΙΑΝΟΥΑΡΙΟΣ": 1, "ΦΕΒΡΟΥΑΡΙΟΣ": 2, "ΜΑΡΤΙΟΣ": 3, "ΑΠΡΙΛΙΟΣ": 4,
-    "ΜΑΪΟΣ": 5, "ΙΟΥΝΙΟΣ": 6, "ΙΟΥΛΙΟΣ": 7, "ΑΥΓΟΥΣΤΟΣ": 8,
-    "ΣΕΠΤΕΜΒΡΙΟΣ": 9, "ΟΚΤΩΒΡΙΟΣ": 10, "ΝΟΕΜΒΡΙΟΣ": 11, "ΔΕΚΕΜΒΡΙΟΣ": 12
-}
 
-def clean_val(val):
-    if val is None: return 0.0
-    s = str(val).replace('€', '').replace(',', '').strip()
-    try: return float(s)
-    except: return 0.0
+BUYERS_LABEL = "Ολικός Αριθμός Υποθέσεων:"
+PARCELS_LABEL = "Ολικός Αριθμός Ακινήτων:"
+DECLARED_LABEL = "Ολικό Συνολικό Δηλωθέν Ποσό:"
+ACCEPTED_LABEL = "Ολικό Συνολικό Αποδεχθέν Ποσό:"
+CURRENCY_PATTERN = r"€\s*[\d,]+(?:\.\d+)?"
 
-def parse_totals_fitz(pdf_path):
-    records = []
+
+def parse_transfer_totals(pdf_path: Path) -> pd.DataFrame:
+    records: list[dict[str, object]] = []
     doc = fitz.open(pdf_path)
-    for page in doc:
-        text = page.get_text()
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        
-        district = None
-        for gr, en in DISTRICT_MAP.items():
-            if gr in text.upper():
-                district = en
-                break
-        if not district: continue
-        
-        year_match = re.search(r'202\d', text)
-        year = int(year_match.group()) if year_match else 0
-        
-        # In January PDFs, every number is repeated because Month == Total column
-        # Logic: Collect all numbers, and if we see duplicates in sequence, it's January layout
-        month = 0
-        all_nums = []
-        for line in lines:
-            for gr, m_val in MONTH_MAP.items():
-                if gr in line.upper(): month = m_val
-            
-            clean = line.replace('€', '').replace(',', '').strip()
-            if re.match(r'^\d+(\.\d+)?$', clean):
-                all_nums.append(clean_val(clean))
+    try:
+        for page in doc:
+            text = page.get_text()
+            district = detect_district(text)
+            if not district or district == "Pancypria":
+                continue
 
-        if month == 1 and len(all_nums) >= 8:
-            # Layout: [Cases, CasesTotal, Props, PropsTotal, Declared, DeclaredTotal, Accepted, AcceptedTotal]
-            records.append({
-                "year": year, "month": month, "district": district,
-                "number_of_buyers_total": all_nums[0],
-                "number_parcels_total": all_nums[2],
-                "declared_price": all_nums[4],
-                "accepted_price": all_nums[6]
-            })
-        elif month > 1 and len(all_nums) >= 4:
-            # Standard layout
-            records.append({
-                "year": year, "month": month, "district": district,
-                "number_of_buyers_total": all_nums[0],
-                "number_parcels_total": all_nums[1],
-                "declared_price": all_nums[2],
-                "accepted_price": all_nums[3]
-            })
-    doc.close()
+            year_match = re.search(r"-\s*(20\d{2})", text)
+            if not year_match:
+                raise ValueError(f"Could not detect transfers page year for {district}")
+            year = int(year_match.group(1))
+
+            buyers_values = extract_tokens_between(text, BUYERS_LABEL, PARCELS_LABEL)
+            parcels_values = extract_tokens_between(text, PARCELS_LABEL, DECLARED_LABEL)
+            declared_values = extract_tokens_between(text, DECLARED_LABEL, ACCEPTED_LABEL, CURRENCY_PATTERN)
+            accepted_values = extract_tokens_between(text, ACCEPTED_LABEL, token_pattern=CURRENCY_PATTERN)
+
+            if min(len(buyers_values), len(parcels_values), len(declared_values), len(accepted_values)) < 2:
+                raise ValueError(f"Incomplete transfer totals parsed for {district}")
+
+            buyers_monthly = [parse_int_token(value) for value in buyers_values[:-1]]
+            parcels_monthly = [parse_int_token(value) for value in parcels_values[:-1]]
+            declared_monthly = [parse_currency_token(value) for value in declared_values[:-1]]
+            accepted_monthly = [parse_currency_token(value) for value in accepted_values[:-1]]
+
+            month_count = min(
+                len(buyers_monthly),
+                len(parcels_monthly),
+                len(declared_monthly),
+                len(accepted_monthly),
+            )
+
+            for month in range(1, month_count + 1):
+                records.append(
+                    {
+                        "year": year,
+                        "month": month,
+                        "district": district,
+                        "number_of_buyers_total": buyers_monthly[month - 1],
+                        "number_parcels_total": parcels_monthly[month - 1],
+                        "declared_price": declared_monthly[month - 1],
+                        "accepted_price": accepted_monthly[month - 1],
+                    }
+                )
+    finally:
+        doc.close()
+
     return pd.DataFrame(records)
 
-def parse_foreigners_fitz(pdf_path):
-    records = []
-    doc = fitz.open(pdf_path)
-    page = doc[0]
-    text = page.get_text()
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    date_match = re.search(r'(\d{2})/(\d{4})', text)
-    if not date_match: return pd.DataFrame()
-    month = int(date_match.group(1))
-    year = int(date_match.group(2))
-    
-    # Extract all numbers
-    nums = []
-    for line in lines:
-        if '/' in line and len(line) <= 7: continue
-        clean = line.replace(',', '').strip()
-        if clean.isdigit():
-            nums.append(float(clean))
-            
-    # Foreigners 2026 Table (Jan only):
-    # Row 1 (Props): [32, 17, 7, 16, 27, 33, 26, 55, 49, 42, 141, 163] (12 nums)
-    # Row 2 (Buyers): [37, 16, 11, 24, 35, 47, 34, 66, 78, 65, 195, 218] (12 nums)
-    
-    # In January PDFs, the PDF might duplicate rows too if Month == Total
-    # But usually, it's just 12 numbers per line.
-    
-    order = ["Nicosia", "Famagusta", "Larnaca", "Limassol", "Paphos"]
-    
-    if len(nums) >= 24:
-        prop_row = nums[0:12]
-        buyer_row = nums[12:24]
-        
-        for i, dist in enumerate(order):
-            records.append({
-                "year": year, "month": month, "district": dist,
-                "number_parcels_eu": prop_row[i*2],
-                "number_parcels_non_eu": prop_row[i*2 + 1],
-                "number_of_buyers_eu": buyer_row[i*2],
-                "number_of_buyers_noneu": buyer_row[i*2 + 1]
-            })
-            
-    doc.close()
-    return pd.DataFrame(records)
 
-def extract_lro_transfers(totals_path, foreigners_path):
-    df_tot = parse_totals_fitz(totals_path)
-    df_for = parse_foreigners_fitz(foreigners_path)
-    
-    if df_tot.empty or df_for.empty:
-        return pd.DataFrame()
-        
-    df = pd.merge(df_tot, df_for, on=["year", "month", "district"], how="inner")
-    
-    df["number_of_buyers_locals"] = (df["number_of_buyers_total"] - (df["number_of_buyers_eu"] + df["number_of_buyers_noneu"])).clip(lower=0)
-    df["number_parcels_locals"] = (df["number_parcels_total"] - (df["number_parcels_eu"] + df["number_parcels_non_eu"])).clip(lower=0)
-    
-    return df
+def extract_lro_transfers(totals_path: Path, foreigners_path: Path) -> pd.DataFrame:
+    totals_df = parse_transfer_totals(totals_path)
+    foreigners_df = parse_foreigners_blocks(foreigners_path)
+
+    parcels_df = (
+        foreigners_df[foreigners_df["block_number"] == 1]
+        .loc[
+            foreigners_df["district"] != "Pancypria",
+            ["year", "month", "district", "eu_count", "non_eu_count"],
+        ]
+        .rename(
+            columns={
+                "eu_count": "number_parcels_eu",
+                "non_eu_count": "number_parcels_non_eu",
+            }
+        )
+    )
+
+    buyers_df = (
+        foreigners_df[foreigners_df["block_number"] == 2]
+        .loc[
+            foreigners_df["district"] != "Pancypria",
+            ["year", "month", "district", "eu_count", "non_eu_count"],
+        ]
+        .rename(
+            columns={
+                "eu_count": "number_of_buyers_eu",
+                "non_eu_count": "number_of_buyers_noneu",
+            }
+        )
+    )
+
+    merged = pd.merge(totals_df, parcels_df, on=["year", "month", "district"], how="inner")
+    merged = pd.merge(merged, buyers_df, on=["year", "month", "district"], how="inner")
+
+    merged["number_of_buyers_locals"] = (
+        merged["number_of_buyers_total"] - merged["number_of_buyers_eu"] - merged["number_of_buyers_noneu"]
+    )
+    merged["number_parcels_locals"] = (
+        merged["number_parcels_total"] - merged["number_parcels_eu"] - merged["number_parcels_non_eu"]
+    )
+
+    if (merged["number_of_buyers_locals"] < 0).any() or (merged["number_parcels_locals"] < 0).any():
+        raise ValueError("Transfers locals calculation produced negative values.")
+
+    integer_columns = [
+        "year",
+        "month",
+        "number_of_buyers_total",
+        "number_parcels_total",
+        "number_parcels_eu",
+        "number_parcels_non_eu",
+        "number_of_buyers_eu",
+        "number_of_buyers_noneu",
+        "number_of_buyers_locals",
+        "number_parcels_locals",
+    ]
+    for column in integer_columns:
+        merged[column] = merged[column].astype(int)
+
+    for column in ["declared_price", "accepted_price"]:
+        merged[column] = merged[column].astype(float)
+
+    return merged.sort_values(["year", "month", "district"]).reset_index(drop=True)
