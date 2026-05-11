@@ -4,7 +4,11 @@ from pathlib import Path
 from typing import Dict, Any
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
-from etl.core.elstat import get_latest_publication_year_url, get_download_url_by_title
+from etl.core.elstat import (
+    BASE_URL,
+    get_download_url_by_title,
+    list_publication_years,
+)
 from etl.core.compare_csv import compare_and_update_csv
 from .extract import extract_gva
 
@@ -28,19 +32,39 @@ class Pipeline:
             "Accept": "*/*",
         }
 
-        # 1) Resolve latest year page dynamically
-        pub_url = get_latest_publication_year_url(
+        # 1) Walk back through years until the target file is found.
+        #    The newest year may be listed in the index before the GVA workbook
+        #    has been published (e.g. SEL12/2025 had no A64 file as of April 2026).
+        years = list_publication_years(
             publication_code=self.PUBLICATION_CODE,
             locale="el",
             headers=headers,
         )
+        if not years:
+            raise RuntimeError(f"No years found for publication {self.PUBLICATION_CODE}")
 
-        # 2) Find the correct downloadable file by title
-        download_url = get_download_url_by_title(
-            publication_url=pub_url,
-            target_title=self.TARGET_TITLE_SUBSTRING,
-            headers=headers,
-        )
+        pub_url = None
+        download_url = None
+        last_err: Exception | None = None
+        for y in years:
+            candidate_url = f"{BASE_URL}/el/statistics/-/publication/{self.PUBLICATION_CODE}/{y}"
+            try:
+                download_url = get_download_url_by_title(
+                    publication_url=candidate_url,
+                    target_title=self.TARGET_TITLE_SUBSTRING,
+                    headers=headers,
+                )
+                pub_url = candidate_url
+                break
+            except RuntimeError as e:
+                last_err = e
+                continue
+
+        if download_url is None:
+            raise RuntimeError(
+                f"Could not find '{self.TARGET_TITLE_SUBSTRING}' on any year of "
+                f"{self.PUBLICATION_CODE}. Last error: {last_err}"
+            )
 
         # 3) Download
         meta = download_file(download_url, out_path, headers=headers)

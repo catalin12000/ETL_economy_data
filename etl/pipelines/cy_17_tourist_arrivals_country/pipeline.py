@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 
 from etl.core.compare_csv import compare_and_update_csv
-from etl.core.database import compare_with_postgres, get_engine
+from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
 from .extract import extract_tourist_arrivals_country
 
@@ -306,28 +306,33 @@ class Pipeline:
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 
-        target_cols = ["ID", "Year", "Month", "Country_of_origin", "Arrivals"]
-        deliver_df = df_new[pd.to_numeric(df_new["Year"], errors="coerce") >= self.MIN_DELIVERABLE_YEAR].copy()
-        if not deliver_df.empty:
-            engine = get_engine("zeus")
-            id_lookup = pd.read_sql(
-                'SELECT id, year, month FROM "public"."ed_tourist_arrivals_country"',
-                engine,
-            )
-            id_lookup.columns = [c.lower() for c in id_lookup.columns]
-            id_lookup["year"] = pd.to_numeric(id_lookup["year"], errors="coerce").astype("Int64")
-            id_lookup["month"] = pd.to_numeric(id_lookup["month"], errors="coerce").astype("Int64")
+        target_cols = ["ID", "Year", "Month"] + self.DB_SYNC_COLS
 
-            deliver_df["Year"] = pd.to_numeric(deliver_df["Year"], errors="coerce").astype("Int64")
-            deliver_df["Month"] = pd.to_numeric(deliver_df["Month"], errors="coerce").astype("Int64")
-            deliver_df = deliver_df.merge(
-                id_lookup.rename(columns={"id": "ID", "year": "Year", "month": "Month"}),
-                on=["Year", "Month"],
-                how="left",
-            )
-            deliver_df["ID"] = pd.to_numeric(deliver_df["ID"], errors="coerce").astype("Int64")
-            deliver_df = deliver_df.sort_values(["Year", "Month", "Country_order"]).copy()
-            deliver_df[target_cols].to_csv(deliverable_path, index=False)
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
+
+        if not delta_wide.empty:
+            delta_wide = delta_wide.rename(columns={"id": "ID", "year": "Year", "month": "Month"})
+            if "ID" in delta_wide.columns:
+                delta_wide["ID"] = pd.to_numeric(delta_wide["ID"], errors="coerce").astype("Int64")
+            else:
+                delta_wide["ID"] = pd.NA
+            delta_wide["Year"] = pd.to_numeric(delta_wide["Year"], errors="coerce").astype("Int64")
+            delta_wide["Month"] = pd.to_numeric(delta_wide["Month"], errors="coerce").astype("Int64")
+
+            for c in self.DB_SYNC_COLS:
+                if c in delta_wide.columns:
+                    delta_wide[c] = pd.to_numeric(delta_wide[c], errors="coerce")
+
+            delta_wide = delta_wide.dropna(subset=["Year", "Month"])
+            delta_wide = delta_wide[delta_wide["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+            delta_wide = delta_wide.sort_values(["Year", "Month"]).reset_index(drop=True)
+
+            for c in target_cols:
+                if c not in delta_wide.columns:
+                    delta_wide[c] = pd.NA
+            delta_wide[target_cols].to_csv(deliverable_path, index=False)
         else:
             pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
 

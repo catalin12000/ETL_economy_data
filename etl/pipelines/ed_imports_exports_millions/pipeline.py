@@ -14,18 +14,26 @@ from .extract import extract_imports_exports_millions
 
 
 DISPLAY_MAP = {
-    "current_prices_goods": "Current Prices_Goods_imports",
-    "current_prices_services": "Current Prices_Services_imports",
-    "current_prices_expenditures_of_residents_in_rest_of_the_world": "Current Prices Imports_Expenditures of residents in the rest of the world",
-    "current_prices_goods_exports": "Current Prices_Goods_exports",
-    "current_prices_services_exports": "Current Prices_Services_exports",
-    "current_prices_expenditures_of_residents_on_economic_territory": "Current Prices_exports_Expenditures of non-residents on the economic territory",
-    "constant_prices_goods": "Constant prices of the previous year_goods",
-    "constant_prices_services": "Constant prices of the previous year_Services",
-    "constant_prices_expenditures_of_residents_in_rest_of_the_world": "Constant prices of the previous year_Expenditures of residents in the rest of the world",
-    "constant_prices_goods_exports": "Constant prices of the previous year_Goods_exports",
-    "constant_prices_services_exports": "Constant prices of the previous year_Services_exports",
-    "constant_prices_expenditures_of_residents_on_economic_territory": "Constant prices of the previous year_exports_Expenditures of non-residents on the economic territory",
+    # Headers chosen so they snake_case directly to the DB column names,
+    # so the deliverable maps 1:1 onto ed_imports_exports_millions.
+    "current_prices_goods": "Current prices goods",
+    "current_prices_services": "Current prices services",
+    "current_prices_imports": "Current prices imports",
+    "current_prices_expenditures_of_residents_in_rest_of_the_world": "Current prices expenditures of residents in rest of the world",
+    "current_prices_goods_exports": "Current prices goods exports",
+    "current_prices_services_exports": "Current prices services exports",
+    "current_prices_exports": "Current prices exports",
+    "current_prices_expenditures_of_residents_on_economic_territory": "Current prices expenditures of residents on economic territory",
+    "current_prices_exports_imports_balance": "Current prices exports imports balance",
+    "constant_prices_goods": "Constant prices goods",
+    "constant_prices_services": "Constant prices services",
+    "constant_prices_imports": "Constant prices imports",
+    "constant_prices_expenditures_of_residents_in_rest_of_the_world": "Constant prices expenditures of residents in rest of the world",
+    "constant_prices_goods_exports": "Constant prices goods exports",
+    "constant_prices_services_exports": "Constant prices services exports",
+    "constant_prices_exports": "Constant prices exports",
+    "constant_prices_expenditures_of_residents_on_economic_territory": "Constant prices expenditures of residents on economic territory",
+    "constant_prices_exports_imports_balance": "Constant prices exports imports balance",
 }
 
 

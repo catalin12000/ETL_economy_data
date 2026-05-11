@@ -176,21 +176,21 @@ def get_latest_publication_url(
     return f"{BASE_URL}/{locale}/statistics/-/publication/{publication_code}/{latest_period}"
 
 
-def get_latest_publication_year_url(
+def list_publication_years(
     publication_code: str,
     locale: str = "en",
     headers: Optional[Dict[str, str]] = None,
-) -> str:
+) -> List[int]:
     """
-    For annual ELSTAT publications where the URL is .../<CODE>/<YEAR>
-    Finds the latest year available from the index page .../<CODE>/-
+    Returns all years available for an annual publication, sorted descending
+    (newest first). Use when the latest year may not have the target file
+    posted yet and you need to fall back to a previous year.
     """
     headers = headers or {"User-Agent": "Mozilla/5.0", "Accept": "text/html,*/*"}
 
     index_url = f"{BASE_URL}/{locale}/statistics/-/publication/{publication_code}/-"
     html = _get_html(index_url, headers=headers)
 
-    # capture /publication/SEL30/2024 (with or without locale in path)
     years: List[int] = []
     pat1 = rf"/{re.escape(locale)}/statistics/-/publication/{re.escape(publication_code)}/(\d{{4}})"
     pat2 = rf"/statistics/-/publication/{re.escape(publication_code)}/(\d{{4}})"
@@ -200,12 +200,24 @@ def get_latest_publication_year_url(
     for m in re.findall(pat2, html):
         years.append(int(m))
 
-    years = sorted(set(years))
+    return sorted(set(years), reverse=True)
+
+
+def get_latest_publication_year_url(
+    publication_code: str,
+    locale: str = "en",
+    headers: Optional[Dict[str, str]] = None,
+) -> str:
+    """
+    For annual ELSTAT publications where the URL is .../<CODE>/<YEAR>
+    Finds the latest year available from the index page .../<CODE>/-
+    """
+    years = list_publication_years(publication_code, locale=locale, headers=headers)
     if not years:
+        index_url = f"{BASE_URL}/{locale}/statistics/-/publication/{publication_code}/-"
         raise RuntimeError(f"Could not find any years for {publication_code} on {index_url}")
 
-    latest_year = years[-1]
-    return f"{BASE_URL}/{locale}/statistics/-/publication/{publication_code}/{latest_year}"
+    return f"{BASE_URL}/{locale}/statistics/-/publication/{publication_code}/{years[0]}"
 
 
 def get_download_url_by_title(

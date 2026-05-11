@@ -145,8 +145,6 @@ class Pipeline:
             delta_df["Month"] = delta_df["Month"].astype(int)
             delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
 
-            # User format asks for comma decimal separator, e.g. "119,06".
-            delta_df["Index"] = delta_df["Index"].map(lambda x: f"{x:.2f}".replace(".", ","))
             delta_df["ID"] = delta_df["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
             for c in target_cols:

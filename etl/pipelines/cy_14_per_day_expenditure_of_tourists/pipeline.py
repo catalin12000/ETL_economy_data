@@ -9,6 +9,7 @@ import requests
 
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.download import is_new_by_hash, sha256_file
+from etl.core.nulls import normalize_nulls
 from .extract import extract_tourist_expenditure_distribution
 
 
@@ -151,6 +152,13 @@ class Pipeline:
             if c not in deliverable_df.columns:
                 deliverable_df[c] = pd.NA
         deliverable_df = deliverable_df[target_cols]
+        # Replace placeholder strings ('...', 'u', 'N/A', ':') with NULL in numeric columns.
+        normalize_nulls(
+            deliverable_df,
+            columns=["Average_length_of_stay_(nights)", "Expenditure_per_day"],
+        )
+        for c in ["Average_length_of_stay_(nights)", "Expenditure_per_day"]:
+            deliverable_df[c] = pd.to_numeric(deliverable_df[c], errors="coerce")
         deliverable_df.to_csv(deliverable_path, index=False)
 
         new_state.update(

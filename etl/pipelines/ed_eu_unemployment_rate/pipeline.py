@@ -16,7 +16,9 @@ class Pipeline:
     display_name = "Ed EU Unemployment Rate (Eurostat)"
 
     DATASET_CODE = "une_rt_m"
-    FILTER = "M.SA.TOTAL.PC_ACT+THS_PER.T.EL+RO+CY+EU27_2020+EA20"
+    # EA21 is the euro-area aggregate from 2025-01 onward (Bulgaria joined).
+    # Was EA20 prior to that; Eurostat retired EA20 from this dataset.
+    FILTER = "M.SA.TOTAL.PC_ACT+THS_PER.T.EL+RO+CY+EU27_2020+EA21"
     FILE_URL = f"https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2025-01"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:

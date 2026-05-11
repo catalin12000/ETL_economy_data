@@ -121,64 +121,53 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
+        # DB-shaped deliverable: one row per (Year, Quarter), one column per (Location, Residence_type).
+        index_cols = [
+            "residential_price_property_price_index",
+            "apartments_cy",
+            "houses_cy",
+            "nicosia_residential",
+            "limassol_residential",
+            "larnaca_residential",
+            "paphos_residential",
+            "famagusta_residential",
+            "nicosia_apartments",
+            "limassol_apartments",
+            "larnaca_apartments",
+            "paphos_apartments",
+            "famagusta_apartments",
+            "nicosia_houses",
+            "limassol_houses",
+            "larnaca_houses",
+            "paphos_houses",
+            "famagusta_houses",
+        ]
+        target_cols = ["ID", "Year", "Quarter"] + index_cols
+
         if not delta_db_df.empty:
-            # Filtering for 2023+
-            delta_db_df = delta_db_df[delta_db_df["year"] >= 2023].copy()
-            
-            if not delta_db_df.empty:
-                print("Transforming delta to long deliverable format...")
-                
-                # Unpivot Logic
-                # DB columns map to (Location, Residence_type)
-                VAL_MAP = {
-                    "residential_price_property_price_index": ("Cyprus", "Residential"),
-                    "apartments_cy": ("Cyprus", "Apartments"),
-                    "houses_cy": ("Cyprus", "Houses"),
-                    "nicosia_residential": ("Nicosia", "Residential"),
-                    "limassol_residential": ("Limassol", "Residential"),
-                    "larnaca_residential": ("Larnaca", "Residential"),
-                    "paphos_residential": ("Paphos", "Residential"),
-                    "famagusta_residential": ("Famagusta", "Residential"),
-                    "nicosia_apartments": ("Nicosia", "Apartments"),
-                    "limassol_apartments": ("Limassol", "Apartments"),
-                    "larnaca_apartments": ("Larnaca", "Apartments"),
-                    "paphos_apartments": ("Paphos", "Apartments"),
-                    "famagusta_apartments": ("Famagusta", "Apartments"),
-                    "nicosia_houses": ("Nicosia", "Houses"),
-                    "limassol_houses": ("Limassol", "Houses"),
-                    "larnaca_houses": ("Larnaca", "Houses"),
-                    "paphos_houses": ("Paphos", "Houses"),
-                    "famagusta_houses": ("Famagusta", "Houses")
-                }
-                
-                long_rows = []
-                for _, row in delta_db_df.iterrows():
-                    for col, (loc, res_type) in VAL_MAP.items():
-                        if col in row and pd.notna(row[col]):
-                            long_rows.append({
-                                "ID": int(row["id"]) if pd.notna(row.get("id")) else pd.NA,
-                                "Year": int(row["year"]),
-                                "Quarter": int(row["quarter"]),
-                                "Location": loc,
-                                "Residence_type": res_type,
-                                "Price_Index": row[col]
-                            })
-                
-                final_deliv = pd.DataFrame(long_rows)
-                final_deliv = final_deliv.sort_values(["Year", "Quarter", "Location", "Residence_type"]).reset_index(drop=True)
-                if "ID" in final_deliv.columns:
-                    final_deliv["ID"] = pd.to_numeric(final_deliv["ID"], errors="coerce").astype("Int64")
-                
-                # Header Names from User Example: Year,Quarter,Location,Residence_type,Price_Index,,Price_Index
-                # Sample shows 5 columns data, but header has empty and duplicate Price_Index.
-                # We will stick to the 5 columns data structure.
-                
-                final_deliv[["ID", "Year", "Quarter", "Location", "Residence_type", "Price_Index"]].to_csv(deliverable_path, index=False)
-                print(f"Created correctly formatted deliverable: {deliverable_name}")
+            delta_db_df = delta_db_df.rename(columns={"id": "ID", "year": "Year", "quarter": "Quarter"})
+            delta_db_df = delta_db_df[delta_db_df["Year"] >= 2023].copy()
+
+        if not delta_db_df.empty:
+            if "ID" in delta_db_df.columns:
+                delta_db_df["ID"] = pd.to_numeric(delta_db_df["ID"], errors="coerce").astype("Int64")
             else:
-                pd.DataFrame(columns=['ID', 'Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
+                delta_db_df["ID"] = pd.NA
+            delta_db_df["Year"] = pd.to_numeric(delta_db_df["Year"], errors="coerce").astype("Int64")
+            delta_db_df["Quarter"] = pd.to_numeric(delta_db_df["Quarter"], errors="coerce").astype("Int64")
+
+            for c in index_cols:
+                if c in delta_db_df.columns:
+                    delta_db_df[c] = pd.to_numeric(delta_db_df[c], errors="coerce")
+
+            delta_db_df = delta_db_df.sort_values(["Year", "Quarter"]).reset_index(drop=True)
+
+            for c in target_cols:
+                if c not in delta_db_df.columns:
+                    delta_db_df[c] = pd.NA
+            delta_db_df[target_cols].to_csv(deliverable_path, index=False)
         else:
-            pd.DataFrame(columns=['ID', 'Year', 'Quarter', 'Location', 'Residence_type', 'Price_Index']).to_csv(deliverable_path, index=False)
+            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
 
         db_summary = {
             "status": db_comp_res.get("status"),

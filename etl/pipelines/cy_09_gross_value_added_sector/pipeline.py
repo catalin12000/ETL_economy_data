@@ -123,51 +123,6 @@ class Pipeline:
         out = pd.DataFrame(records).sort_values("year").reset_index(drop=True)
         return out
 
-    def _to_deliverable_long(self, df_wide_delta: pd.DataFrame) -> pd.DataFrame:
-        df = df_wide_delta.copy()
-        if "year" in df.columns:
-            df = df.rename(columns={"year": "Year"})
-        if "id" in df.columns:
-            df = df.rename(columns={"id": "ID"})
-        if "ID" not in df.columns:
-            df["ID"] = pd.NA
-
-        db_cols = [db_col for _, db_col in self.ACTIVITY_DB_MAP]
-        for col in db_cols:
-            if col not in df.columns:
-                df[col] = pd.NA
-
-        melted = df.melt(
-            id_vars=["ID", "Year"],
-            value_vars=db_cols,
-            var_name="db_col",
-            value_name="Volume_measures_(million)",
-        )
-        db_to_activity = {db_col: activity for activity, db_col in self.ACTIVITY_DB_MAP}
-        melted["Economic Activity"] = melted["db_col"].map(db_to_activity)
-        melted["Year"] = pd.to_numeric(melted["Year"], errors="coerce")
-        melted["Volume_measures_(million)"] = pd.to_numeric(
-            melted["Volume_measures_(million)"], errors="coerce"
-        )
-
-        melted = melted.dropna(subset=["Year", "Economic Activity", "Volume_measures_(million)"]).copy()
-        melted["Year"] = melted["Year"].astype(int)
-        melted = melted[melted["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
-        melted["ID"] = pd.to_numeric(melted["ID"], errors="coerce")
-
-        activity_order = {activity: i for i, (activity, _) in enumerate(self.ACTIVITY_DB_MAP)}
-        melted["__ord"] = melted["Economic Activity"].map(activity_order).fillna(999)
-        melted = melted.sort_values(["Year", "__ord"]).drop(columns=["db_col", "__ord"]).reset_index(drop=True)
-        melted["ID"] = melted["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
-
-        # Keep manual-deliverable style: one decimal max and trim trailing .0.
-        melted["Volume_measures_(million)"] = (
-            melted["Volume_measures_(million)"]
-            .round(1)
-            .map(lambda x: f"{x:.1f}".rstrip("0").rstrip("."))
-        )
-        return melted[["ID", "Year", "Economic Activity", "Volume_measures_(million)"]]
-
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prefix = "09"
         out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
@@ -246,10 +201,29 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "Year", "Economic Activity", "Volume_measures_(million)"]
+        db_cols = [db_col for _, db_col in self.ACTIVITY_DB_MAP]
+        target_cols = ["ID", "Year"] + db_cols
+
         if not delta_wide.empty:
-            delta_long = self._to_deliverable_long(delta_wide)
-            delta_long.to_csv(deliverable_path, index=False)
+            delta_wide = delta_wide.rename(columns={"id": "ID", "year": "Year"})
+            if "ID" in delta_wide.columns:
+                delta_wide["ID"] = pd.to_numeric(delta_wide["ID"], errors="coerce").astype("Int64")
+            else:
+                delta_wide["ID"] = pd.NA
+            delta_wide["Year"] = pd.to_numeric(delta_wide["Year"], errors="coerce").astype("Int64")
+
+            for db_col in db_cols:
+                if db_col in delta_wide.columns:
+                    delta_wide[db_col] = pd.to_numeric(delta_wide[db_col], errors="coerce").round(1)
+
+            delta_wide = delta_wide.dropna(subset=["Year"])
+            delta_wide = delta_wide[delta_wide["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+            delta_wide = delta_wide.sort_values("Year").reset_index(drop=True)
+
+            for c in target_cols:
+                if c not in delta_wide.columns:
+                    delta_wide[c] = pd.NA
+            delta_wide[target_cols].to_csv(deliverable_path, index=False)
         else:
             pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
 

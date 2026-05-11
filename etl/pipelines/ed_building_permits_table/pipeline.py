@@ -128,10 +128,10 @@ class Pipeline:
             delta_df["Month"] = delta_df["Month"].astype(int)
             delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
 
-            # Format exactly like manual deliverable: thousand separators.
+            # Plain integers; DB stores as numerics, no thousand separators.
             for c in ["Permits Number", "Area", "Volume"]:
                 delta_df[c] = delta_df[c].map(
-                    lambda x: "" if pd.isna(x) else f"{int(round(float(x))):,}"
+                    lambda x: pd.NA if pd.isna(x) else int(round(float(x)))
                 )
 
             for c in target_cols:

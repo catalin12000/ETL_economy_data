@@ -148,8 +148,8 @@ class Pipeline:
             "Other buildings and structures",
             "Cultivated biological resources",
             "Transport equipment",
-            "Information Communication Technology (ICT) equipment",
-            "Other machinery and equipment +weapon systems",
+            "Information communication technology equipment",
+            "Other machinery and equipment and weapon systems",
             "Intellectual property products",
         ]
 
@@ -165,8 +165,8 @@ class Pipeline:
                     "other_buildings_and_structures": "Other buildings and structures",
                     "cultivated_biological_resources": "Cultivated biological resources",
                     "transport_equipment": "Transport equipment",
-                    "information_communication_technology_equipment": "Information Communication Technology (ICT) equipment",
-                    "other_machinery_and_equipment_and_weapon_systems": "Other machinery and equipment +weapon systems",
+                    "information_communication_technology_equipment": "Information communication technology equipment",
+                    "other_machinery_and_equipment_and_weapon_systems": "Other machinery and equipment and weapon systems",
                     "intellectual_property_products": "Intellectual property products",
                 }
             )
