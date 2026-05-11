@@ -18,6 +18,8 @@ data/downloads/
 data/outputs/
 data/reports/
 data/state/
+deliverables_*/
+*.zip
 
 # Local DB copies (optional: keep templates only)
 data/db/*.xlsx
