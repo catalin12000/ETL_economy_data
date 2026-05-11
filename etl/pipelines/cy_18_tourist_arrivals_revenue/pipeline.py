@@ -10,6 +10,7 @@ import requests
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
+from etl.core.output import write_deliverable_csv
 from .extract import extract_tourist_arrivals_revenue
 
 
@@ -166,10 +167,9 @@ class Pipeline:
                 nums = pd.to_numeric(deliver_df[c], errors="coerce")
                 deliver_df[c] = nums.map(lambda x: "" if pd.isna(x) else f"{x:.1f}".rstrip("0").rstrip("."))
 
-            deliver_df[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(deliver_df[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

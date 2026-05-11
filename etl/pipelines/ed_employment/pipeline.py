@@ -9,6 +9,7 @@ from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.output import write_deliverable_csv
 from .extract import extract_employment
 
 class Pipeline:
@@ -149,11 +150,10 @@ class Pipeline:
                 .reset_index(drop=True)
             )
 
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
             # If no changes were made to the DB, create an empty file with headers
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

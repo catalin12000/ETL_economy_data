@@ -7,6 +7,7 @@ import pandas as pd
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine, _normalize_match_value
+from etl.core.output import write_deliverable_csv
 from .extract import extract_loan_interest_rates
 
 
@@ -246,8 +247,7 @@ class Pipeline:
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         deliverable_df = self._format_db_compare_output(delta_db_df)
-        deliverable_df.to_csv(deliverable_path, index=False)
-
+        write_deliverable_csv(deliverable_df, deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

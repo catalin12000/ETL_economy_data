@@ -10,6 +10,7 @@ from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.fingerprint import dataframe_sha256
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.output import write_deliverable_csv
 from etl.pipelines.cy_06_economic_forecast_cy.extract import extract_forecast_deliverable
 
 
@@ -149,10 +150,9 @@ class Pipeline:
             for c in target_cols:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA
-            delta_df[target_cols].sort_values(["Year"]).to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_df[target_cols].sort_values(["Year"]), deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

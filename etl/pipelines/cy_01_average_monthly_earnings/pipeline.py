@@ -10,6 +10,7 @@ import requests
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import sha256_file, is_new_by_hash
+from etl.core.output import write_deliverable_csv
 from .extract import extract_average_monthly_earnings
 
 
@@ -188,10 +189,9 @@ class Pipeline:
                 else:
                     delta_df[c] = nums
 
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         # 6) State
         db_summary = {
             "status": db_comp_res.get("status"),

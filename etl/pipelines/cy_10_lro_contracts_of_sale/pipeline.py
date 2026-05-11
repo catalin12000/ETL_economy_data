@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
+from etl.core.output import write_deliverable_csv
 from .extract import extract_lro_contracts_of_sale
 
 
@@ -152,10 +153,9 @@ class Pipeline:
                 if column != "District":
                     delta_df[column] = pd.to_numeric(delta_df[column], errors="coerce").astype("Int64")
             delta_df.sort_values(["Year", "Month", "District"], inplace=True)
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         new_state = dict(state)
         new_state.update(
             {

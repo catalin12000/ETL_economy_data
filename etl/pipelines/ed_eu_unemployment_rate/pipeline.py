@@ -8,6 +8,7 @@ import pandas as pd
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.output import write_deliverable_csv
 from .extract import extract_eu_unemployment
 
 
@@ -103,13 +104,13 @@ class Pipeline:
 
         def _write_deliverable(df_to_write: pd.DataFrame, path: Path) -> Path:
             try:
-                df_to_write.to_csv(path, index=False)
+                write_deliverable_csv(df_to_write, path)
                 return path
             except PermissionError:
                 fallback = path.with_name(
                     f"{path.stem}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}{path.suffix}"
                 )
-                df_to_write.to_csv(fallback, index=False)
+                write_deliverable_csv(df_to_write, fallback)
                 print(f"Deliverable locked; wrote fallback file: {fallback.name}")
                 return fallback
         

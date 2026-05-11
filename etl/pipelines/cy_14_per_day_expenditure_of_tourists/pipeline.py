@@ -10,6 +10,7 @@ import requests
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.download import is_new_by_hash, sha256_file
 from etl.core.nulls import normalize_nulls
+from etl.core.output import write_deliverable_csv
 from .extract import extract_tourist_expenditure_distribution
 
 
@@ -159,8 +160,7 @@ class Pipeline:
         )
         for c in ["Average_length_of_stay_(nights)", "Expenditure_per_day"]:
             deliverable_df[c] = pd.to_numeric(deliverable_df[c], errors="coerce")
-        deliverable_df.to_csv(deliverable_path, index=False)
-
+        write_deliverable_csv(deliverable_df, deliverable_path)
         new_state.update(
             {
                 "rows_before": res.rows_before,

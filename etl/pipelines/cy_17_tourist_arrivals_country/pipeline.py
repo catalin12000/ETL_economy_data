@@ -10,6 +10,7 @@ import requests
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
+from etl.core.output import write_deliverable_csv
 from .extract import extract_tourist_arrivals_country
 
 
@@ -332,10 +333,9 @@ class Pipeline:
             for c in target_cols:
                 if c not in delta_wide.columns:
                     delta_wide[c] = pd.NA
-            delta_wide[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_wide[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

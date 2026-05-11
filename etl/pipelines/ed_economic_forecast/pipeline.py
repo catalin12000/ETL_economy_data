@@ -9,6 +9,7 @@ from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.fingerprint import dataframe_sha256
+from etl.core.output import write_deliverable_csv
 from etl.pipelines.ed_economic_forecast.extract import extract_forecast_deliverable
 
 
@@ -115,8 +116,7 @@ class Pipeline:
         now = datetime.datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
-        df_new.to_csv(deliverable_path, index=False)
-
+        write_deliverable_csv(df_new, deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

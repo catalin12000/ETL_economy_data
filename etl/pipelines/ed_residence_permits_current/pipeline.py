@@ -26,11 +26,11 @@ class Pipeline:
                 "Month": "month",
                 "Work": "work",
                 "Other": "other",
-                "Family Reunification": "family_reunion",
+                "Family Reunion": "family_reunion",
                 "Studies": "studies",
             },
             match_cols=["year", "month"],
             sync_cols=["work", "other", "family_reunion", "studies"],
             sql_file_path=str(Path(__file__).with_name("ed_residence_permits_current.sql")),
-            target_cols=["ID", "Month", "Year", "Work", "Other", "Family Reunification", "Studies"],
+            target_cols=["ID", "Month", "Year", "Work", "Other", "Family Reunion", "Studies"],
         )

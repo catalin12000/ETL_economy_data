@@ -10,6 +10,7 @@ import pandas as pd
 from etl.core.download import sha256_file
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.output import write_deliverable_csv
 from .extract import extract_cpi
 
 class Pipeline:
@@ -173,14 +174,14 @@ class Pipeline:
         db_error = db_comp_res.get("error")
         if db_error:
             deliverable_df = self._build_deliverable_df(df_primary)
-            deliverable_df.to_csv(deliverable_path, index=False)
+            write_deliverable_csv(deliverable_df, deliverable_path)
             print(f"DB compare failed; wrote extracted fallback with {len(deliverable_df)} rows: {deliverable_name}")
         else:
             inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
             updated_df = db_comp_res.get("updated_df", pd.DataFrame())
             delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
             deliverable_df = self._build_deliverable_df(delta_df)
-            deliverable_df.to_csv(deliverable_path, index=False)
+            write_deliverable_csv(deliverable_df, deliverable_path)
             print(f"Created DB-delta deliverable with {len(deliverable_df)} rows: {deliverable_name}")
 
         db_summary = {

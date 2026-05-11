@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.elstat import get_download_url_by_title, get_latest_publication_url
+from etl.core.output import write_deliverable_csv
 from .extract import extract_construction_index_quarterly
 
 
@@ -137,10 +138,9 @@ class Pipeline:
             delta_df["Year"] = delta_df["Year"].astype(int)
             delta_df["Quarter"] = delta_df["Quarter"].astype(int)
             delta_df = delta_df.sort_values(["Year", "Quarter"]).reset_index(drop=True)
-            delta_df[target_cols].to_csv(deliverable_path, index=False)
+            write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            pd.DataFrame(columns=target_cols).to_csv(deliverable_path, index=False)
-
+            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),
             "missing_in_db": db_comp_res.get("inserted"),

@@ -246,7 +246,7 @@ def _extract_monthly_category_table(pdf_path: Path, page_number: int) -> pd.Data
                     "Year": year,
                     "Work": _parse_int(row[4] if len(row) > 4 else ""),
                     "Other": _parse_int(row[7] if len(row) > 7 else ""),
-                    "Family Re": _parse_int(row[10] if len(row) > 10 else ""),
+                    "Family Reunion": _parse_int(row[10] if len(row) > 10 else ""),
                     "Studies": _parse_int(row[13] if len(row) > 13 else ""),
                     "Type": type_name,
                 }
@@ -285,7 +285,7 @@ def extract_residence_permits_current(pdf_path: Path, report_year: int | None = 
                 "Year": year,
                 "Work": _parse_int(row[4] if len(row) > 4 else ""),
                 "Other": _parse_int(row[5] if len(row) > 5 else ""),
-                "Family Reunification": _parse_int(row[7] if len(row) > 7 else ""),
+                "Family Reunion": _parse_int(row[7] if len(row) > 7 else ""),
                 "Studies": _parse_int(row[9] if len(row) > 9 else ""),
             }
         )

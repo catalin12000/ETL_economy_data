@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import is_new_by_hash
 from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprint
+from etl.core.output import write_deliverable_csv
 
 
 def _parse_period(period: str | None) -> tuple[int | None, int | None]:
@@ -184,7 +185,7 @@ def run_shared_appendix_b_pipeline(
     delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
     db_to_target = {db_name: target_name for target_name, db_name in target_to_db.items()}
     formatted_delta = _format_delta(delta_df, db_to_target=db_to_target, target_cols=target_cols, sort_cols=key_cols)
-    formatted_delta.to_csv(deliverable_path, index=False)
+    write_deliverable_csv(formatted_delta, deliverable_path)
 
     new_state = dict(state)
     new_state.update(

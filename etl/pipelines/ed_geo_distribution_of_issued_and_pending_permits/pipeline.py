@@ -12,6 +12,7 @@ import requests
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import download_file, is_new_by_hash, sha256_file
+from etl.core.output import write_deliverable_csv
 
 from .extract import extract_geo_distribution_of_issued_and_pending_permits
 
@@ -248,8 +249,7 @@ class Pipeline:
 
         deliverable_name = f"deliverable_{self.pipeline_id}_{datetime.now().strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
-        delta_df.to_csv(deliverable_path, index=False)
-
+        write_deliverable_csv(delta_df, deliverable_path)
         new_state = dict(state)
         new_state.update(
             {

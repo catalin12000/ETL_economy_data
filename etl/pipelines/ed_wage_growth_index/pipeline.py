@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from etl.core.output import write_deliverable_csv
 from .extract import extract_wage_growth_index
 
 
@@ -213,7 +214,7 @@ class Pipeline:
 
             return shaped[target_cols]
 
-        shape_output(delta_df).to_csv(deliverable_path, index=False)
+        write_deliverable_csv(shape_output(delta_df), deliverable_path)
         shape_output(updated_df).to_csv(db_diff_only_path, index=False)
 
         db_summary = {

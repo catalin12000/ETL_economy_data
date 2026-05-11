@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from etl.core.output import write_deliverable_csv
 from .extract import extract_motor_trade_turnover
 
 
@@ -177,7 +178,7 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_db_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        self._format_db_compare_output(delta_db_df).to_csv(deliverable_path, index=False)
+        write_deliverable_csv(self._format_db_compare_output(delta_db_df), deliverable_path)
         self._format_db_compare_output(updated_df).to_csv(db_differences_only_path, index=False)
 
         db_summary = {
