@@ -65,8 +65,9 @@ def _parse_month(value) -> Optional[int]:
     return _MONTH_MAP.get(token)
 
 
-def extract_motor_trade_turnover(path: Path) -> pd.DataFrame:
-    df = pd.read_excel(path, sheet_name="TABLE 1", header=None)
+def _extract_two_col_table(path: Path, sheet_name: str, col1: str, col2: str) -> pd.DataFrame:
+    """Generic extractor for ELSTAT motor trade 3-column layout (Year-Month, col1, col2)."""
+    df = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
     records = []
     current_year: Optional[int] = None
@@ -84,24 +85,31 @@ def extract_motor_trade_turnover(path: Path) -> pd.DataFrame:
         if month is None:
             continue
 
-        motor_trade = _parse_float(df.iat[i, 1])
-        vehicle_sale = _parse_float(df.iat[i, 2])
-        if motor_trade is None and vehicle_sale is None:
+        v1 = _parse_float(df.iat[i, 1])
+        v2 = _parse_float(df.iat[i, 2])
+        if v1 is None and v2 is None:
             continue
 
-        records.append(
-            {
-                "Year": current_year,
-                "Month": month,
-                "Motor Trade Turnover Index": motor_trade,
-                "Vehicle Sale Turnover Index": vehicle_sale,
-            }
-        )
+        records.append({"Year": current_year, "Month": month, col1: v1, col2: v2})
 
     out = pd.DataFrame(records)
     if out.empty:
-        raise RuntimeError("No rows extracted from TABLE 1 in motor trade turnover workbook.")
+        raise RuntimeError(f"No rows extracted from {sheet_name} in {path.name}.")
 
     out = out.drop_duplicates(subset=["Year", "Month"], keep="last")
     out = out.sort_values(["Year", "Month"]).reset_index(drop=True)
     return out
+
+
+def extract_motor_trade_turnover(path: Path) -> pd.DataFrame:
+    return _extract_two_col_table(
+        path, "TABLE 1",
+        "motor_trade_turnover_index", "vehicle_sale_turnover_index",
+    )
+
+
+def extract_motor_trade_volume(path: Path) -> pd.DataFrame:
+    return _extract_two_col_table(
+        path, "TABLE 2",
+        "motor_trade_volume_index", "vehicle_sale_volume_index",
+    )
