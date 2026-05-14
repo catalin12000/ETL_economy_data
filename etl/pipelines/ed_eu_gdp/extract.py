@@ -17,6 +17,7 @@ def extract_eu_gdp(csv_path: Path) -> pd.DataFrame:
     GEO_MAP = {
         "EU27_2020": "European Union - 27 countries (from 2020)",
         "EA20": "Euro area \u2013 20 countries (from 2023)",
+        "EA21": "Euro area \u2013 21 countries (from 2025)",
         "EA": "Euro area (EA11-1999, EA12-2001, EA13-2007, EA15-2008, EA16-2009, EA17-2011, EA18-2014, EA19-2015, EA20-2023)",
         "EA19": "Euro area - 19 countries  (2015-2022)",
         "EA12": "Euro area - 12 countries (2001-2006)",

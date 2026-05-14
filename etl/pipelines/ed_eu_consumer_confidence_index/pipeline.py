@@ -17,7 +17,7 @@ class Pipeline:
     display_name = "Ed EU Consumer Confidence Index (Eurostat)"
 
     DATASET_CODE = "ei_bsco_m"
-    FILTER = f"M.BS-CSMCI.SA.BAL.EL+RO+CY+EU27_2020+EA20"
+    FILTER = "M.BS-CSMCI.SA.BAL.EL+RO+CY+EU27_2020+EA20+EA21"
     FILE_URL = f"https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2025-01"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:

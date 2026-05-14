@@ -26,36 +26,31 @@ class Pipeline:
     def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
         target_cols = [
             "ID",
-            "Year",
-            "Month",
-            "Motor Trade Turnover Index",
-            "Vehicle Sale Turnover Index",
+            "year",
+            "month",
+            "motor_trade_turnover_index",
+            "vehicle_sale_turnover_index",
+            # extracted from TABLE 1 only; volume columns not yet in extractor
+            "motor_trade_volume_index",
+            "vehicle_sale_volume_index",
         ]
         if df.empty:
             return pd.DataFrame(columns=target_cols)
 
-        out = df.rename(
-            columns={
-                "id": "ID",
-                "year": "Year",
-                "month": "Month",
-                "motor_trade_turnover_index": "Motor Trade Turnover Index",
-                "vehicle_sale_turnover_index": "Vehicle Sale Turnover Index",
-            }
-        ).copy()
+        out = df.rename(columns={"id": "ID"}).copy()
 
         if "ID" in out.columns:
             out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
-        out["Year"] = pd.to_numeric(out["Year"], errors="coerce").astype("Int64")
-        out["Month"] = pd.to_numeric(out["Month"], errors="coerce").astype("Int64")
-        out["Motor Trade Turnover Index"] = pd.to_numeric(
-            out["Motor Trade Turnover Index"], errors="coerce"
+        out["year"] = pd.to_numeric(out["year"], errors="coerce").astype("Int64")
+        out["month"] = pd.to_numeric(out["month"], errors="coerce").astype("Int64")
+        out["motor_trade_turnover_index"] = pd.to_numeric(
+            out["motor_trade_turnover_index"], errors="coerce"
         ).round(2)
-        out["Vehicle Sale Turnover Index"] = pd.to_numeric(
-            out["Vehicle Sale Turnover Index"], errors="coerce"
+        out["vehicle_sale_turnover_index"] = pd.to_numeric(
+            out["vehicle_sale_turnover_index"], errors="coerce"
         ).round(2)
 
-        out = out.sort_values(["Year", "Month"]).reset_index(drop=True)
+        out = out.sort_values(["year", "month"]).reset_index(drop=True)
         for col in target_cols:
             if col not in out.columns:
                 out[col] = pd.NA

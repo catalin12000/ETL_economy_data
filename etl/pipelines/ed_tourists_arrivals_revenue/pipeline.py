@@ -120,43 +120,33 @@ class Pipeline:
 
         target_cols = [
             "ID",
-            "Year",
-            "Quarter",
-            "Area",
-            "Country of Origin",
-            "Number of Travellers",
-            "Revenues (millions)",
+            "year",
+            "quarter",
+            "area",
+            "country_of_origin",
+            "number_of_travellers_000s",
+            "revenues_by_country_of_origin_millions",
         ]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(
-                columns={
-                    "id": "ID",
-                    "year": "Year",
-                    "quarter": "Quarter",
-                    "area": "Area",
-                    "country_of_origin": "Country of Origin",
-                    "number_of_travellers_000s": "Number of Travellers",
-                    "revenues_by_country_of_origin_millions": "Revenues (millions)",
-                }
-            ).copy()
+            shaped = df.rename(columns={"id": "ID"}).copy()
             shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
-            shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
-            shaped["Quarter"] = pd.to_numeric(shaped["Quarter"], errors="coerce")
-            shaped["Number of Travellers"] = pd.to_numeric(shaped["Number of Travellers"], errors="coerce")
-            shaped["Revenues (millions)"] = pd.to_numeric(shaped["Revenues (millions)"], errors="coerce")
-            shaped = shaped.dropna(subset=["Year", "Quarter", "Area", "Country of Origin"]).copy()
-            shaped["Year"] = shaped["Year"].astype(int)
-            shaped["Quarter"] = shaped["Quarter"].astype(int)
-            shaped = shaped.sort_values(["Year", "Quarter", "Area", "Country of Origin"]).reset_index(drop=True)
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["quarter"] = pd.to_numeric(shaped["quarter"], errors="coerce")
+            shaped["number_of_travellers_000s"] = pd.to_numeric(shaped["number_of_travellers_000s"], errors="coerce")
+            shaped["revenues_by_country_of_origin_millions"] = pd.to_numeric(shaped["revenues_by_country_of_origin_millions"], errors="coerce")
+            shaped = shaped.dropna(subset=["year", "quarter", "area", "country_of_origin"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
+            shaped["quarter"] = shaped["quarter"].astype(int)
+            shaped = shaped.sort_values(["year", "quarter", "area", "country_of_origin"]).reset_index(drop=True)
             shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
-            shaped["Number of Travellers"] = shaped["Number of Travellers"].map(
+            shaped["number_of_travellers_000s"] = shaped["number_of_travellers_000s"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.1f}"
             )
-            shaped["Revenues (millions)"] = shaped["Revenues (millions)"].map(
+            shaped["revenues_by_country_of_origin_millions"] = shaped["revenues_by_country_of_origin_millions"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.1f}"
             )
 

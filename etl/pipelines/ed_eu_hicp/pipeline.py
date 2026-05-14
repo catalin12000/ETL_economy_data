@@ -17,6 +17,9 @@ class Pipeline:
     display_name = "Ed EU Harmonized Index Of Consumer Prices (Eurostat)"
 
     DATASET_CODE = "prc_hicp_manr"
+    # EA21 added to GEO_MAP (extract.py) but not to FILTER yet —
+    # Eurostat prc_hicp_manr returns 400 for EA21 as of May 2026.
+    # Add +EA21 here once Eurostat publishes it for this dataset.
     FILTER = "M.RCH_A.CP00.EL+RO+CY+EU27_2020+EA20"
     FILE_URL = f"https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2025-01"
 

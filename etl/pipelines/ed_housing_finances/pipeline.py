@@ -140,7 +140,7 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "Year", "Quarter", "Group", "Category", "Subcategory", "Value (mln)"]
+        target_cols = ["ID", "year", "quarter", "group", "category", "sub_category", "value_millions"]
 
         if not delta_df.empty:
             lookup_cols = [
@@ -159,30 +159,20 @@ class Pipeline:
             )
             # Keep DB category/sub_category structure explicit in deliverable.
             # Fallback to display label only when category is missing.
-            delta_df["Category"] = delta_df["category"]
-            delta_df["Category"] = delta_df["Category"].fillna(delta_df["category_display"])
-            delta_df["Subcategory"] = delta_df["sub_category"]
-            delta_df["Subcategory"] = delta_df["Subcategory"].replace("", pd.NA)
+            delta_df["category"] = delta_df["category"].fillna(delta_df["category_display"])
+            delta_df["sub_category"] = delta_df["sub_category"].replace("", pd.NA)
 
-            delta_df = delta_df.rename(
-                columns={
-                    "id": "ID",
-                    "group": "Group",
-                    "year": "Year",
-                    "quarter": "Quarter",
-                    "value_millions": "Value (mln)",
-                }
-            )
+            delta_df = delta_df.rename(columns={"id": "ID"})
             if "ID" in delta_df.columns:
                 delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
-            delta_df["Quarter"] = pd.to_numeric(delta_df["Quarter"], errors="coerce").astype("Int64")
-            delta_df["Value (mln)"] = pd.to_numeric(delta_df["Value (mln)"], errors="coerce")
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce").astype("Int64")
+            delta_df["quarter"] = pd.to_numeric(delta_df["quarter"], errors="coerce").astype("Int64")
+            delta_df["value_millions"] = pd.to_numeric(delta_df["value_millions"], errors="coerce")
 
             delta_df["group_order"] = pd.to_numeric(delta_df["group_order"], errors="coerce").fillna(99)
             delta_df["category_order"] = pd.to_numeric(delta_df["category_order"], errors="coerce").fillna(9999)
             delta_df = delta_df.sort_values(
-                ["Year", "Quarter", "group_order", "category_order", "Category"],
+                ["year", "quarter", "group_order", "category_order", "category"],
                 na_position="last",
             )
             delta_df = delta_df.reset_index(drop=True)

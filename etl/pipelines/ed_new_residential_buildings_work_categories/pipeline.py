@@ -158,64 +158,39 @@ class Pipeline:
 
         target_cols = [
             "ID",
-            "Year",
-            "Quarter",
-            "Overall Index",
-            " Earth-moving",
-            " Concrete reinforced or not",
-            " Wall-building ",
-            " Plastering",
-            " Electrical installations",
-            " Hydraulic installations",
-            " Central heating installations",
-            " Coverings-Coatings ",
-            " Carpentry",
-            " Iron and steel structures",
-            " Aluminium structures ",
-            " Painting ",
-            " Insulation ",
-            " Glazing ",
-            " Elevators ",
-            " Plaster structures",
-            " Special installations without appliances and accessories ",
+            "year",
+            "quarter",
+            "overall_index",
+            "earth_moving",
+            "concrete_reinforced",
+            "wall_building",
+            "plastering",
+            "electrical_installations",
+            "hydraulic_installations",
+            "central_heating_installations",
+            "coverings_coatings",
+            "carpentry",
+            "iron_steel_structures",
+            "aluminium_structures",
+            "painting",
+            "insulation",
+            "glazing",
+            "elevators",
+            "plaster_structures",
+            "special_installations_without_appliances_accessories",
         ]
 
         if not delta_df.empty:
-            delta_df = delta_df.rename(
-                columns={
-                    "id": "ID",
-                    "year": "Year",
-                    "quarter": "Quarter",
-                    "overall_index": "Overall Index",
-                    "earth_moving": " Earth-moving",
-                    "concrete_reinforced": " Concrete reinforced or not",
-                    "wall_building": " Wall-building ",
-                    "plastering": " Plastering",
-                    "electrical_installations": " Electrical installations",
-                    "hydraulic_installations": " Hydraulic installations",
-                    "central_heating_installations": " Central heating installations",
-                    "coverings_coatings": " Coverings-Coatings ",
-                    "carpentry": " Carpentry",
-                    "iron_steel_structures": " Iron and steel structures",
-                    "aluminium_structures": " Aluminium structures ",
-                    "painting": " Painting ",
-                    "insulation": " Insulation ",
-                    "glazing": " Glazing ",
-                    "elevators": " Elevators ",
-                    "plaster_structures": " Plaster structures",
-                    "special_installations_without_appliances_accessories": (
-                        " Special installations without appliances and accessories "
-                    ),
-                }
-            )
+            delta_df = delta_df.rename(columns={"id": "ID"})
             if "ID" in delta_df.columns:
                 delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
-            delta_df["Quarter"] = pd.to_numeric(delta_df["Quarter"], errors="coerce").astype("Int64")
-            for c in target_cols[3:]:
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce").astype("Int64")
+            delta_df["quarter"] = pd.to_numeric(delta_df["quarter"], errors="coerce").astype("Int64")
+            value_cols = [c for c in target_cols if c not in {"ID", "year", "quarter"}]
+            for c in value_cols:
                 delta_df[c] = pd.to_numeric(delta_df[c], errors="coerce")
 
-            delta_df = delta_df.sort_values(["Year", "Quarter"]).reset_index(drop=True)
+            delta_df = delta_df.sort_values(["year", "quarter"]).reset_index(drop=True)
             for c in target_cols:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA

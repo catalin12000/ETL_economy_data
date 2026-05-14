@@ -17,7 +17,7 @@ class Pipeline:
     display_name = "Ed EU GDP (Eurostat)"
 
     DATASET_CODE = "namq_10_gdp"
-    FILTER = "Q.CP_MEUR+CLV20_MEUR+CLV_PCH_PRE+CLV_PCH_SM.SCA.B1GQ.EL+RO+CY+EU27_2020+EA20+EA+EA19+EA12"
+    FILTER = "Q.CP_MEUR+CLV20_MEUR+CLV_PCH_PRE+CLV_PCH_SM.SCA.B1GQ.EL+RO+CY+EU27_2020+EA20+EA21+EA+EA19+EA12"
     FILE_URL = f"https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2024-Q1"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:

@@ -161,58 +161,40 @@ class Pipeline:
 
         target_cols = [
             "ID",
-            "Year",
-            "Month",
-            "Overall Index",
-            "Overall index except automotive fuel",
-            "Food sector (supermarkets, food,beverages, tobacco)",
-            "Overall index except Food sector and Automotive fuel",
-            "Super Markets",
-            "Department stores",
-            "Automotive fuel",
-            "Food beverages, tobacco",
-            "Pharmaceutical products, cosmetics",
-            "Clothing and footwear",
-            "Furniture, electrical and household equipment",
-            "Books stationery, other goods",
-            "Retail sale not in stores",
+            "year",
+            "month",
+            "overall_index",
+            "overall_index_excl_automotive",
+            "food_sector_index",
+            "overall_index_excl_food_sector",
+            "supermarkets_index",
+            "department_stores_index",
+            "automotive_fuel_index",
+            "food_beverages_tobacco_index",
+            "pharmaceutical_cosmetics_index",
+            "clothing_footwear_index",
+            "furniture_electrical_household_equipment_index",
+            "books_stationary_other_goods_index",
+            "retail_sale_outside_stores_index",
         ]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(
-                columns={
-                    "id": "ID",
-                    "year": "Year",
-                    "month": "Month",
-                    "overall_index": "Overall Index",
-                    "overall_index_excl_automotive": "Overall index except automotive fuel",
-                    "food_sector_index": "Food sector (supermarkets, food,beverages, tobacco)",
-                    "overall_index_excl_food_sector": "Overall index except Food sector and Automotive fuel",
-                    "supermarkets_index": "Super Markets",
-                    "department_stores_index": "Department stores",
-                    "automotive_fuel_index": "Automotive fuel",
-                    "food_beverages_tobacco_index": "Food beverages, tobacco",
-                    "pharmaceutical_cosmetics_index": "Pharmaceutical products, cosmetics",
-                    "clothing_footwear_index": "Clothing and footwear",
-                    "furniture_electrical_household_equipment_index": "Furniture, electrical and household equipment",
-                    "books_stationary_other_goods_index": "Books stationery, other goods",
-                    "retail_sale_outside_stores_index": "Retail sale not in stores",
-                }
-            ).copy()
+            shaped = df.rename(columns={"id": "ID"}).copy()
 
             shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
-            shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
-            shaped["Month"] = pd.to_numeric(shaped["Month"], errors="coerce")
-            shaped = shaped.dropna(subset=["Year", "Month"]).copy()
-            shaped["Year"] = shaped["Year"].astype(int)
-            shaped["Month"] = shaped["Month"].astype(int)
-            for column in target_cols[3:]:
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["month"] = pd.to_numeric(shaped["month"], errors="coerce")
+            shaped = shaped.dropna(subset=["year", "month"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
+            shaped["month"] = shaped["month"].astype(int)
+            value_cols = [c for c in target_cols if c not in {"ID", "year", "month"}]
+            for column in value_cols:
                 shaped[column] = pd.to_numeric(shaped[column], errors="coerce")
 
-            shaped = shaped.sort_values(["Year", "Month"]).reset_index(drop=True)
+            shaped = shaped.sort_values(["year", "month"]).reset_index(drop=True)
             if "ID" in shaped.columns:
                 shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 

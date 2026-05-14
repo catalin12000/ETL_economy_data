@@ -18,7 +18,7 @@ class Pipeline:
     display_name = "Ed Economic Sentiment Indicator (Eurostat)"
 
     DATASET_CODE = "teibs010"
-    FILTER = "M.BS-ESI-I.SA.EL+RO+CY+EU27_2020+EA20"
+    FILTER = "M.BS-ESI-I.SA.EL+RO+CY+EU27_2020+EA20+EA21"
     FILE_URL = (
         "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/"
         f"{DATASET_CODE}/{FILTER}/?format=SDMX-CSV&compressed=false&startPeriod=2025-01"

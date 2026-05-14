@@ -16,6 +16,7 @@ def extract_eu_unemployment(csv_path: Path) -> pd.DataFrame:
     GEO_MAP = {
         "EU27_2020": "European Union - 27 countries (from 2020)",
         "EA20": "Euro area – 20 countries (from 2023)",
+        "EA21": "Euro area – 21 countries (from 2025)",
         "EL": "Greece",
         "CY": "Cyprus",
         "RO": "Romania"

@@ -155,53 +155,36 @@ class Pipeline:
 
         target_cols = [
             "ID",
-            "Year",
-            "Quarter",
-            "Mining and Quarrying",
-            "Manufacturing",
-            "Electricity, Gas, Steam and Air Conditioning Supply",
-            "Water Supply, Sewerage, Waste Management and Remediation Activities",
-            "Construction",
-            "Wholesale and Retal Trade, Repair of Motor Vehicles and Motorcycles",
-            "Transportation and Storage",
-            "Accommodation and Food Service Activities",
-            "Information and Communication",
-            "Professional, Scientific and Technical Activities",
-            "Administrative and Support Service Activities",
+            "year",
+            "quarter",
+            "mining_and_quarrying",
+            "manufacturing",
+            "electricity_gas_steam_air_conditioning_supply",
+            "water_supply_sewerage_waste_management_remediation_activities",
+            "construction",
+            "wholesale_retail_trade_repair_of_motor_vehicles_motorcycles",
+            "transportation_and_storage",
+            "accommodation_and_food_service_activities",
+            "information_and_communication",
+            "professional_scientific_and_technical_activities",
+            "administrative_and_support_service_activities",
         ]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(
-                columns={
-                    "id": "ID",
-                    "year": "Year",
-                    "quarter": "Quarter",
-                    "mining_and_quarrying": "Mining and Quarrying",
-                    "manufacturing": "Manufacturing",
-                    "electricity_gas_steam_air_conditioning_supply": "Electricity, Gas, Steam and Air Conditioning Supply",
-                    "water_supply_sewerage_waste_management_remediation_activities": "Water Supply, Sewerage, Waste Management and Remediation Activities",
-                    "construction": "Construction",
-                    "wholesale_retail_trade_repair_of_motor_vehicles_motorcycles": "Wholesale and Retal Trade, Repair of Motor Vehicles and Motorcycles",
-                    "transportation_and_storage": "Transportation and Storage",
-                    "accommodation_and_food_service_activities": "Accommodation and Food Service Activities",
-                    "information_and_communication": "Information and Communication",
-                    "professional_scientific_and_technical_activities": "Professional, Scientific and Technical Activities",
-                    "administrative_and_support_service_activities": "Administrative and Support Service Activities",
-                }
-            ).copy()
+            shaped = df.rename(columns={"id": "ID"}).copy()
             shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
-            shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
-            shaped["Quarter"] = pd.to_numeric(shaped["Quarter"], errors="coerce")
-            shaped = shaped.dropna(subset=["Year", "Quarter"]).copy()
-            shaped["Year"] = shaped["Year"].astype(int)
-            shaped["Quarter"] = shaped["Quarter"].astype(int)
-            shaped = shaped.sort_values(["Year", "Quarter"]).reset_index(drop=True)
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["quarter"] = pd.to_numeric(shaped["quarter"], errors="coerce")
+            shaped = shaped.dropna(subset=["year", "quarter"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
+            shaped["quarter"] = shaped["quarter"].astype(int)
+            shaped = shaped.sort_values(["year", "quarter"]).reset_index(drop=True)
             shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
-            value_cols = [c for c in target_cols if c not in {"ID", "Year", "Quarter"}]
+            value_cols = [c for c in target_cols if c not in {"ID", "year", "quarter"}]
             for column in value_cols:
                 if column in shaped.columns:
                     shaped[column] = pd.to_numeric(shaped[column], errors="coerce").map(

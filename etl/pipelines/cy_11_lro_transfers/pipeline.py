@@ -148,88 +148,56 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
 
         target_cols = [
-            "Year",
-            "Month",
-            "District",
-            "Number of Buyers Total",
-            "Number Parcels Total",
-            "Declared Price",
-            "Accepted Price",
-            "Number Parcels Locals",
-            "Number Parcels Eu",
-            "Number Parcels Non Eu",
-            "Number Buyers Locals",
-            "Number Buyers Eu",
-            "Number Buyers Non Eu",
+            "year",
+            "month",
+            "district",
+            "number_of_buyers_total",
+            "number_parcels_total",
+            "declared_price",
+            "accepted_price",
+            "number_parcels_locals",
+            "number_parcels_eu",
+            "number_parcels_non_eu",
+            "number_of_buyers_locals",
+            "number_of_buyers_eu",
+            "number_of_buyers_noneu",
         ]
 
         if not inserted_df.empty:
-            col_map = {
-                "year": "Year",
-                "month": "Month",
-                "district": "District",
-                "number_of_buyers_total": "Number of Buyers Total",
-                "number_parcels_total": "Number Parcels Total",
-                "declared_price": "Declared Price",
-                "accepted_price": "Accepted Price",
-                "number_parcels_locals": "Number Parcels Locals",
-                "number_parcels_eu": "Number Parcels Eu",
-                "number_parcels_non_eu": "Number Parcels Non Eu",
-                "number_of_buyers_locals": "Number Buyers Locals",
-                "number_of_buyers_eu": "Number Buyers Eu",
-                "number_of_buyers_noneu": "Number Buyers Non Eu",
-            }
-            inserted_df = inserted_df.rename(columns=col_map)
             integer_cols = [
-                "Year",
-                "Month",
-                "Number of Buyers Total",
-                "Number Parcels Total",
-                "Number Parcels Locals",
-                "Number Parcels Eu",
-                "Number Parcels Non Eu",
-                "Number Buyers Locals",
-                "Number Buyers Eu",
-                "Number Buyers Non Eu",
+                "year",
+                "month",
+                "number_of_buyers_total",
+                "number_parcels_total",
+                "number_parcels_locals",
+                "number_parcels_eu",
+                "number_parcels_non_eu",
+                "number_of_buyers_locals",
+                "number_of_buyers_eu",
+                "number_of_buyers_noneu",
             ]
             for col in integer_cols:
                 inserted_df[col] = pd.to_numeric(inserted_df[col], errors="coerce").astype("Int64")
-            inserted_df.sort_values(["Year", "Month", "District"], inplace=True)
+            inserted_df.sort_values(["year", "month", "district"], inplace=True)
+            for c in target_cols:
+                if c not in inserted_df.columns:
+                    inserted_df[c] = pd.NA
             write_deliverable_csv(inserted_df[target_cols], deliverable_path)
         else:
             write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         if not updated_df.empty:
-            col_map = {
-                "year": "Year",
-                "month": "Month",
-                "district": "District",
-                "number_of_buyers_total": "Number of Buyers Total",
-                "number_parcels_total": "Number Parcels Total",
-                "declared_price": "Declared Price",
-                "accepted_price": "Accepted Price",
-                "number_parcels_locals": "Number Parcels Locals",
-                "number_parcels_eu": "Number Parcels Eu",
-                "number_parcels_non_eu": "Number Parcels Non Eu",
-                "number_of_buyers_locals": "Number Buyers Locals",
-                "number_of_buyers_eu": "Number Buyers Eu",
-                "number_of_buyers_noneu": "Number Buyers Non Eu",
-            }
-            updated_df = updated_df.rename(columns=col_map)
             integer_cols = [
-                "Year",
-                "Month",
-                "Number of Buyers Total",
-                "Number Parcels Total",
-                "Number Parcels Locals",
-                "Number Parcels Eu",
-                "Number Parcels Non Eu",
-                "Number Buyers Locals",
-                "Number Buyers Eu",
-                "Number Buyers Non Eu",
+                "year", "month",
+                "number_of_buyers_total", "number_parcels_total",
+                "number_parcels_locals", "number_parcels_eu", "number_parcels_non_eu",
+                "number_of_buyers_locals", "number_of_buyers_eu", "number_of_buyers_noneu",
             ]
             for col in integer_cols:
                 updated_df[col] = pd.to_numeric(updated_df[col], errors="coerce").astype("Int64")
-            updated_df.sort_values(["Year", "Month", "District"], inplace=True)
+            updated_df.sort_values(["year", "month", "district"], inplace=True)
+            for c in target_cols:
+                if c not in updated_df.columns:
+                    updated_df[c] = pd.NA
             updated_df[target_cols].to_csv(differences_path, index=False)
         else:
             pd.DataFrame(columns=target_cols).to_csv(differences_path, index=False)

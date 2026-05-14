@@ -146,8 +146,6 @@ class Pipeline:
             "Month",
             "Arrivals",
             "Revenue_Millions",
-            "Arrivals_yoy_change (%)",
-            "Revenue_yoy_change (%)",
         ]
 
         if not delta_df.empty:
