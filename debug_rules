@@ -1,0 +1,190 @@
+import os
+from pathlib import Path
+import pandas as pd
+import numpy as np
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+
+# ----------------------------
+# CONFIG (edit these 3 lines)
+# ----------------------------
+DELIVERABLE_PATH = Path(r"C:\Users\CatalinFaur\Desktop\ETL_economy_data\data\outputs\cy_13_cy_13_new_loans_millions\deliverable_cy_13_new_loans_millions_January_2026.csv")
+DB_NAME = "zeus"  # Cyprus DB
+TABLE = "ed_new_loans_millions"
+TOLERANCE = 0.11
+
+MATCH_COLS = ["year", "month"]
+SYNC_COLS = [
+    "housing_pure_new_loans",
+    "housing_renegotiated_loans",
+    "housing_floating_rate_up_to_1_year_initial_fixation_rate",
+    "housing_annual_percentage_rate_of_charge",
+    "outstanding_housing_loans_locals",
+    "outstanding_housing_loans_eu",
+    "outstanding_housing_loans_non_eu",
+    "consumer_annual_percentage_rate_of_charge",
+    "consumer_floating_rate_up_to_1_year_initial_fixation_rate",
+    "consumer_pure_new_loans",
+    "consumer_renegotiated_loans",
+    "outstanding_consumer_loans_eu",
+    "outstanding_consumer_loans_locals",
+    "outstanding_consumer_loans_non_eu",
+]
+
+def get_engine(db_name: str | None = None):
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise EnvironmentError("DATABASE_URL environment variable not set")
+    url = make_url(db_url)
+    if db_name:
+        url = url.set(database=db_name)
+    return create_engine(url)
+
+def safe_float(x):
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return np.nan
+    try:
+        return float(x)
+    except Exception:
+        return np.nan
+
+def main():
+    if not DELIVERABLE_PATH.exists():
+        raise FileNotFoundError(f"Deliverable not found: {DELIVERABLE_PATH}")
+
+    # 1) Load deliverable
+    df_deliv = pd.read_csv(DELIVERABLE_PATH)
+    df_deliv.columns = [c.lower().strip() for c in df_deliv.columns]
+
+    # Ensure expected columns exist
+    missing = [c for c in MATCH_COLS if c not in df_deliv.columns]
+    if missing:
+        raise ValueError(f"Deliverable missing match cols: {missing}")
+
+    # Some deliverables may not include all sync cols; add them if missing
+    for c in SYNC_COLS:
+        if c not in df_deliv.columns:
+            df_deliv[c] = np.nan
+
+    # Normalize types for key
+    df_deliv["year"] = pd.to_numeric(df_deliv["year"], errors="coerce").fillna(0).astype(int)
+    df_deliv["month"] = pd.to_numeric(df_deliv["month"], errors="coerce").fillna(0).astype(int)
+
+    # 2) Pull only matching DB rows (same year/month keys)
+    engine = get_engine(DB_NAME)
+
+    with engine.connect() as conn:
+        info = conn.execute(text("SELECT current_database() AS db, current_schema() AS schema")).mappings().one()
+        print(f"Connected to database={info['db']} schema={info['schema']}")
+
+        # Build a key list to query only relevant rows
+        keys = df_deliv[MATCH_COLS].drop_duplicates().sort_values(MATCH_COLS)
+        # Create SQL predicate like: (year=2025 AND month=1) OR (year=2024 AND month=12) ...
+        clauses = []
+        params = {}
+        for i, (y, m) in enumerate(keys.itertuples(index=False, name=None)):
+            clauses.append(f'(year = :y{i} AND month = :m{i})')
+            params[f"y{i}"] = int(y)
+            params[f"m{i}"] = int(m)
+
+        where_sql = " OR ".join(clauses) if clauses else "FALSE"
+
+        cols_sql = ", ".join(['id'] + MATCH_COLS + SYNC_COLS)
+        query = text(f'''
+            SELECT {cols_sql}
+            FROM "public"."{TABLE}"
+            WHERE {where_sql}
+        ''')
+
+        df_db = pd.read_sql(query, conn, params=params)
+
+    df_db.columns = [c.lower() for c in df_db.columns]
+
+    # Normalize DB key types
+    df_db["year"] = pd.to_numeric(df_db["year"], errors="coerce").fillna(0).astype(int)
+    df_db["month"] = pd.to_numeric(df_db["month"], errors="coerce").fillna(0).astype(int)
+
+    # 3) Merge deliverable vs DB on key
+    merged = df_deliv.merge(
+        df_db,
+        on=MATCH_COLS,
+        how="left",
+        suffixes=("_local", "_db"),
+        indicator=True
+    )
+
+    # 4) Decide rule outcome + compute diff columns
+    actions = []
+    diff_cols_list = []
+    max_abs_diffs = []
+    reason_list = []
+
+    for _, row in merged.iterrows():
+        # If no DB row found for this key -> INSERT
+        if row["_merge"] == "left_only" or pd.isna(row.get("id")):
+            actions.append("INSERT")
+            diff_cols_list.append("")
+            max_abs_diffs.append(np.nan)
+            reason_list.append("No DB row with same (year, month)")
+            continue
+
+        # Otherwise compute per-column diffs
+        diff_cols = []
+        max_abs = 0.0
+        any_diff = False
+
+        for c in SYNC_COLS:
+            lv = safe_float(row.get(f"{c}_local"))
+            dv = safe_float(row.get(f"{c}_db"))
+
+            # Rule: if one is null and the other is not -> diff
+            if np.isnan(lv) and np.isnan(dv):
+                continue
+            if np.isnan(lv) != np.isnan(dv):
+                any_diff = True
+                diff_cols.append(f"{c}: null-mismatch (local={lv}, db={dv})")
+                continue
+
+            # Rule: round to 2 decimals then compare abs diff > tolerance
+            lv2 = round(lv, 2)
+            dv2 = round(dv, 2)
+            d = abs(lv2 - dv2)
+            if d > TOLERANCE:
+                any_diff = True
+                diff_cols.append(f"{c}: |{lv2}-{dv2}|={d}")
+                if d > max_abs:
+                    max_abs = d
+
+        if any_diff:
+            actions.append("UPDATE")
+            diff_cols_list.append(" ; ".join(diff_cols))
+            max_abs_diffs.append(max_abs)
+            reason_list.append("At least one sync col differs beyond tolerance")
+        else:
+            actions.append("NOOP")
+            diff_cols_list.append("")
+            max_abs_diffs.append(0.0)
+            reason_list.append("All sync cols within tolerance after rounding")
+
+    merged["rule_action"] = actions
+    merged["rule_reason"] = reason_list
+    merged["diff_columns"] = diff_cols_list
+    merged["max_abs_diff"] = max_abs_diffs
+
+    # 5) Summary
+    print("\nSummary:")
+    print(merged["rule_action"].value_counts(dropna=False).to_string())
+
+    # 6) Write debug report (this is the useful artifact)
+    out_path = DELIVERABLE_PATH.with_name(DELIVERABLE_PATH.stem + "_DEBUG_RULES.csv")
+    merged.to_csv(out_path, index=False)
+    print(f"\nWrote debug report:\n{out_path}")
+
+    # Optional: show suspicious cases
+    # If you expected mostly NOOP but got many UPDATE, this will show why.
+    suspicious = merged[merged["rule_action"].isin(["UPDATE", "INSERT"])][MATCH_COLS + ["rule_action", "max_abs_diff"]].head(20)
+    print("\nFirst 20 actionable rows (year/month/action/max_abs_diff):")
+    print(suspicious.to_string(index=False))
+
+if __name__ == "__main__":
+    main()

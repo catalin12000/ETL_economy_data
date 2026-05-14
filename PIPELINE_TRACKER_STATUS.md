@@ -1,0 +1,208 @@
+# Pipeline Tracker Status
+
+Generated: 2026-03-24 09:36:47
+
+## Summary
+- Total pipelines: 65
+- Only downloader done: 29
+- Extractor done: 36
+- SQL wired: 28
+- Manually tested: 11
+
+## Only Downloader Done
+
+| Index | Pipeline |
+|---|---|
+| 03 | ed_building_permits_by_no_of_rooms |
+| 12 | ed_geo_distribution_of_issued_and_pending_permits |
+| 15 | ed_household_income_allocation |
+| 16 | ed_housing_finances |
+| 16 | ed_motor_trade_volume_index |
+| 17 | ed_imports_exports_millions |
+| 19 | ed_key_partners_primary_goods |
+| 22 | ed_motor_trade_turnover_index |
+| 23 | ed_new_built_properties_per_region |
+| 24 | ed_new_establishments_building_permits |
+| 25 | ed_new_residential_building_cost_index |
+| 26 | ed_new_residential_buildings_work_categories |
+| 27 | ed_office_price_volume_index |
+| 36 | ed_residents_di_activity |
+| 37 | ed_residents_di_country |
+| 38 | ed_retail_price_rental_index |
+| 39 | ed_retail_trade_turnover_index |
+| 40 | ed_retail_trade_volume_index |
+| 42 | ed_tourists_arrivals_revenue |
+| 43 | ed_wage_growth_index |
+| 44 | ed_wholesale_trade_turnover_index |
+| 44 | ed_wholesale_trade_volume_index |
+| 45 | ed_services_sector_turnover_monthly_index |
+| cy_10 | cy_10_lro_contracts_of_sale |
+| NA | ed_residence_permits_current |
+| NA | ed_residence_permits_golden_visa |
+| NA | ed_residence_permits_issued |
+| NA | ed_residence_permits_top10_countries |
+| NA | ed_residence_permits_top10_countries_golden_visa |
+
+## Extractor Done
+
+| Index | Pipeline |
+|---|---|
+| 01 | ed_apartments_price_index_table |
+| 02 | ed_building_permits_table |
+| 04 | ed_construction_index |
+| 05 | ed_consumer_price_index |
+| 07 | ed_economic_forecast |
+| 08 | ed_employment |
+| 09 | ed_fdi_activity |
+| 10 | ed_fdi_country |
+| 11 | ed_fdi_real_estate |
+| 13 | ed_gross_fixed_capital_formation |
+| 14 | ed_gva_by_sector |
+| 18 | ed_industrial_production_index |
+| 20 | ed_loan_amounts_millions |
+| 21 | ed_loan_interest_rates |
+| 29 | ed_residence_permits_application |
+| 46 | ed_eu_consumer_confidence_index |
+| 47 | ed_eu_gdp |
+| 48 | ed_eu_hicp |
+| 49 | ed_eu_unemployment_rate |
+| 54 | gdp_greece |
+| cy_01 | cy_01_average_monthly_earnings |
+| cy_02 | cy_02_building_permits_by_district |
+| cy_03 | cy_03_building_permits_by_property_type |
+| cy_04 | cy_04_construction_index_cy |
+| cy_05 | cy_05_consumer_price_index |
+| cy_06 | cy_06_economic_forecast_cy |
+| cy_09 | cy_09_gross_value_added_sector |
+| cy_11 | cy_11_lro_transfers |
+| cy_12 | cy_12_monthly_gross_earnings_distribution |
+| cy_13 | cy_13_new_loans_millions |
+| cy_14 | cy_14_per_day_expenditure_of_tourists |
+| cy_15 | cy_15_residential_price_indices |
+| cy_16 | cy_16_total_households_loans_millions |
+| cy_17 | cy_17_tourist_arrivals_country |
+| cy_18 | cy_18_tourist_arrivals_revenue |
+| NA | ed_residence_permits_aggregate |
+
+## SQL Wired
+
+| Index | Pipeline |
+|---|---|
+| 02 | ed_building_permits_table |
+| 04 | ed_construction_index |
+| 05 | ed_consumer_price_index |
+| 07 | ed_economic_forecast |
+| 08 | ed_employment |
+| 09 | ed_fdi_activity |
+| 10 | ed_fdi_country |
+| 11 | ed_fdi_real_estate |
+| 13 | ed_gross_fixed_capital_formation |
+| 20 | ed_loan_amounts_millions |
+| 21 | ed_loan_interest_rates |
+| 46 | ed_eu_consumer_confidence_index |
+| 47 | ed_eu_gdp |
+| 48 | ed_eu_hicp |
+| 49 | ed_eu_unemployment_rate |
+| 54 | gdp_greece |
+| cy_01 | cy_01_average_monthly_earnings |
+| cy_02 | cy_02_building_permits_by_district |
+| cy_03 | cy_03_building_permits_by_property_type |
+| cy_04 | cy_04_construction_index_cy |
+| cy_05 | cy_05_consumer_price_index |
+| cy_09 | cy_09_gross_value_added_sector |
+| cy_12 | cy_12_monthly_gross_earnings_distribution |
+| cy_13 | cy_13_new_loans_millions |
+| cy_15 | cy_15_residential_price_indices |
+| cy_16 | cy_16_total_households_loans_millions |
+| cy_17 | cy_17_tourist_arrivals_country |
+| cy_18 | cy_18_tourist_arrivals_revenue |
+
+## Manually Tested
+
+| Index | Pipeline |
+|---|---|
+| 05 | ed_consumer_price_index |
+| 08 | ed_employment |
+| 20 | ed_loan_amounts_millions |
+| 21 | ed_loan_interest_rates |
+| 46 | ed_eu_consumer_confidence_index |
+| 47 | ed_eu_gdp |
+| 48 | ed_eu_hicp |
+| 49 | ed_eu_unemployment_rate |
+| 54 | gdp_greece |
+| cy_05 | cy_05_consumer_price_index |
+| cy_13 | cy_13_new_loans_millions |
+
+## Full Tracker (Index Sorted)
+
+| Index | Pipeline | Downloader | Extractor Done | SQL Wire | Manually Tested | Only Downloader Done |
+|---|---|---|---|---|---|---|
+| 01 | ed_apartments_price_index_table | yes (direct) | yes | no | no | no |
+| 02 | ed_building_permits_table | yes (direct) | yes | yes (wired) | no | no |
+| 03 | ed_building_permits_by_no_of_rooms | yes (direct) | no | no | no | yes |
+| 04 | ed_construction_index | yes (direct) | yes | yes (wired) | no | no |
+| 05 | ed_consumer_price_index | yes (direct) | yes | yes (wired) | yes | no |
+| 07 | ed_economic_forecast | yes (direct) | yes | yes (wired) | no | no |
+| 08 | ed_employment | yes (direct) | yes | yes (wired) | yes | no |
+| 09 | ed_fdi_activity | yes (direct) | yes | yes (wired) | no | no |
+| 10 | ed_fdi_country | yes (direct) | yes | yes (wired) | no | no |
+| 11 | ed_fdi_real_estate | yes (direct) | yes | yes (wired) | no | no |
+| 12 | ed_geo_distribution_of_issued_and_pending_permits | yes (direct) | no | no | no | yes |
+| 13 | ed_gross_fixed_capital_formation | yes (direct) | yes | yes (wired) | no | no |
+| 14 | ed_gva_by_sector | yes (direct) | yes | no | no | no |
+| 15 | ed_household_income_allocation | yes (direct) | no | no | no | yes |
+| 16 | ed_housing_finances | yes (direct) | no | no | no | yes |
+| 16 | ed_motor_trade_volume_index | yes (direct) | no | no | no | yes |
+| 17 | ed_imports_exports_millions | yes (direct) | no | no | no | yes |
+| 18 | ed_industrial_production_index | yes (direct) | yes | no | no | no |
+| 19 | ed_key_partners_primary_goods | yes (direct) | no | no | no | yes |
+| 20 | ed_loan_amounts_millions | yes (source reuse) | yes | yes (wired) | yes | no |
+| 21 | ed_loan_interest_rates | yes (direct) | yes | yes (wired) | yes | no |
+| 22 | ed_motor_trade_turnover_index | yes (direct) | no | no | no | yes |
+| 23 | ed_new_built_properties_per_region | yes (direct) | no | no | no | yes |
+| 24 | ed_new_establishments_building_permits | yes (direct) | no | no | no | yes |
+| 25 | ed_new_residential_building_cost_index | yes (direct) | no | no | no | yes |
+| 26 | ed_new_residential_buildings_work_categories | yes (direct) | no | no | no | yes |
+| 27 | ed_office_price_volume_index | yes (direct) | no | no | no | yes |
+| 29 | ed_residence_permits_application | yes (source reuse) | yes | no | no | no |
+| 36 | ed_residents_di_activity | yes (direct) | no | no | no | yes |
+| 37 | ed_residents_di_country | yes (direct) | no | no | no | yes |
+| 38 | ed_retail_price_rental_index | yes (direct) | no | no | no | yes |
+| 39 | ed_retail_trade_turnover_index | yes (direct) | no | no | no | yes |
+| 40 | ed_retail_trade_volume_index | yes (direct) | no | no | no | yes |
+| 42 | ed_tourists_arrivals_revenue | yes (direct) | no | no | no | yes |
+| 43 | ed_wage_growth_index | yes (direct) | no | no | no | yes |
+| 44 | ed_wholesale_trade_turnover_index | yes (direct) | no | no | no | yes |
+| 44 | ed_wholesale_trade_volume_index | yes (direct) | no | no | no | yes |
+| 45 | ed_services_sector_turnover_monthly_index | yes (direct) | no | no | no | yes |
+| 46 | ed_eu_consumer_confidence_index | yes (direct) | yes | yes (wired) | yes | no |
+| 47 | ed_eu_gdp | yes (direct) | yes | yes (wired) | yes | no |
+| 48 | ed_eu_hicp | yes (direct) | yes | yes (wired) | yes | no |
+| 49 | ed_eu_unemployment_rate | yes (direct) | yes | yes (wired) | yes | no |
+| 54 | gdp_greece | yes (direct) | yes | yes (wired) | yes | no |
+| cy_01 | cy_01_average_monthly_earnings | yes (direct) | yes | yes (wired) | no | no |
+| cy_02 | cy_02_building_permits_by_district | no/unclear | yes | yes (wired) | no | no |
+| cy_03 | cy_03_building_permits_by_property_type | no/unclear | yes | yes (wired) | no | no |
+| cy_04 | cy_04_construction_index_cy | yes (direct) | yes | yes (wired) | no | no |
+| cy_05 | cy_05_consumer_price_index | no/unclear | yes | yes (wired) | yes | no |
+| cy_06 | cy_06_economic_forecast_cy | yes (direct) | yes | no | no | no |
+| cy_09 | cy_09_gross_value_added_sector | yes (direct) | yes | yes (wired) | no | no |
+| cy_10 | cy_10_lro_contracts_of_sale | yes (direct) | no | no | no | yes |
+| cy_11 | cy_11_lro_transfers | yes (direct) | yes | partial (pg compare only) | no | no |
+| cy_12 | cy_12_monthly_gross_earnings_distribution | yes (direct) | yes | yes (wired) | no | no |
+| cy_13 | cy_13_new_loans_millions | yes (direct) | yes | yes (wired) | yes | no |
+| cy_14 | cy_14_per_day_expenditure_of_tourists | yes (direct) | yes | no | no | no |
+| cy_15 | cy_15_residential_price_indices | yes (direct) | yes | yes (wired) | no | no |
+| cy_16 | cy_16_total_households_loans_millions | yes (direct) | yes | yes (wired) | no | no |
+| cy_17 | cy_17_tourist_arrivals_country | yes (direct) | yes | yes (wired) | no | no |
+| cy_18 | cy_18_tourist_arrivals_revenue | yes (direct) | yes | yes (wired) | no | no |
+| NA | ed_residence_permits_aggregate | yes (source reuse) | yes | no | no | no |
+| NA | ed_residence_permits_current | yes (source reuse) | no | no | no | yes |
+| NA | ed_residence_permits_golden_visa | yes (source reuse) | no | no | no | yes |
+| NA | ed_residence_permits_issued | yes (source reuse) | no | no | no | yes |
+| NA | ed_residence_permits_top10_countries | yes (source reuse) | no | no | no | yes |
+| NA | ed_residence_permits_top10_countries_golden_visa | yes (source reuse) | no | no | no | yes |
+
+## Notes
+- `Manually Tested` is sourced from the validated folder `deliverable_Konstantina_03_10`.
+- `NA` index means no explicit numeric prefix was found in the current pipeline code/download folder naming.

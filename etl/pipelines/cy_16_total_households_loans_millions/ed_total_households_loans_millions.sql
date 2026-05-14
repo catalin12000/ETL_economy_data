@@ -1,0 +1,14 @@
+SELECT
+  id,
+  year,
+  month,
+  total_loans,
+  total_households_loans,
+  non_performing_loans,
+  loan_amounts_past_90_days,
+  restructured_loans_forbearance,
+  non_performing_restructured_loans,
+  effective_dt,
+  modified_at
+FROM
+  "public"."ed_total_households_loans_millions"

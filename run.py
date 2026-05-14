@@ -1,8 +1,6 @@
-import argparse
-
-from etl.core.runner import list_pipelines, print_run_summary, run_one
+﻿import argparse
+from etl.core.runner import run_one, list_pipelines
 from dashboard import generate_dashboard
-
 
 def main():
     p = argparse.ArgumentParser()
@@ -16,16 +14,13 @@ def main():
         return
 
     if args.all:
-        results = [run_one(pid) for pid in list_pipelines()]
-        print_run_summary(results)
+        for pid in list_pipelines():
+            run_one(pid)
         generate_dashboard()
-        return
-
-    if not args.pipeline:
-        raise SystemExit("Use --pipeline <id>, --all or --dashboard")
-
-    print_run_summary([run_one(args.pipeline)])
-
+    else:
+        if not args.pipeline:
+            raise SystemExit("Use --pipeline <id>, --all or --dashboard")
+        run_one(args.pipeline)
 
 if __name__ == "__main__":
     main()

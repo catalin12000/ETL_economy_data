@@ -18,7 +18,7 @@ class Pipeline:
     DB_SHEET = "Sheet1"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / self.pipeline_id
+        out_dir = Path("data/downloads") / f"01_{self.pipeline_id}"
         out_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = out_dir / "Neoi_Pinakes_Timon_Katoikion_full.pdf"
 
@@ -58,19 +58,35 @@ class Pipeline:
             }
 
         # 4) Compare/update -> deliverable + report
-        out_excel = Path("data/outputs") / self.pipeline_id / "Ed Apartments Price Index Table.xlsx"
+        prefix = "01"
+        out_excel = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / "Ed Apartments Price Index Table.xlsx"
         out_excel.parent.mkdir(parents=True, exist_ok=True)
-        out_report = Path("data/reports") / self.pipeline_id / "update_report.csv"
+        out_report = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
         out_report.parent.mkdir(parents=True, exist_ok=True)
 
-        result = compare_and_update_excel(
-            db_excel_path=self.DB_EXCEL,
-            sheet=self.DB_SHEET,
-            extracted_df=df,
-            out_excel_path=out_excel,
-            report_csv_path=out_report,
-            prevent_older_than_db=True,
-        )
+        if not self.DB_EXCEL.exists():
+            print(f"Baseline {self.DB_EXCEL} not found. Creating a new baseline from extraction.")
+            # Ensure the directory for the baseline exists (if we wanted to write it back to data/db)
+            # For now, we'll just treat the extracted data as the 'updated' data
+            df.sort_values(["Year", "Quarter", "Region"]).to_excel(out_excel, index=False, sheet_name=self.DB_SHEET)
+            # Create a mock result
+            result_rows_before = 0
+            result_rows_after = len(df)
+            result_updated_cells = 0
+            result_new_rows = len(df)
+        else:
+            result = compare_and_update_excel(
+                db_excel_path=self.DB_EXCEL,
+                sheet=self.DB_SHEET,
+                extracted_df=df,
+                out_excel_path=out_excel,
+                report_csv_path=out_report,
+                prevent_older_than_db=True,
+            )
+            result_rows_before = result.rows_before
+            result_rows_after = result.rows_after
+            result_updated_cells = result.updated_cells
+            result_new_rows = result.new_rows
 
         # 5) Update state
         new_state = dict(state)
@@ -90,8 +106,8 @@ class Pipeline:
 
         msg = (
             f"Extracted {len(df)} rows. "
-            f"Excel rows {result.rows_before} -> {result.rows_after}. "
-            f"Updated cells={result.updated_cells}, New rows={result.new_rows}. "
+            f"Excel rows {result_rows_before} -> {result_rows_after}. "
+            f"Updated cells={result_updated_cells}, New rows={result_new_rows}. "
             f"Deliverable={out_excel}"
         )
         return {"status": "delivered", "message": msg, "state": new_state}

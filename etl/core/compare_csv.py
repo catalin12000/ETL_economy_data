@@ -3,13 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-
-
-KEY_COLS = ["Year", "Month"]
-VAL_COLS = ["Permits Number", "Area", "Volume"]
 
 
 @dataclass
@@ -20,11 +16,24 @@ class CsvUpdateResult:
     new_rows: int
     report_df: pd.DataFrame
     updated_df: pd.DataFrame
+    diff_df: pd.DataFrame # Contains the actual rows that were added or modified
 
 
 def _clean_cols(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
+    cols = [str(c).strip() for c in df.columns]
+
+    # dedupe: Year, Year -> Year, Year__1
+    seen = {}
+    out = []
+    for c in cols:
+        if c not in seen:
+            seen[c] = 0
+            out.append(c)
+        else:
+            seen[c] += 1
+            out.append(f"{c}__{seen[c]}")
+    df.columns = out
     return df
 
 
@@ -37,14 +46,23 @@ def _to_num(x):
     # remove thousands separators
     s = s.replace(",", "")
     try:
-        # permits/area/volume are integers
-        return int(float(s))
+        f = float(s)
+        # If it's an integer value, return as int, else float
+        if f == int(f):
+            return int(f)
+        return f
     except Exception:
-        return pd.NA
+        return x # Return as is if not a number
 
 
 def _period_num(df: pd.DataFrame) -> pd.Series:
-    return df["Year"].astype(int) * 100 + df["Month"].astype(int)
+    # Fallback if Month is not present (e.g. Annual)
+    if "Month" in df.columns:
+        return df["Year"].astype(int) * 100 + df["Month"].astype(int)
+    elif "Quarter" in df.columns:
+        return df["Year"].astype(int) * 10 + df["Quarter"].astype(int)
+    else:
+        return df["Year"].astype(int)
 
 
 def compare_and_update_csv(
@@ -53,81 +71,162 @@ def compare_and_update_csv(
     out_csv_path: Path,
     report_csv_path: Path,
     *,
+    key_cols: List[str] = ["Year", "Month"],
+    val_cols: Optional[List[str]] = None,
     prevent_older_than_db: bool = True,
 ) -> CsvUpdateResult:
     if not isinstance(db_csv_path, Path):
         db_csv_path = Path(db_csv_path)
 
-    if not db_csv_path.exists():
-        raise FileNotFoundError(f"DB CSV not found: {db_csv_path}")
-
-    df_db = pd.read_csv(db_csv_path)
-    df_db = _clean_cols(df_db)
-
     df_new = extracted_df.copy()
     df_new = _clean_cols(df_new)
+    
+    # If val_cols not provided, assume everything except key_cols
+    if val_cols is None:
+        val_cols = [c for c in df_new.columns if c not in key_cols]
 
-    # normalize types
-    for c in ["Year", "Month"]:
-        df_db[c] = pd.to_numeric(df_db[c], errors="coerce").astype("Int64")
-        df_new[c] = pd.to_numeric(df_new[c], errors="coerce").astype("Int64")
+    # Handle missing DB by creating an empty one with the same schema
+    if not db_csv_path.exists() or db_csv_path.stat().st_size < 10:
+        print(f"Creating new baseline DB: {db_csv_path}")
+        db_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        df_db = pd.DataFrame(columns=df_new.columns)
+        df_db.to_csv(db_csv_path, index=False)
+    else:
+        df_db = pd.read_csv(db_csv_path)
+        df_db = _clean_cols(df_db)
 
-    for c in VAL_COLS:
-        df_db[c] = df_db[c].map(_to_num).astype("Int64")
-        df_new[c] = df_new[c].map(_to_num).astype("Int64")
+    # normalize types for keys (only if they look numeric)
+    for c in key_cols:
+        if c in df_db.columns and c in df_new.columns:
+            try:
+                df_db[c] = pd.to_numeric(df_db[c])
+                df_new[c] = pd.to_numeric(df_new[c])
+            except:
+                pass # Keep as string/object
 
-    df_db = df_db.dropna(subset=KEY_COLS).copy()
-    df_new = df_new.dropna(subset=KEY_COLS).copy()
+    # normalize types for values
+    for c in val_cols:
+        if c in df_db.columns:
+            df_db[c] = df_db[c].map(_to_num)
+        if c in df_new.columns:
+            df_new[c] = df_new[c].map(_to_num)
+
+    # Filter out empty key rows
+    df_db = df_db.dropna(subset=key_cols).copy()
+    df_new = df_new.dropna(subset=key_cols).copy()
 
     if prevent_older_than_db and not df_db.empty:
-        min_period = int(_period_num(df_db).min())
-        df_new = df_new[_period_num(df_new) >= min_period].copy()
+        try:
+            min_period = int(_period_num(df_db).min())
+            df_new = df_new[_period_num(df_new) >= min_period].copy()
+        except:
+            pass
 
-    db_idx = df_db.set_index(KEY_COLS)
-    new_idx = df_new.set_index(KEY_COLS)
+    # Ensure keys are the same type for indexing
+    for c in key_cols:
+        df_db[c] = df_db[c].astype(str)
+        df_new[c] = df_new[c].astype(str)
+
+    db_idx = df_db.set_index(key_cols)
+    new_idx = df_new.set_index(key_cols)
 
     common = db_idx.index.intersection(new_idx.index)
     only_new = new_idx.index.difference(db_idx.index)
 
     changes: List[Dict[str, Any]] = []
+    changed_keys = [] # Track which common rows were updated
     updated_cells = 0
 
     for k in common:
-        for c in VAL_COLS:
+        row_differs = False
+        for c in val_cols:
+            if c not in db_idx.columns or c not in new_idx.columns:
+                continue
             old = db_idx.loc[k, c]
             new = new_idx.loc[k, c]
+            
+            # Handle both being NA
             if pd.isna(old) and pd.isna(new):
                 continue
-            if (pd.isna(old) != pd.isna(new)) or (old != new):
+                
+            # Compare values
+            is_different = False
+            if pd.isna(old) != pd.isna(new):
+                is_different = True
+            else:
+                try:
+                    if abs(float(old) - float(new)) > 1e-9:
+                        is_different = True
+                except:
+                    if str(old) != str(new):
+                        is_different = True
+
+            if is_different:
                 updated_cells += 1
-                changes.append({
+                row_differs = True
+                row_key = {key_cols[i]: k[i] for i in range(len(key_cols))}
+                change_entry = {
                     "ChangeType": "UPDATE",
-                    "Year": int(k[0]),
-                    "Month": int(k[1]),
+                    **row_key,
                     "Field": c,
-                    "OldValue": "" if pd.isna(old) else int(old),
-                    "NewValue": "" if pd.isna(new) else int(new),
-                })
-                db_idx.loc[k, c] = new
+                    "OldValue": old if pd.notna(old) else "",
+                    "NewValue": new if pd.notna(new) else "",
+                }
+                changes.append(change_entry)
+                db_idx.at[k, c] = new
+        
+        if row_differs:
+            changed_keys.append(k)
 
     df_added = new_idx.loc[only_new].reset_index()
     for _, r in df_added.iterrows():
+        row_key = {c: r[c] for c in key_cols}
+        val_summary = ", ".join([f"{c}={r[c]}" for c in val_cols if c in r])
         changes.append({
             "ChangeType": "ADD_ROW",
-            "Year": int(r["Year"]),
-            "Month": int(r["Month"]),
+            **row_key,
             "Field": "",
             "OldValue": "",
-            "NewValue": f'Permits={r["Permits Number"]}, Area={r["Area"]}, Volume={r["Volume"]}',
+            "NewValue": val_summary,
         })
 
+    # Prepare diff_df (Added + Updated rows in their final state)
+    df_diff = pd.concat([db_idx.loc[changed_keys].reset_index(), df_added], ignore_index=True)
+
+    # Preserve all columns from the original DB (like ID, Created At)
     df_updated = pd.concat([db_idx.reset_index(), df_added], ignore_index=True)
-    df_updated = df_updated.sort_values(["Year", "Month"]).reset_index(drop=True)
+    
+    # Convert keys back to numeric for proper sorting
+    for c in key_cols:
+        try:
+            df_updated[c] = pd.to_numeric(df_updated[c])
+            df_diff[c] = pd.to_numeric(df_diff[c])
+        except:
+            pass
+
+    # Final sort
+    df_updated = df_updated.sort_values(key_cols).reset_index(drop=True)
+    df_diff = df_diff.sort_values(key_cols).reset_index(drop=True)
+
+    # Convert back to numeric where possible before saving
+    for c in df_updated.columns:
+        try:
+            df_updated[c] = pd.to_numeric(df_updated[c])
+        except:
+            pass
+    
+    if not df_diff.empty:
+        for c in df_diff.columns:
+            try:
+                df_diff[c] = pd.to_numeric(df_diff[c])
+            except:
+                pass
 
     out_csv_path.parent.mkdir(parents=True, exist_ok=True)
     report_csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     df_updated.to_csv(out_csv_path, index=False)
+    # Removed: df_updated.to_csv(db_csv_path, index=False) - Keeping DB as baseline reference only
     pd.DataFrame(changes).to_csv(report_csv_path, index=False)
 
     return CsvUpdateResult(
@@ -137,4 +236,5 @@ def compare_and_update_csv(
         new_rows=len(df_added),
         report_df=pd.DataFrame(changes),
         updated_df=df_updated,
+        diff_df=df_diff
     )

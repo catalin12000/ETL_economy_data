@@ -1,0 +1,14 @@
+SELECT
+  id,
+  geopolitical_entity,
+  year,
+  quarter,
+  chain_linked_volumes,
+  quarter_over_quarter,
+  year_over_year,
+  current_prices,
+  effective_dt,
+  modified_at,
+  created_at
+FROM
+  "public"."ed_eu_gdp"

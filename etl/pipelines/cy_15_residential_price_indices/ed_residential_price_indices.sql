@@ -1,0 +1,26 @@
+SELECT
+  id,
+  year,
+  quarter,
+  residential_price_property_price_index,
+  apartments_cy,
+  houses_cy,
+  nicosia_residential,
+  limassol_residential,
+  larnaca_residential,
+  paphos_residential,
+  famagusta_residential,
+  nicosia_apartments,
+  limassol_apartments,
+  larnaca_apartments,
+  paphos_apartments,
+  famagusta_apartments,
+  nicosia_houses,
+  limassol_houses,
+  larnaca_houses,
+  paphos_houses,
+  famagusta_houses,
+  effective_dt,
+  modified_at
+FROM
+  "public"."ed_residential_price_indices"

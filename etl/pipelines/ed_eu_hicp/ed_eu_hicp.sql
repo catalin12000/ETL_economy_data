@@ -1,0 +1,11 @@
+SELECT
+  id,
+  year,
+  month,
+  geopolitical_entity,
+  annual_rate_of_change,
+  effective_dt,
+  modified_at,
+  created_at
+FROM
+  "public"."ed_eu_harmonized_index_of_consumer_prices"
