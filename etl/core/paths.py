@@ -1,25 +1,26 @@
 """
 Centralised path resolver for all pipeline I/O.
 
-New folder structure
-====================
-data/
-  pipelines/
-    <pipeline_id>/
-      downloaded/
-        <YYYY-MM>/          <- raw source files (one sub-folder per run month)
-      output/
-        <YYYY-MM>/          <- deliverables, snapshots, reports (one sub-folder per run month)
-      scripts/              <- SQL query files for this pipeline
-      state.json            <- run state (replaces data/state/<id>.json)
-      baseline.csv          <- local comparison baseline (replaces data/db/<prefix>_<id>.csv)
+Folder structure
+================
+etl/pipelines/<pipeline_id>/   <- code + data live together in one folder
+  pipeline.py                  <- pipeline orchestration (Python)
+  extract.py                   <- extraction logic (Python)
+  <id>.sql                     <- DB reference query (SQL)
+  downloaded/
+    <YYYY-MM>/                 <- raw source files, one sub-folder per run month
+  output/
+    <YYYY-MM>/                 <- deliverables, snapshots, reports, one per run month
+  scripts/                     <- additional SQL/helper scripts if needed
+  state.json                   <- run state
+  baseline.csv                 <- local comparison baseline
 """
 from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
 
-_DATA_ROOT = Path("data") / "pipelines"
+_DATA_ROOT = Path("etl") / "pipelines"
 
 
 class PipelinePaths:

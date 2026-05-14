@@ -1,4 +1,3 @@
-@"
 # Python
 __pycache__/
 *.pyc
@@ -13,19 +12,38 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Data outputs (do not version)
+# Pipeline data (downloaded source files, run outputs, state — not versioned)
+etl/pipelines/*/downloaded/
+etl/pipelines/*/output/
+etl/pipelines/*/state.json
+etl/pipelines/*/baseline.csv
+
+# Legacy data paths (kept for reference, not versioned)
 data/downloads/
 data/outputs/
 data/reports/
 data/state/
+data/pipelines/
+
+# Deliverable folders and zips
 deliverables_*/
+march_updated_deliverable/
+deliveralbe_*/
+deliverable_*/
+uploaded_march_actual/
 *.zip
 
-# Local DB copies (optional: keep templates only)
+# Legacy DB copies
 data/db/*.xlsx
 data/db/*.xls
 data/db/*.csv
 
 # Logs
 *.log
-"@ | Set-Content .gitignore
+
+# Audit/diagnostic scripts output
+db_null_audit_report.csv
+db_deliverable_compare_report.csv
+run_status_*.csv
+schema_gap_report.csv
+_schema_rows.json

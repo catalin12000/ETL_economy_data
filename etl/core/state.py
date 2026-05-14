@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
-_PIPELINES_ROOT = Path("data") / "pipelines"
+_PIPELINES_ROOT = Path("etl") / "pipelines"
 # Legacy directory kept for backward-compat reads during migration
 _LEGACY_STATE_DIR = Path("data/state")
 
