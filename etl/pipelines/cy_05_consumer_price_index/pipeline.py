@@ -11,6 +11,7 @@ from etl.core.download import sha256_file
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_cpi
 
 class Pipeline:
@@ -67,10 +68,8 @@ class Pipeline:
         return out
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "05"
-        out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "cystat_cpi_raw.csv"
 
         # Query all months and all base years
@@ -122,12 +121,11 @@ class Pipeline:
         df_primary = self._prepare_primary_series(df_new)
 
         # 1b. Local baseline comparison (for mock snapshot + new entries files)
-        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        db_path = Path("data/db") / f"{prefix}_ed_consumer_price_index.csv"
-        report_csv = Path("data/reports") / f"cy_{prefix}_{self.pipeline_id}" / "update_report.csv"
+        db_path = pp.baseline
+        report_csv = pp.output / "update_report.csv"
 
         df_local = (
             df_primary.rename(
@@ -154,7 +152,7 @@ class Pipeline:
         
         # 2. Sync with live Cyprus Postgres DB (zeus)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
-        sql_path = Path(__file__).parent / "cy_05_consumer_price_index.sql"
+        sql_path = pp.sql("cy_05_consumer_price_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_primary,
             table_name=self.DB_TABLE_NAME,

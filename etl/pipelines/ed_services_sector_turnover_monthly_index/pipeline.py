@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from etl.core.paths import PipelinePaths
 
 
 class Pipeline:
@@ -18,10 +19,8 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "01.Τurnover Indices in Services Sections"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "45"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "elstat_services_turnover_index.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}

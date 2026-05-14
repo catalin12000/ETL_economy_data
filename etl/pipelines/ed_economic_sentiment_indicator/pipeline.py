@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_economic_sentiment_indicator
 
 
@@ -25,10 +26,8 @@ class Pipeline:
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "53"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / f"eurostat_{self.DATASET_CODE}.csv"
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
@@ -53,13 +52,12 @@ class Pipeline:
         print(f"Extracting data from {out_path}...")
         df_new = extract_economic_sentiment_indicator(out_path)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
         db_diff_only_path = output_dir / "db_differences_only.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -81,7 +79,7 @@ class Pipeline:
                 "Economic Sentiment Indicator": "economic_sentiment_indicator",
             }
         )
-        sql_path = Path(__file__).parent / "ed_economic_sentiment_indicator.sql"
+        sql_path = pp.sql("ed_economic_sentiment_indicator.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_economic_sentiment_indicator",

@@ -8,6 +8,7 @@ from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine, _normalize_match_value
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_loan_interest_rates
 
 
@@ -123,10 +124,8 @@ class Pipeline:
         return out[target_cols]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "21"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "Rates_TABLE_1+1a_v2.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -163,10 +162,10 @@ class Pipeline:
             ).drop(columns=["_sort_order"]).reset_index(drop=True)
 
         # 2. Sync with Baseline DB (Local Reference)
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -210,7 +209,7 @@ class Pipeline:
         if "_sort_order" in df_for_db.columns:
             df_for_db.drop(columns=["_sort_order"], inplace=True)
             
-        sql_path = Path(__file__).parent / "ed_loan_interest_rates.sql"
+        sql_path = pp.sql("ed_loan_interest_rates.sql")
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,

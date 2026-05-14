@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_residents_di_activity
 
 
@@ -26,9 +27,8 @@ class Pipeline:
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/BPM6_FDI_ABROAD_BY_ACTIVITY.xls"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "36"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "BPM6_FDI_ABROAD_BY_ACTIVITY.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -76,10 +76,10 @@ class Pipeline:
                 "state": new_state,
             }
 
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -101,7 +101,7 @@ class Pipeline:
                 "Amount Millions": "amount_millions",
             }
         )
-        sql_path = Path(__file__).parent / "ed_residents_di_by_activity.sql"
+        sql_path = pp.sql("ed_residents_di_by_activity.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_residents_di_by_activity",

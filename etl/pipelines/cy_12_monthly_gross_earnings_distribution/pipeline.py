@@ -11,6 +11,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import BUCKETS_IN_ORDER, extract_monthly_gross_earnings_distribution
 
 
@@ -107,9 +108,8 @@ class Pipeline:
         return out
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "12"
-        out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "cystat_earnings_distribution.csv"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -135,10 +135,10 @@ class Pipeline:
         print("Extracting monthly gross earnings distribution data...")
         df_new = extract_monthly_gross_earnings_distribution(out_path)
 
-        db_path = Path("data/db") / f"cy_{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"cy_{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -151,7 +151,7 @@ class Pipeline:
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = self._to_db_wide(df_new)
-        sql_path = Path(__file__).parent / "ed_monthly_gross_earnings_distribution.sql"
+        sql_path = pp.sql("ed_monthly_gross_earnings_distribution.sql")
         sync_cols = [db_col for _, db_col in self.BUCKET_TO_DB_COL]
         db_comp_res = compare_with_postgres(
             df=df_for_db,

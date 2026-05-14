@@ -146,12 +146,13 @@ def run_shared_appendix_b_pipeline(
     else:
         df_new = extractor(pdf_path, report_year=report_year, report_month=report_month)
 
-    output_dir = Path("data/outputs") / f"{prefix}_{pipeline_id}"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    from etl.core.paths import PipelinePaths
+    pp = PipelinePaths(pipeline_id)
+    output_dir = pp.output
     out_csv_full = output_dir / "mock_db_snapshot.csv"
     output_file = output_dir / "new_entries.csv"
-    report_csv = Path("data/reports") / f"{prefix}_{pipeline_id}" / "update_report.csv"
-    db_path = Path("data/db") / f"{prefix}_{pipeline_id}.csv"
+    report_csv = output_dir / "update_report.csv"
+    db_path = pp.baseline
 
     res = compare_and_update_csv(
         db_csv_path=db_path,

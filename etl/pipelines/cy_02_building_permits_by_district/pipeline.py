@@ -11,6 +11,7 @@ from etl.core.download import sha256_file, is_new_by_hash
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_building_permits_district
 
 
@@ -21,10 +22,8 @@ class Pipeline:
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Building%20Permits/1440010E.px"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "02"
-        out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "cystat_data.csv"
 
         # PxWeb API Query: Using CSV format for easier extraction
@@ -59,10 +58,10 @@ class Pipeline:
         df_new = extract_building_permits_district(out_path)
         
         # 2. Sync with baseline DB (Local Reference)
-        db_path = Path("data/db") / f"cy_{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"cy_{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(

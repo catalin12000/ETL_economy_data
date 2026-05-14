@@ -10,6 +10,7 @@ from etl.core.elstat import (
     list_publication_years,
 )
 from etl.core.compare_csv import compare_and_update_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_gva
 
 
@@ -21,10 +22,8 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "Ακαθάριστη προστιθέμενη αξία κατά κλάδο (A64)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "14"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "ed_gva_by_sector.xls"
 
         headers = {
@@ -86,9 +85,9 @@ class Pipeline:
         print(f"Extracting data from {out_path}...")
         df_new = extract_gva(out_path)
         
-        db_path = Path("data/db") / f"{self.pipeline_id}.csv"
-        out_csv = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / f"{self.pipeline_id}_updated.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        db_path = pp.baseline
+        out_csv = pp.output / f"{self.pipeline_id}_updated.csv"
+        report_csv = pp.output / "update_report.csv"
         
         print(f"Comparing with master DB {db_path}...")
         res = compare_and_update_csv(db_path, df_new, out_csv, report_csv, key_cols=["Year", "Industry_Code"])

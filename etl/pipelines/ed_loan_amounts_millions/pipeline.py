@@ -9,6 +9,7 @@ from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprin
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine, _normalize_match_value
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_loan_amounts
 
 
@@ -171,8 +172,7 @@ class Pipeline:
         return out[target_cols]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "20"
-        
+        pp = PipelinePaths(self.pipeline_id)
         # Reuse path and hash from the master download pipeline
         try:
             xls_path = get_latest_pdf_path(self.SOURCE_PIPELINE_ID)
@@ -198,10 +198,10 @@ class Pipeline:
             }
 
         # 2. Sync with Baseline DB (Local Reference)
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -235,7 +235,7 @@ class Pipeline:
         if "_sort_order" in df_for_db.columns:
             df_for_db.drop(columns=["_sort_order"], inplace=True)
             
-        sql_path = Path(__file__).parent / "ed_loan_amounts_millions.sql"
+        sql_path = pp.sql("ed_loan_amounts_millions.sql")
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,

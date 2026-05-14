@@ -11,6 +11,7 @@ from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_wholesale_trade_indices
 
 
@@ -23,10 +24,8 @@ class Pipeline:
     VOLUME_TITLE = "04. Volume Index in Wholesale Trade"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "44"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         turnover_path = out_dir / "elstat_wholesale_turnover.xls"
         volume_path = out_dir / "elstat_wholesale_volume.xls"
 
@@ -78,12 +77,11 @@ class Pipeline:
         print("Extracting wholesale trade turnover/volume indices...")
         df_new = extract_wholesale_trade_indices(turnover_path, volume_path)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -105,7 +103,7 @@ class Pipeline:
                 "Volume Index": "volume_index",
             }
         )
-        sql_path = Path(__file__).parent / "ed_wholesales_turnover_index.sql"
+        sql_path = pp.sql("ed_wholesales_turnover_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_wholesales_turnover_index",

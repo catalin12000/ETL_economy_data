@@ -11,6 +11,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_construction_index
 
 
@@ -51,9 +52,8 @@ class Pipeline:
         }
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "04"
-        out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "cystat_construction_materials_index.csv"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -83,10 +83,10 @@ class Pipeline:
         df_new = extract_construction_index(out_path)
 
         # 3) Local baseline compare
-        db_path = Path("data/db") / f"cy_{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"cy_{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -100,7 +100,7 @@ class Pipeline:
         # 4) DB compare (READ-ONLY, zeus)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = df_new.rename(columns={"Year": "year", "Month": "month", "Index": "index"})
-        sql_path = Path(__file__).parent / "ed_construction_index_cy.sql"
+        sql_path = pp.sql("ed_construction_index_cy.sql")
 
         db_comp_res = compare_with_postgres(
             df=df_for_db,

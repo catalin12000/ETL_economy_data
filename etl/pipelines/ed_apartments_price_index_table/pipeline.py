@@ -5,6 +5,7 @@ from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.fingerprint import dataframe_sha256
 from etl.core.compare_excel import compare_and_update_excel
 from etl.pipelines.ed_apartments_price_index_table.extract import extract_apartment_indices
+from etl.core.paths import PipelinePaths
 
 
 class Pipeline:
@@ -18,8 +19,8 @@ class Pipeline:
     DB_SHEET = "Sheet1"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        out_dir = Path("data/downloads") / f"01_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         pdf_path = out_dir / "Neoi_Pinakes_Timon_Katoikion_full.pdf"
 
         meta = download_file(self.PDF_URL, pdf_path)
@@ -58,10 +59,9 @@ class Pipeline:
             }
 
         # 4) Compare/update -> deliverable + report
-        prefix = "01"
-        out_excel = Path("data/outputs") / f"{prefix}_{self.pipeline_id}" / "Ed Apartments Price Index Table.xlsx"
+        out_excel = pp.output / "Ed Apartments Price Index Table.xlsx"
         out_excel.parent.mkdir(parents=True, exist_ok=True)
-        out_report = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        out_report = pp.output / "update_report.csv"
         out_report.parent.mkdir(parents=True, exist_ok=True)
 
         if not self.DB_EXCEL.exists():

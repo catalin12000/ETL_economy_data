@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_retail_price_rental_index
 
 
@@ -21,10 +22,8 @@ class Pipeline:
     RENT_INDEX_URL = "https://www.bankofgreece.gr/RelatedDocuments/RETAIL_RENT_INDEX.pdf"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "38"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         price_path = out_dir / "Retail_Price_Index.pdf"
         rent_path = out_dir / "Retail_Rent_Index.pdf"
 
@@ -82,12 +81,11 @@ class Pipeline:
         print(f"Extracting data from {price_path} and {rent_path}...")
         df_new = extract_retail_price_rental_index(price_path, rent_path)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -115,7 +113,7 @@ class Pipeline:
                 "Rest Of Greece Rent Index": "rest_of_greece_rent_index",
             }
         )
-        sql_path = Path(__file__).parent / "ed_retail_price_rental_index.sql"
+        sql_path = pp.sql("ed_retail_price_rental_index.sql")
         sync_cols = [
             "total_price_index",
             "total_rent_index",

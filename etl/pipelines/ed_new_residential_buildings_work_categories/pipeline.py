@@ -11,6 +11,7 @@ from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_new_residential_buildings_work_categories
 
 
@@ -24,10 +25,8 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "04. Quarterly Price Indices of Work Categories in Construction (Output)"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "26"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "elstat_residential_work_categories_index.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -66,12 +65,11 @@ class Pipeline:
         print(f"Extracting data from {out_path}...")
         df_new = extract_new_residential_buildings_work_categories(out_path)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -111,7 +109,7 @@ class Pipeline:
                 ),
             }
         )
-        sql_path = Path(__file__).parent / "ed_new_residential_buildings_work_categories.sql"
+        sql_path = pp.sql("ed_new_residential_buildings_work_categories.sql")
         sync_cols = [
             "overall_index",
             "earth_moving",

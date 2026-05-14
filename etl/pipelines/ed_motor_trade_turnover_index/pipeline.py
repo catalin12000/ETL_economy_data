@@ -11,6 +11,7 @@ from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_motor_trade_turnover, extract_motor_trade_volume
 
 
@@ -57,10 +58,8 @@ class Pipeline:
         return out[target_cols]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "22"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
 
         # 1) Resolve latest quarterly publication page (shared by both files)
@@ -108,13 +107,12 @@ class Pipeline:
             }
         df_new = df_new.sort_values(["Year", "Month"]).reset_index(drop=True)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file  = output_dir / "new_entries.csv"
         db_diff_path = output_dir / "db_differences_only.csv"
-        report_csv   = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path      = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv   = pp.output / "update_report.csv"
+        db_path      = pp.baseline
 
         # 5) Local baseline compare
         print(f"Comparing with baseline DB {db_path}...")
@@ -139,7 +137,7 @@ class Pipeline:
             "vehicle_sale_volume_index":   pd.to_numeric(df_new["vehicle_sale_volume_index"],   errors="coerce"),
         }).dropna(subset=["year", "month"]).copy()
 
-        sql_path = Path(__file__).parent / "ed_motor_trade_turnover_index.sql"
+        sql_path = pp.sql("ed_motor_trade_turnover_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.pipeline_id,

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from etl.core.migration_appendix_b_runner import run_shared_appendix_b_pipeline
+from etl.core.paths import PipelinePaths
 
 from .extract import extract_residence_permits_issued
 
@@ -14,6 +15,7 @@ class Pipeline:
     TABLE_SPEC = "Appendix B Tables 5 and 6"
 
     def run(self, state: dict[str, Any]) -> dict[str, Any]:
+        pp = PipelinePaths(self.pipeline_id)
         return run_shared_appendix_b_pipeline(
             state=state,
             prefix="32",

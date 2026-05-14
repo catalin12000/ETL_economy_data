@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_fdi_real_estate
 
 
@@ -26,9 +27,8 @@ class Pipeline:
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/EN_Direct_Investment_in_Greece_in_Real_Estate.xlsx"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "11"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "EN_Direct_Investment_in_Greece_in_Real_Estate.xlsx"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -64,10 +64,10 @@ class Pipeline:
         # DB keeps integer amounts in this dataset; align before compare/deliverable.
         df_new["Amount"] = pd.to_numeric(df_new["Amount"], errors="coerce").round(0)
 
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -87,7 +87,7 @@ class Pipeline:
                 "Amount": "amount",
             }
         )
-        sql_path = Path(__file__).parent / "ed_fdi_real_estate.sql"
+        sql_path = pp.sql("ed_fdi_real_estate.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_fdi_real_estate",

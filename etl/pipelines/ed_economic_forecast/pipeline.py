@@ -11,6 +11,7 @@ from etl.core.database import compare_with_postgres
 from etl.core.fingerprint import dataframe_sha256
 from etl.core.output import write_deliverable_csv
 from etl.pipelines.ed_economic_forecast.extract import extract_forecast_deliverable
+from etl.core.paths import PipelinePaths
 
 
 class Pipeline:
@@ -24,11 +25,9 @@ class Pipeline:
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "07"
-
+        pp = PipelinePaths(self.pipeline_id)
         # 1) Download HTML
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        out_dir = pp.downloaded
         html_path = out_dir / "economic_forecast_greece.html"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/html,*/*"}
@@ -58,12 +57,11 @@ class Pipeline:
         data_hash = dataframe_sha256(df_new, sort_cols=["Year"])
 
         # 4) Sync with local baseline
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        db_path = pp.baseline
+        report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -90,7 +88,7 @@ class Pipeline:
             }
         ).copy()
 
-        sql_path = Path(__file__).parent / "ed_economic_forecast.sql"
+        sql_path = pp.sql("ed_economic_forecast.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_economic_forecast",

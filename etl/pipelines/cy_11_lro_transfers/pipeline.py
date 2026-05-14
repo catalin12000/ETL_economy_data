@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_lro_transfers
 
 
@@ -55,10 +56,8 @@ class Pipeline:
         return candidates[0]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "11"
-        out_dir = Path("data/downloads") / f"cy_{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         headers = {"User-Agent": "Mozilla/5.0"}
 
         extracted_frames: list[pd.DataFrame] = []
@@ -115,9 +114,7 @@ class Pipeline:
                 "state": new_state,
             }
 
-        output_dir = Path("data/outputs") / f"cy_{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
+        output_dir = pp.output
         print("Comparing with live Cyprus Postgres DB (zeus)...")
         db_comp_res = compare_with_postgres(
             df=df_new,

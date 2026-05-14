@@ -6,6 +6,7 @@ import shutil
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
+from etl.core.paths import PipelinePaths
 
 
 class Pipeline:
@@ -18,12 +19,9 @@ class Pipeline:
     )
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "23"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
+        output_dir = pp.output
         out_path = out_dir / "elstat_new_built_properties_region.xls"
         deliverable_path = output_dir / "deliverable_ed_new_built_properties_per_region.xls"
 

@@ -10,6 +10,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_tourists_arrivals_revenue
 
 
@@ -21,10 +22,8 @@ class Pipeline:
     TRAVELLERS_URL = "https://www.bankofgreece.gr/RelatedDocuments/NUMBER_OF_INBOUND_TRAVELLERS_IN_GREECE_BY_COUNTRY_OF_ORIGIN.xls"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "42"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         receipts_path = out_dir / "Receipts_By_Country_Of_Origin.xls"
         travellers_path = out_dir / "Number_Of_Inbound_Travellers.xls"
 
@@ -63,12 +62,11 @@ class Pipeline:
         print("Extracting tourists arrivals and revenue data...")
         df_new = extract_tourists_arrivals_revenue(receipts_path, travellers_path)
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -92,7 +90,7 @@ class Pipeline:
                 "Revenues by Country of Origin (millions)": "revenues_by_country_of_origin_millions",
             }
         )
-        sql_path = Path(__file__).parent / "ed_tourists_arrivals_revenue.sql"
+        sql_path = pp.sql("ed_tourists_arrivals_revenue.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name="ed_tourists_arrivals_revenue",

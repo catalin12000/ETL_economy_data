@@ -10,6 +10,7 @@ from etl.core.elstat import get_latest_publication_url, get_download_url_by_titl
 from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_employment
 
 class Pipeline:
@@ -19,10 +20,8 @@ class Pipeline:
     TARGET_TITLE_SUBSTRING = "Κατάσταση απασχόλησης και ποσοστό ανεργίας"
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "08"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "ed_employment.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -47,10 +46,10 @@ class Pipeline:
         df_new = extract_employment(out_path)
         
         # 2. Sync with baseline DB (Reference)
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
+        db_path = pp.baseline
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
+        report_csv = pp.output / "update_report.csv"
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
@@ -77,7 +76,7 @@ class Pipeline:
         }
         df_for_db.rename(columns=col_map, inplace=True)
         
-        sql_path = Path(__file__).parent / "ed_employment.sql"
+        sql_path = pp.sql("ed_employment.sql")
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,

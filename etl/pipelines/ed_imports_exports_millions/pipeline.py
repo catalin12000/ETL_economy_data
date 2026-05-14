@@ -11,6 +11,7 @@ from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_download_url_by_title, get_latest_publication_year_url
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 from .extract import extract_imports_exports_millions
 
 
@@ -69,9 +70,8 @@ class Pipeline:
     MIN_DB_YEAR = 2015
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        prefix = "17"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         out_path = out_dir / "elstat_imports_exports_goods_services.xls"
 
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
@@ -120,12 +120,11 @@ class Pipeline:
                 "state": new_state,
             }
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         # Local baseline compare (deliverable shape, without ID)
         df_local = pd.DataFrame({"Year": df_new["Year"]})
@@ -179,7 +178,7 @@ class Pipeline:
             ),
         }).dropna(subset=["year"]).copy()
 
-        sql_path = Path(__file__).parent / "ed_imports_exports_millions.sql"
+        sql_path = pp.sql("ed_imports_exports_millions.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.pipeline_id,

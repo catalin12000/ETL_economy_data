@@ -13,6 +13,7 @@ from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
+from etl.core.paths import PipelinePaths
 
 from .extract import extract_geo_distribution_of_issued_and_pending_permits
 
@@ -130,10 +131,8 @@ class Pipeline:
     TABLE_SPEC = "Appendix B Tables 4c and 4d"
 
     def run(self, state: dict[str, Any]) -> dict[str, Any]:
-        prefix = "12"
-        out_dir = Path("data/downloads") / f"{prefix}_{self.pipeline_id}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        pp = PipelinePaths(self.pipeline_id)
+        out_dir = pp.downloaded
         pdf_path = out_dir / "migration_appendix_b.pdf"
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
         pdf_url, period = resolve_latest_migration_appendix_b_pdf_url(self.INDEX_URL, headers=headers)
@@ -176,12 +175,11 @@ class Pipeline:
                 pdf_path, report_year=report_year, report_month=report_month
             )
 
-        output_dir = Path("data/outputs") / f"{prefix}_{self.pipeline_id}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
         output_file = output_dir / "new_entries.csv"
-        report_csv = Path("data/reports") / f"{prefix}_{self.pipeline_id}" / "update_report.csv"
-        db_path = Path("data/db") / f"{prefix}_{self.pipeline_id}.csv"
+        report_csv = pp.output / "update_report.csv"
+        db_path = pp.baseline
 
         res = compare_and_update_csv(
             db_csv_path=db_path,
