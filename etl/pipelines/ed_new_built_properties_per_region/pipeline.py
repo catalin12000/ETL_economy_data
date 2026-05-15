@@ -65,6 +65,8 @@ class Pipeline:
         if download_note:
             new_state["download_note"] = download_note
 
+        # QA: extractor written without seeing the actual SOP03 Table 01 file — validate
+        # header row detection and region/unit fill-down logic on first successful run.
         print("Extracting new built properties per region data...")
         df_new = extract_new_built_properties(out_path)
 

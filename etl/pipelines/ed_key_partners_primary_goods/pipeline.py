@@ -117,6 +117,8 @@ class Pipeline:
         if download_note:
             new_state["download_note"] = download_note
 
+        # QA: extractor written without seeing the actual SFC02 SITC-1 file — validate
+        # imports/exports sheet detection, year-column mapping, and SITC code derivation.
         print("Extracting key partners primary goods data...")
         df_new = extract_key_partners_primary_goods(out_path)
 

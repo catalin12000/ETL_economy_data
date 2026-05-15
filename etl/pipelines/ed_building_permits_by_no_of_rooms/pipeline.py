@@ -65,6 +65,8 @@ class Pipeline:
         if download_note:
             new_state["download_note"] = download_note
 
+        # QA: extractor written without seeing the actual SOP03 Table 04 file — validate
+        # header row detection and column mapping on first successful run.
         print("Extracting building permits by no of rooms data...")
         df_new = extract_building_permits_by_rooms(out_path)
 

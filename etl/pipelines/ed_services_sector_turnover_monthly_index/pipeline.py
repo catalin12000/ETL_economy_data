@@ -62,6 +62,8 @@ class Pipeline:
         if download_note:
             new_state["download_note"] = download_note
 
+        # QA: extractor written without seeing the actual DKT54 file — validate column
+        # positions and NACE code row detection on first successful run.
         print("Extracting services sector turnover index data...")
         df_new = extract_services_sector_turnover(out_path)
 

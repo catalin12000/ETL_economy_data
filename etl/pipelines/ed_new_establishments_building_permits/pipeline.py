@@ -63,6 +63,8 @@ class Pipeline:
         if download_note:
             new_state["download_note"] = download_note
 
+        # QA: extractor written without seeing the actual SOP03 Table 16 file — validate
+        # header detection and area_type/category_of_use fill-down on first successful run.
         print("Extracting new establishments building permits data...")
         df_new = extract_new_establishments(out_path)
 
