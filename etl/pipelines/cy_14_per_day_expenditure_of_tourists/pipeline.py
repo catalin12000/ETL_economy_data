@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 
 from etl.core.compare_csv import compare_and_update_csv
+from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
 from etl.core.nulls import normalize_nulls
 from etl.core.output import write_deliverable_csv
@@ -112,6 +113,7 @@ class Pipeline:
         db_path = pp.baseline
         output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
+        output_file = output_dir / "new_entries.csv"
         report_csv = pp.output / "update_report.csv"
 
         print(f"Comparing with baseline DB {db_path}...")
@@ -122,45 +124,92 @@ class Pipeline:
             report_csv,
             key_cols=["Year", "Month", "Country_of_origin"],
         )
-
-        # DB table does not exist yet: keep DB phase explicit and skipped.
-        db_summary = {
-            "status": "skipped",
-            "reason": "target_table_not_created",
-            "missing_in_db": None,
-            "different_in_db": None,
-        }
-
-        output_file = output_dir / "new_entries.csv"
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
+        print("Comparing extraction with live Postgres DB (zeus)...")
+        df_for_db = df_new.rename(
+            columns={
+                "Year": "year",
+                "Month": "month",
+                "Country_of_origin": "country_of_origin",
+                "Average_length_of_stay_(nights)": "average_length_of_stay",
+                "Expenditure_per_day": "expenditure_per_day",
+            }
+        )
+        normalize_nulls(df_for_db, columns=["average_length_of_stay", "expenditure_per_day"])
+        for c in ["average_length_of_stay", "expenditure_per_day"]:
+            df_for_db[c] = pd.to_numeric(df_for_db[c], errors="coerce")
+
+        sql_path = pp.sql("ed_per_day_expenditure_of_tourists.sql")
+        db_comp_res = compare_with_postgres(
+            df=df_for_db,
+            table_name="ed_per_day_expenditure_of_tourists",
+            db_name="zeus",
+            match_cols=["year", "month", "country_of_origin"],
+            sync_cols=["average_length_of_stay", "expenditure_per_day"],
+            tolerance=0.01,
+            sql_file_path=str(sql_path),
+        )
+        if db_comp_res.get("error"):
+            return {"status": "error", "message": db_comp_res["error"], "state": new_state}
+
+        print(
+            f"Postgres (zeus) comparison result: {db_comp_res.get('inserted')} missing, "
+            f"{db_comp_res.get('updated')} different."
+        )
+
+        db_diff_only_path = output_dir / "db_differences_only.csv"
         now = datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
+        inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
+        updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "Year",
-            "Month",
-            "Country_of_origin",
-            "Average_length_of_stay_(nights)",
-            "Expenditure_per_day",
+            "ID",
+            "year",
+            "month",
+            "country_of_origin",
+            "average_length_of_stay",
+            "expenditure_per_day",
         ]
 
-        # Since DB table is not available yet, deliver full extracted dataset.
-        deliverable_df = df_new.copy()
-        for c in target_cols:
-            if c not in deliverable_df.columns:
-                deliverable_df[c] = pd.NA
-        deliverable_df = deliverable_df[target_cols]
-        # Replace placeholder strings ('...', 'u', 'N/A', ':') with NULL in numeric columns.
-        normalize_nulls(
-            deliverable_df,
-            columns=["Average_length_of_stay_(nights)", "Expenditure_per_day"],
-        )
-        for c in ["Average_length_of_stay_(nights)", "Expenditure_per_day"]:
-            deliverable_df[c] = pd.to_numeric(deliverable_df[c], errors="coerce")
-        write_deliverable_csv(deliverable_df, deliverable_path)
+        def shape_output(df: pd.DataFrame) -> pd.DataFrame:
+            if df.empty:
+                return pd.DataFrame(columns=target_cols)
+
+            shaped = df.rename(columns={"id": "ID"}).copy()
+            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["month"] = pd.to_numeric(shaped["month"], errors="coerce")
+            shaped = shaped.dropna(subset=["year", "month", "country_of_origin"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
+            shaped["month"] = shaped["month"].astype(int)
+            shaped = shaped.sort_values(["year", "month", "country_of_origin"]).reset_index(drop=True)
+            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+
+            for column in ["average_length_of_stay", "expenditure_per_day"]:
+                if column in shaped.columns:
+                    shaped[column] = pd.to_numeric(shaped[column], errors="coerce").map(
+                        lambda x: "" if pd.isna(x) else f"{float(x):.3f}"
+                    )
+
+            for column in target_cols:
+                if column not in shaped.columns:
+                    shaped[column] = pd.NA
+
+            return shaped[target_cols]
+
+        write_deliverable_csv(shape_output(delta_df), deliverable_path)
+        shape_output(updated_df).to_csv(db_diff_only_path, index=False)
+
+        db_summary = {
+            "status": db_comp_res.get("status"),
+            "missing_in_db": db_comp_res.get("inserted"),
+            "different_in_db": db_comp_res.get("updated"),
+        }
         new_state.update(
             {
                 "rows_before": res.rows_before,
@@ -170,17 +219,25 @@ class Pipeline:
                 "db_comparison": db_summary,
                 "deliverable_path": str(deliverable_path),
                 "delta_path": str(output_file),
+                "db_differences_only_path": str(db_diff_only_path),
                 "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0:
+        if (
+            not is_new_by_hash(state.get("file_sha256"), file_hash)
+            and res.new_rows == 0
+            and res.updated_cells == 0
+            and db_comp_res.get("inserted") == 0
+            and db_comp_res.get("updated") == 0
+        ):
             return {"status": "skipped", "message": "No new data detected.", "state": new_state}
 
         return {
             "status": "delivered",
             "message": (
-                f"Extracted {len(df_new)} rows. DB compare skipped (table not created). "
+                f"Extracted {len(df_new)} rows. DB (zeus) Comparison: "
+                f"{db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} diff. "
                 f"File: {deliverable_name}"
             ),
             "state": new_state,
