@@ -1,16 +1,19 @@
 from __future__ import annotations
 from pathlib import Path
-import json
+
+from etl.core.state import load_state as _load_state
 
 
 def load_state(pipeline_id: str) -> dict:
-    state_path = Path("data/state") / f"{pipeline_id}.json"
-    if not state_path.exists():
+    st = _load_state(pipeline_id)
+    if not st:
+        new_path = Path("etl") / "pipelines" / pipeline_id / "state.json"
+        legacy_path = Path("data/state") / f"{pipeline_id}.json"
         raise FileNotFoundError(
             f"State for '{pipeline_id}' not found. Run that pipeline once first.\n"
-            f"Expected: {state_path}"
+            f"Looked in: {new_path} and {legacy_path}"
         )
-    return json.loads(state_path.read_text(encoding="utf-8"))
+    return st
 
 
 def get_latest_pdf_path(source_pipeline_id: str) -> Path:
