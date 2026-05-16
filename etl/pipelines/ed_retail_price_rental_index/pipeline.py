@@ -150,7 +150,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Year Half",
             "Total Price Index",
@@ -169,7 +169,7 @@ class Pipeline:
 
             shaped = df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "year_half": "Year Half",
                     "total_price_index": "Total Price Index",
@@ -183,8 +183,8 @@ class Pipeline:
                 }
             ).copy()
 
-            if "ID" in shaped.columns:
-                shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce").astype("Int64")
+            if "id" in shaped.columns:
+                shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce").astype("Int64")
             shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce").astype("Int64")
             shaped["Year Half"] = pd.to_numeric(shaped["Year Half"], errors="coerce").astype("Int64")
             for column in target_cols[3:]:

@@ -220,11 +220,11 @@ class Pipeline:
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
-        target_cols = ["ID", "Year", "Month", "Permit Type", "Period", "Area", "Issued", "Rejected", "Revoked", "Pending"]
+        target_cols = ["id", "Year", "Month", "Permit Type", "Period", "Area", "Issued", "Rejected", "Revoked", "Pending"]
         if not delta_df.empty:
             delta_df = delta_df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "month": "Month",
                     "permit_type": "Permit Type",
@@ -239,7 +239,7 @@ class Pipeline:
             for col in target_cols:
                 if col not in delta_df.columns:
                     delta_df[col] = pd.NA
-            for col in ["ID", "Year", "Month"]:
+            for col in ["id", "Year", "Month"]:
                 delta_df[col] = pd.to_numeric(delta_df[col], errors="coerce").astype("Int64")
             delta_df = delta_df[target_cols].sort_values(["Year", "Month", "Permit Type", "Period", "Area"]).reset_index(drop=True)
         else:

@@ -138,7 +138,7 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "year", "quarter", "group", "category", "sub_category", "value_millions"]
+        target_cols = ["id", "year", "quarter", "group", "category", "sub_category", "value_millions"]
 
         if not delta_df.empty:
             lookup_cols = [
@@ -160,9 +160,9 @@ class Pipeline:
             delta_df["category"] = delta_df["category"].fillna(delta_df["category_display"])
             delta_df["sub_category"] = delta_df["sub_category"].replace("", pd.NA)
 
-            delta_df = delta_df.rename(columns={"id": "ID"})
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            delta_df = delta_df.rename(columns={"id": "id"})
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce").astype("Int64")
             delta_df["quarter"] = pd.to_numeric(delta_df["quarter"], errors="coerce").astype("Int64")
             delta_df["value_millions"] = pd.to_numeric(delta_df["value_millions"], errors="coerce")

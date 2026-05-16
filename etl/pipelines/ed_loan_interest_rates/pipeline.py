@@ -69,7 +69,7 @@ class Pipeline:
     @staticmethod
     def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
         target_cols = [
-            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc',
+            'id', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc',
             'Total_Housing_Loans_Aprc', 'Delta_Interest_Rate_Deposits',
             'Weighted_Average_Interest_Rate_New_Loans_In_Euro', 'Weighted_Average_Interest_Rate',
             'Credit_Cards', 'Open_Account_Loans', 'Debit_Balances_On_Current_Accounts',
@@ -86,7 +86,7 @@ class Pipeline:
 
         out = df.copy()
         rev_map = {
-            "id": "ID",
+            "id": "id",
             "year": "Year",
             "month": "Month",
             "group": "Group",
@@ -113,8 +113,8 @@ class Pipeline:
             "debit_balances_sight_deposits": "Debit_Balances_Sight_Deposits",
         }
         out.rename(columns=rev_map, inplace=True)
-        if "ID" in out.columns:
-            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        if "id" in out.columns:
+            out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         for c in target_cols:
             if c not in out.columns:
                 out[c] = pd.NA

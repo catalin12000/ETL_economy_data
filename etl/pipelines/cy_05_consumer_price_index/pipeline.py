@@ -45,25 +45,25 @@ class Pipeline:
     @staticmethod
     def _build_deliverable_df(df: pd.DataFrame) -> pd.DataFrame:
         if df is None or df.empty:
-            return pd.DataFrame(columns=["ID", "Year", "Month", "Index", "Year_Over_Year"])
+            return pd.DataFrame(columns=["id", "Year", "Month", "Index", "Year_Over_Year"])
 
         out = df.copy()
         out = out[out["year"] >= Pipeline.DELIVERABLE_FROM_YEAR].copy()
         col_map = {
-            "id": "ID",
+            "id": "id",
             "year": "Year",
             "month": "Month",
             "index": "Index",
             "year_over_year": "Year_Over_Year",
         }
         out.rename(columns=col_map, inplace=True)
-        if "ID" not in out.columns:
-            out["ID"] = pd.NA
+        if "id" not in out.columns:
+            out["id"] = pd.NA
         else:
-            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+            out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         if "Year_Over_Year" not in out.columns:
             out["Year_Over_Year"] = pd.NA
-        out = out[["ID", "Year", "Month", "Index", "Year_Over_Year"]]
+        out = out[["id", "Year", "Month", "Index", "Year_Over_Year"]]
         out.sort_values(["Year", "Month"], inplace=True)
         return out
 

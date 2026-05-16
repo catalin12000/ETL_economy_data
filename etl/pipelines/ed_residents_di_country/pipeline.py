@@ -132,20 +132,20 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "year", "country", "area", "amount_millions", "continent"]
+        target_cols = ["id", "year", "country", "area", "amount_millions", "continent"]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(columns={"id": "ID"}).copy()
+            shaped = df.rename(columns={"id": "id"}).copy()
             shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
             shaped["amount_millions"] = pd.to_numeric(shaped["amount_millions"], errors="coerce")
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped = shaped.dropna(subset=["year", "country"]).copy()
             shaped["year"] = shaped["year"].astype(int)
             shaped = shaped.sort_values(["year", "country"], ascending=[False, True]).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
             shaped["amount_millions"] = shaped["amount_millions"].map(lambda x: "" if pd.isna(x) else f"{float(x):.2f}")
 
             for column in target_cols:

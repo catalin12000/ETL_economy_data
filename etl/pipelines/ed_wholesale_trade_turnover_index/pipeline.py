@@ -129,7 +129,7 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "Year", "Month", "Turnover Index", "Volume Index"]
+        target_cols = ["id", "Year", "Month", "Turnover Index", "Volume Index"]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
@@ -137,21 +137,21 @@ class Pipeline:
 
             shaped = df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "month": "Month",
                     "turnover_index": "Turnover Index",
                     "volume_index": "Volume Index",
                 }
             ).copy()
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
             shaped["Month"] = pd.to_numeric(shaped["Month"], errors="coerce")
             shaped = shaped.dropna(subset=["Year", "Month"]).copy()
             shaped["Year"] = shaped["Year"].astype(int)
             shaped["Month"] = shaped["Month"].astype(int)
             shaped = shaped.sort_values(["Year", "Month"]).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
             for column in ["Turnover Index", "Volume Index"]:
                 if column in shaped.columns:
                     shaped[column] = pd.to_numeric(shaped[column], errors="coerce").map(

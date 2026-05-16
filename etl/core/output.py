@@ -38,10 +38,10 @@ def write_deliverable_csv(
     """
     Write a deliverable CSV with:
     - numeric columns rounded to at most `decimals` decimal places
-    - all column headers lowercased to match DB column names exactly
-      (ID kept uppercase — convention used by the upload script)
+    - all column headers normalised to lowercase snake_case
+      to match DB column names exactly
     """
     kwargs.setdefault("index", False)
     out = round_for_output(df, decimals=decimals).copy()
-    out.columns = [c if c == "ID" else _to_db_col(c) for c in out.columns]
+    out.columns = [_to_db_col(c) for c in out.columns]
     out.to_csv(path, **kwargs)

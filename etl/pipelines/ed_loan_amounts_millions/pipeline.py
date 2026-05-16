@@ -73,18 +73,18 @@ class Pipeline:
             return local_df
 
         out = local_df.copy()
-        if "ID" in out.columns:
-            existing_id = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        if "id" in out.columns:
+            existing_id = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         else:
             existing_id = pd.Series(pd.NA, index=out.index, dtype="Int64")
 
         lookup = full_replace_df.copy()
         if lookup.empty or "id" not in lookup.columns:
-            if "ID" not in out.columns:
+            if "id" not in out.columns:
                 insert_at = out.columns.get_loc("Loan Type") + 1 if "Loan Type" in out.columns else len(out.columns)
-                out.insert(insert_at, "ID", existing_id)
+                out.insert(insert_at, "id", existing_id)
             else:
-                out["ID"] = existing_id
+                out["id"] = existing_id
             return out
 
         local_key_map = {
@@ -120,11 +120,11 @@ class Pipeline:
         matched_id = pd.to_numeric(matched["id"], errors="coerce").astype("Int64")
         final_id = existing_id.combine_first(matched_id)
 
-        if "ID" not in out.columns:
-            out.insert(0, "ID", final_id)
+        if "id" not in out.columns:
+            out.insert(0, "id", final_id)
         else:
-            out["ID"] = final_id
-            cols = ["ID"] + [c for c in out.columns if c != "ID"]
+            out["id"] = final_id
+            cols = ["id"] + [c for c in out.columns if c != "id"]
             out = out[cols]
 
         return out
@@ -136,7 +136,7 @@ class Pipeline:
         public CSV column layout used by this pipeline.
         """
         target_cols = [
-            'ID', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Loan_Amount',
+            'id', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Loan_Amount',
             'Total_Collateral_Guarantees_Loans', 'Total_Small_Medium_Enterprises_Loans',
             'Floating_Rate_1_Year_Fixation', 'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees',
             'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation',
@@ -148,7 +148,7 @@ class Pipeline:
 
         out = df.copy()
         rev_map = {
-            "id": "ID",
+            "id": "id",
             "year": "Year", "month": "Month", "group": "Group", "loan_type": "Loan_Type",
             "total_loan_amount": "Total_Loan_Amount",
             "total_collateral_guarantees_loans": "Total_Collateral_Guarantees_Loans",
@@ -162,8 +162,8 @@ class Pipeline:
             "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation"
         }
         out.rename(columns=rev_map, inplace=True)
-        if "ID" in out.columns:
-            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        if "id" in out.columns:
+            out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         for c in target_cols:
             if c not in out.columns:
                 out[c] = pd.NA

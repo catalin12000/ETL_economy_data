@@ -204,12 +204,12 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "Year"] + list(DISPLAY_MAP.values())
+        target_cols = ["id", "Year"] + list(DISPLAY_MAP.values())
 
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"id": "ID", "year": "Year"})
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            delta_df = delta_df.rename(columns={"id": "id", "year": "Year"})
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
 
             for db_col, out_col in DISPLAY_MAP.items():

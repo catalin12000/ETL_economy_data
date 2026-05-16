@@ -133,10 +133,10 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["ID", "Year", "Month", "Index"]
+        target_cols = ["id", "Year", "Month", "Index"]
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"id": "ID", "year": "Year", "month": "Month", "index": "Index"})
-            delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce")
+            delta_df = delta_df.rename(columns={"id": "id", "year": "Year", "month": "Month", "index": "Index"})
+            delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce")
             delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
             delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
             delta_df["Index"] = pd.to_numeric(delta_df["Index"], errors="coerce").round(2)
@@ -146,7 +146,7 @@ class Pipeline:
             delta_df["Month"] = delta_df["Month"].astype(int)
             delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
 
-            delta_df["ID"] = delta_df["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            delta_df["id"] = delta_df["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
             for c in target_cols:
                 if c not in delta_df.columns:

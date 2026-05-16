@@ -34,5 +34,5 @@ class Pipeline:
             match_cols=["year", "month"],
             sync_cols=["work", "other", "family_reunion", "studies"],
             sql_file_path=str(Path(__file__).with_name("ed_residence_permits_current.sql")),
-            target_cols=["ID", "Month", "Year", "Work", "Other", "Family Reunion", "Studies"],
+            target_cols=["id", "Month", "Year", "Work", "Other", "Family Reunion", "Studies"],
         )

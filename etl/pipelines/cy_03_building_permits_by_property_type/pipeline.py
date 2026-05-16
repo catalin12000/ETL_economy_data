@@ -123,17 +123,17 @@ class Pipeline:
             "division_of_plots",
             "road_construction",
         ]
-        target_cols = ["ID", "Year", "Month", "permits"] + subcategory_cols
+        target_cols = ["id", "Year", "Month", "permits"] + subcategory_cols
 
         if not delta_db_df.empty:
-            delta_db_df = delta_db_df.rename(columns={"id": "ID", "year": "Year", "month": "Month"})
+            delta_db_df = delta_db_df.rename(columns={"id": "id", "year": "Year", "month": "Month"})
             delta_db_df = delta_db_df[delta_db_df["Year"] >= 2023].copy()
 
         if not delta_db_df.empty:
-            if "ID" in delta_db_df.columns:
-                delta_db_df["ID"] = pd.to_numeric(delta_db_df["ID"], errors="coerce").astype("Int64")
+            if "id" in delta_db_df.columns:
+                delta_db_df["id"] = pd.to_numeric(delta_db_df["id"], errors="coerce").astype("Int64")
             else:
-                delta_db_df["ID"] = pd.NA
+                delta_db_df["id"] = pd.NA
             delta_db_df["Year"] = pd.to_numeric(delta_db_df["Year"], errors="coerce").astype("Int64")
             delta_db_df["Month"] = pd.to_numeric(delta_db_df["Month"], errors="coerce").astype("Int64")
 

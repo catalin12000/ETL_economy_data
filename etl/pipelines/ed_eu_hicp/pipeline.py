@@ -105,20 +105,20 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = ['ID', 'Geopolitical_Entity', 'Year', 'Month', 'Annual_Rate_Of_Change']
+        target_cols = ['id', 'Geopolitical_Entity', 'Year', 'Month', 'Annual_Rate_Of_Change']
         
         if not delta_df.empty:
             # Map back to Capitalized for deliverable
             rev_map = {
-                "id": "ID",
+                "id": "id",
                 "geopolitical_entity": "Geopolitical_Entity",
                 "year": "Year",
                 "month": "Month",
                 "annual_rate_of_change": "Annual_Rate_Of_Change"
             }
             delta_df.rename(columns=rev_map, inplace=True)
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:
                 if c not in delta_df.columns: delta_df[c] = pd.NA
             write_deliverable_csv(delta_df[target_cols], deliverable_path)

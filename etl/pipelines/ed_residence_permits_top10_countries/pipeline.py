@@ -36,7 +36,7 @@ class Pipeline:
             sync_cols=["total_permits_granted", "permits_granted_to_men", "permits_granted_to_women"],
             sql_file_path=str(Path(__file__).with_name("ed_residence_permits_top10_countries.sql")),
             target_cols=[
-                "ID",
+                "id",
                 "Month",
                 "Year",
                 "Rank",

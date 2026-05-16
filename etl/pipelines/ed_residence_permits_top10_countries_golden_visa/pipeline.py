@@ -35,6 +35,6 @@ class Pipeline:
             match_cols=["year", "month", "rank", "country", "type", "applicant"],
             sync_cols=["permits"],
             sql_file_path=str(Path(__file__).with_name("ed_residence_permits_top10_countries_golden_visa.sql")),
-            target_cols=["ID", "Month", "Year", "Rank", "Country", "Permits", "Type", "Applicant"],
+            target_cols=["id", "Month", "Year", "Rank", "Country", "Permits", "Type", "Applicant"],
             snapshot_backfill=True,
         )

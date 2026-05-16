@@ -145,7 +145,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Quarter",
             "Sex",
@@ -156,7 +156,7 @@ class Pipeline:
         if not delta_df.empty:
             delta_df = delta_df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "quarter": "Quarter",
                     "sex": "Sex",
@@ -175,8 +175,8 @@ class Pipeline:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA
 
-            delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce")
-            delta_df["ID"] = delta_df["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce")
+            delta_df["id"] = delta_df["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
             # Keep deliverable numeric formatting clean when values are integer-like.
             for c in [

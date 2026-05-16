@@ -155,7 +155,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "year",
             "quarter",
             "overall_index",
@@ -179,12 +179,12 @@ class Pipeline:
         ]
 
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"id": "ID"})
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            delta_df = delta_df.rename(columns={"id": "id"})
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce").astype("Int64")
             delta_df["quarter"] = pd.to_numeric(delta_df["quarter"], errors="coerce").astype("Int64")
-            value_cols = [c for c in target_cols if c not in {"ID", "year", "quarter"}]
+            value_cols = [c for c in target_cols if c not in {"id", "year", "quarter"}]
             for c in value_cols:
                 delta_df[c] = pd.to_numeric(delta_df[c], errors="coerce")
 

@@ -142,17 +142,17 @@ class Pipeline:
             "paphos_houses",
             "famagusta_houses",
         ]
-        target_cols = ["ID", "Year", "Quarter"] + index_cols
+        target_cols = ["id", "Year", "Quarter"] + index_cols
 
         if not delta_db_df.empty:
-            delta_db_df = delta_db_df.rename(columns={"id": "ID", "year": "Year", "quarter": "Quarter"})
+            delta_db_df = delta_db_df.rename(columns={"id": "id", "year": "Year", "quarter": "Quarter"})
             delta_db_df = delta_db_df[delta_db_df["Year"] >= 2023].copy()
 
         if not delta_db_df.empty:
-            if "ID" in delta_db_df.columns:
-                delta_db_df["ID"] = pd.to_numeric(delta_db_df["ID"], errors="coerce").astype("Int64")
+            if "id" in delta_db_df.columns:
+                delta_db_df["id"] = pd.to_numeric(delta_db_df["id"], errors="coerce").astype("Int64")
             else:
-                delta_db_df["ID"] = pd.NA
+                delta_db_df["id"] = pd.NA
             delta_db_df["Year"] = pd.to_numeric(delta_db_df["Year"], errors="coerce").astype("Int64")
             delta_db_df["Quarter"] = pd.to_numeric(delta_db_df["Quarter"], errors="coerce").astype("Int64")
 

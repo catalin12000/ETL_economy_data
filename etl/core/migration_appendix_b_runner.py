@@ -33,12 +33,12 @@ def _format_delta(
     if delta_df.empty:
         return pd.DataFrame(columns=target_cols)
 
-    formatted = delta_df.rename(columns={"id": "ID", **db_to_target}).copy()
+    formatted = delta_df.rename(columns={"id": "id", **db_to_target}).copy()
     for col in target_cols:
         if col not in formatted.columns:
             formatted[col] = pd.NA
 
-    for col in ["ID", "Year", "Month", "Quarter", "Rank"]:
+    for col in ["id", "Year", "Month", "Quarter", "Rank"]:
         if col in formatted.columns:
             formatted[col] = pd.to_numeric(formatted[col], errors="coerce").astype("Int64")
 

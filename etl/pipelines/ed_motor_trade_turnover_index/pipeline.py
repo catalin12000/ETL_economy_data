@@ -33,7 +33,7 @@ class Pipeline:
 
     @staticmethod
     def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
-        target_cols = ["ID", "year", "month"] + [
+        target_cols = ["id", "year", "month"] + [
             "motor_trade_turnover_index",
             "vehicle_sale_turnover_index",
             "motor_trade_volume_index",
@@ -42,9 +42,9 @@ class Pipeline:
         if df.empty:
             return pd.DataFrame(columns=target_cols)
 
-        out = df.rename(columns={"id": "ID"}).copy()
-        if "ID" in out.columns:
-            out["ID"] = pd.to_numeric(out["ID"], errors="coerce").astype("Int64")
+        out = df.rename(columns={"id": "id"}).copy()
+        if "id" in out.columns:
+            out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         out["year"]  = pd.to_numeric(out["year"],  errors="coerce").astype("Int64")
         out["month"] = pd.to_numeric(out["month"], errors="coerce").astype("Int64")
         for col in target_cols[3:]:

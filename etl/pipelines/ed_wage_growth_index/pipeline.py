@@ -152,7 +152,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "year",
             "quarter",
             "mining_and_quarrying",
@@ -172,17 +172,17 @@ class Pipeline:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(columns={"id": "ID"}).copy()
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped = df.rename(columns={"id": "id"}).copy()
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
             shaped["quarter"] = pd.to_numeric(shaped["quarter"], errors="coerce")
             shaped = shaped.dropna(subset=["year", "quarter"]).copy()
             shaped["year"] = shaped["year"].astype(int)
             shaped["quarter"] = shaped["quarter"].astype(int)
             shaped = shaped.sort_values(["year", "quarter"]).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 
-            value_cols = [c for c in target_cols if c not in {"ID", "year", "quarter"}]
+            value_cols = [c for c in target_cols if c not in {"id", "year", "quarter"}]
             for column in value_cols:
                 if column in shaped.columns:
                     shaped[column] = pd.to_numeric(shaped[column], errors="coerce").map(

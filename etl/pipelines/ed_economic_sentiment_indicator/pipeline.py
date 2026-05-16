@@ -105,7 +105,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Month",
             "Geopolitical_Entity",
@@ -118,14 +118,14 @@ class Pipeline:
 
             shaped = df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "month": "Month",
                     "geopolitical_entity": "Geopolitical_Entity",
                     "economic_sentiment_indicator": "Economic_Sentiment_Indicator",
                 }
             ).copy()
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
             shaped["Month"] = pd.to_numeric(shaped["Month"], errors="coerce")
             shaped["Economic_Sentiment_Indicator"] = pd.to_numeric(
@@ -135,7 +135,7 @@ class Pipeline:
             shaped["Year"] = shaped["Year"].astype(int)
             shaped["Month"] = shaped["Month"].astype(int)
             shaped = shaped.sort_values(["Year", "Month", "Geopolitical_Entity"]).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
             shaped["Economic_Sentiment_Indicator"] = shaped["Economic_Sentiment_Indicator"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.1f}"
             )

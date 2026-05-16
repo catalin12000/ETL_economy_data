@@ -117,7 +117,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "year",
             "quarter",
             "area",
@@ -130,8 +130,8 @@ class Pipeline:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(columns={"id": "ID"}).copy()
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped = df.rename(columns={"id": "id"}).copy()
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
             shaped["quarter"] = pd.to_numeric(shaped["quarter"], errors="coerce")
             shaped["number_of_travellers_000s"] = pd.to_numeric(shaped["number_of_travellers_000s"], errors="coerce")
@@ -140,7 +140,7 @@ class Pipeline:
             shaped["year"] = shaped["year"].astype(int)
             shaped["quarter"] = shaped["quarter"].astype(int)
             shaped = shaped.sort_values(["year", "quarter", "area", "country_of_origin"]).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
             shaped["number_of_travellers_000s"] = shaped["number_of_travellers_000s"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.1f}"
             )

@@ -34,7 +34,7 @@ class Pipeline:
             sync_cols=["eu_citizens_of_greek_origin", "third_country_nationals", "political_refugees"],
             sql_file_path=str(Path(__file__).with_name("ed_residence_permits_aggregate.sql")),
             target_cols=[
-                "ID",
+                "id",
                 "Month",
                 "Year",
                 "Eu Citizens Of Greek Origin",

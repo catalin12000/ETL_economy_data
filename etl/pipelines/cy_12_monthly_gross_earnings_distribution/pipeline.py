@@ -184,14 +184,14 @@ class Pipeline:
         delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         db_cols = [db_col for _, db_col in self.BUCKET_TO_DB_COL]
-        target_cols = ["ID", "Year", "sex"] + db_cols
+        target_cols = ["id", "Year", "sex"] + db_cols
 
         if not delta_wide.empty:
-            delta_wide = delta_wide.rename(columns={"id": "ID", "year": "Year"})
-            if "ID" in delta_wide.columns:
-                delta_wide["ID"] = pd.to_numeric(delta_wide["ID"], errors="coerce").astype("Int64")
+            delta_wide = delta_wide.rename(columns={"id": "id", "year": "Year"})
+            if "id" in delta_wide.columns:
+                delta_wide["id"] = pd.to_numeric(delta_wide["id"], errors="coerce").astype("Int64")
             else:
-                delta_wide["ID"] = pd.NA
+                delta_wide["id"] = pd.NA
             delta_wide["Year"] = pd.to_numeric(delta_wide["Year"], errors="coerce").astype("Int64")
 
             for db_col in db_cols:

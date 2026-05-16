@@ -134,7 +134,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Section Code",
             "Section Name",
@@ -149,7 +149,7 @@ class Pipeline:
 
             shaped = df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "section_code": "Section Code",
                     "section_name": "Section Name",
@@ -160,14 +160,14 @@ class Pipeline:
             ).copy()
             shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
             shaped["Amount Millions"] = pd.to_numeric(shaped["Amount Millions"], errors="coerce")
-            shaped["ID"] = pd.to_numeric(shaped["ID"], errors="coerce")
+            shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
             shaped = shaped.dropna(subset=["Year", "Subsection Code"]).copy()
             shaped["Year"] = shaped["Year"].astype(int)
             shaped = shaped.sort_values(
                 ["Year", "Section Code", "Subsection Code"],
                 ascending=[False, True, True],
             ).reset_index(drop=True)
-            shaped["ID"] = shaped["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+            shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
             shaped["Amount Millions"] = shaped["Amount Millions"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.2f}"
             )

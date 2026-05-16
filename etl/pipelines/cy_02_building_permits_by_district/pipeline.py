@@ -114,13 +114,13 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = ['ID', 'Year', 'Month', 'District', 'Urban_Rural', 'Area_m2', 'Dwelling_Units', 'Number', 'Value_000s']
+        target_cols = ['id', 'Year', 'Month', 'District', 'Urban_Rural', 'Area_m2', 'Dwelling_Units', 'Number', 'Value_000s']
         
         if not delta_df.empty:
             rev_map = {v: k for k, v in col_map.items()}
             delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
-                delta_df.rename(columns={"id": "ID"}, inplace=True)
+                delta_df.rename(columns={"id": "id"}, inplace=True)
             
             if "Year" in delta_df.columns:
                 delta_df = delta_df[delta_df["Year"] >= 2023].copy()
@@ -129,8 +129,8 @@ class Pipeline:
                 delta_df = delta_df.sort_values(["Year", "Month", "District", "Urban_Rural"]).reset_index(drop=True)
                 for c in target_cols:
                     if c not in delta_df.columns: delta_df[c] = pd.NA
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce")
-                delta_df["ID"] = delta_df["ID"].map(lambda x: "" if pd.isna(x) else str(int(x)))
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce")
+                delta_df["id"] = delta_df["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
                 write_deliverable_csv(delta_df[target_cols], deliverable_path)
                 print(f"Created filtered deliverable: {deliverable_name}")
             else:

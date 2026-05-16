@@ -121,7 +121,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Gdp Growth",
             "Inflation",
@@ -133,7 +133,7 @@ class Pipeline:
         if not delta_df.empty:
             delta_df = delta_df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "gdp_growth": "Gdp Growth",
                     "inflation": "Inflation",
@@ -143,8 +143,8 @@ class Pipeline:
                     "current_account_balance": "Current Account Balance",
                 }
             )
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA

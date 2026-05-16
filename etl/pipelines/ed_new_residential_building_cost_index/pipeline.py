@@ -121,7 +121,7 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "ID",
+            "id",
             "Year",
             "Quarter",
             "Overall Cost Index",
@@ -131,7 +131,7 @@ class Pipeline:
         if not delta_df.empty:
             delta_df = delta_df.rename(
                 columns={
-                    "id": "ID",
+                    "id": "id",
                     "year": "Year",
                     "quarter": "Quarter",
                     "overall_cost_index": "Overall Cost Index",
@@ -139,8 +139,8 @@ class Pipeline:
                     "labour_costs_index": "Labour Costs Index",
                 }
             )
-            if "ID" in delta_df.columns:
-                delta_df["ID"] = pd.to_numeric(delta_df["ID"], errors="coerce").astype("Int64")
+            if "id" in delta_df.columns:
+                delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
             delta_df["Quarter"] = pd.to_numeric(delta_df["Quarter"], errors="coerce").astype("Int64")
             for c in target_cols[2:]:
