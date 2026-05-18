@@ -10,51 +10,51 @@ import pandas as pd
 _ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6,
           "VII": 7, "VIII": 8, "IX": 9, "X": 10, "XI": 11, "XII": 12}
 
-# XLS code (row 10, DT suffix stripped) → human-readable economic activity name
+# XLS code (row 10, DT suffix stripped) → DB economic_activity name.
+# Values match exact strings in ed_services_sector_turnover_monthly_index.
+# Section totals (H__, I__, J__, L__, M__, N__, HTNXK) are not in the DB — omitted.
 _CODE_TO_ACTIVITY: dict[str, str] = {
     "H49":      "Land transport and transport via pipelines",
     "H50":      "Water transport",
     "H51":      "Air transport",
     "H52":      "Warehousing and support activities for transportation",
     "H53":      "Postal and courier activities",
-    "H__":      "Section H - Transportation and storage",
-    "I55":      "Accommodation",
-    "I56":      "Food and beverage service activities",
-    "I__":      "Section I - Accommodation and food service activities",
+    "I55":      "Accommodation activities",
+    "I56":      "Food Service activities",
     "J58":      "Publishing activities",
-    "J59":      "Motion picture, video and television programme activities",
-    "J60":      "Broadcasting and programming activities",
+    "J59":      "Motion picture, video and television program production, sound recording and music publishing activities",
+    "J60":      "Programming and broadcasting activities",
     "J61":      "Telecommunications",
-    "J62":      "Computer programming and consultancy",
+    "J62":      "Computer programming, consultancy and related activities",
     "J63":      "Information service activities",
-    "J__":      "Section J - Information and communication",
     "L68":      "Real estate activities",
-    "L__":      "Section L - Real estate activities",
     "M69":      "Legal and accounting activities",
-    "M69_702":  "Legal, accounting and management consultancy",
+    "M69+702":  "Legal, accounting and management consultancy activities",
     "M702":     "Management consultancy activities",
-    "M71":      "Architectural and engineering activities",
+    "M71":      "Architectural and engineering activities, technical testing and analysis",
     "M73":      "Advertising and market research",
     "M74":      "Other professional, scientific and technical activities",
-    "M__":      "Section M - Professional, scientific and technical activities",
     "N77":      "Rental and leasing activities",
     "N78":      "Employment activities",
-    "N79":      "Travel agency and tour operator activities",
+    "N79":      "Travel agency, tour operator reservation service and related activities",
     "N80":      "Security and investigation activities",
     "N81":      "Services to buildings and landscape activities",
-    "N82":      "Office administrative and support activities",
-    "N__":      "Section N - Administrative and support service activities",
-    "HTNXK":    "Total turnover index (all service sections)",
-    "HTNXK_":   "Total turnover index (all service sections)",
+    "N82":      "Office administrative, office support and other business support activities",
+}
+
+# XLS uses underscore separator for combined codes; DB uses +
+_CODE_REMAP: dict[str, str] = {
+    "M69_702": "M69+702",
 }
 
 
 def _norm_code(raw: str) -> str:
-    """Strip DT suffix and trailing underscores, uppercase."""
+    """Strip DT suffix and trailing underscores, uppercase, apply DB code remaps."""
     s = str(raw).strip().upper()
     if s.endswith("DT"):
         s = s[:-2]
-    return s.rstrip("_") or s
+    s = s.rstrip("_") or s
+    return _CODE_REMAP.get(s, s)
 
 
 def _parse_period(label: str, current_year: Optional[int]) -> tuple[Optional[int], Optional[int]]:
