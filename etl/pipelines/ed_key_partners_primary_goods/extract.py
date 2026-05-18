@@ -103,5 +103,7 @@ def extract_key_partners_primary_goods(xls_path: Path) -> pd.DataFrame:
         raise RuntimeError(f"No data rows extracted from {xls_path.name}.")
 
     out["year"] = pd.to_numeric(out["year"], errors="coerce").astype(int)
+    out["country"] = out["country"].str.title()
+    out["categories"] = out["categories"].str.title()
     out = out.sort_values(["year", "country", "categories"]).reset_index(drop=True)
     return out

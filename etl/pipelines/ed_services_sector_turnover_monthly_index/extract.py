@@ -58,14 +58,19 @@ def _norm_code(raw: str) -> str:
 
 
 def _parse_period(label: str, current_year: Optional[int]) -> tuple[Optional[int], Optional[int]]:
-    """Parse '2021   I' or 'II' style labels into (year, month)."""
+    """Parse '2021   I', 'II', '2025 ΧΙΙ*' style labels into (year, month).
+    Handles Greek lookalike characters (Χ=Chi, Ι=Iota) used as Roman numerals.
+    """
     s = str(label).strip()
     year_match = re.search(r"(20\d{2}|19\d{2})", s)
     if year_match:
         current_year = int(year_match.group(1))
         s = s[year_match.end():]
 
-    token = re.sub(r"\s+", "", s).upper()
+    # Normalise Greek lookalikes and strip asterisks/whitespace
+    s = s.replace("Χ", "X").replace("Χ", "X")  # Greek Chi → X
+    s = s.replace("Ι", "I").replace("ι", "I")  # Greek Iota → I
+    token = re.sub(r"[\s*]+", "", s).upper()
     month = _ROMAN.get(token)
     return current_year, month
 
