@@ -1,7 +1,0 @@
-# Pipeline runtime data — not versioned
-downloaded/
-output/
-state.json
-baseline.csv
-__pycache__/
-*.pyc
