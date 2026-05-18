@@ -127,34 +127,38 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "Year",
-            "Month",
-            "District",
-            "Number Parcels Total",
-            "Number Parcels Locals",
-            "Number Parcels Eu",
-            "Number Parcels Noneu",
+            "id",
+            "year",
+            "month",
+            "district",
+            "number_parcels_total",
+            "number_parcels_locals",
+            "number_parcels_eu",
+            "number_parcels_noneu",
         ]
 
-        if not delta_df.empty:
-            delta_df = delta_df.rename(
-                columns={
-                    "year": "Year",
-                    "month": "Month",
-                    "district": "District",
-                    "number_parcels_total": "Number Parcels Total",
-                    "number_parcels_locals": "Number Parcels Locals",
-                    "number_parcels_eu": "Number Parcels Eu",
-                    "number_parcels_noneu": "Number Parcels Noneu",
-                }
+        integer_cols = [
+            "year", "month",
+            "number_parcels_total", "number_parcels_locals",
+            "number_parcels_eu", "number_parcels_noneu",
+        ]
+
+        def shape_output(df: pd.DataFrame) -> pd.DataFrame:
+            if df.empty:
+                return pd.DataFrame(columns=target_cols)
+            out = df.copy()
+            out["id"] = pd.to_numeric(out.get("id"), errors="coerce").map(
+                lambda x: "" if pd.isna(x) else str(int(x))
             )
-            for column in target_cols:
-                if column != "District":
-                    delta_df[column] = pd.to_numeric(delta_df[column], errors="coerce").astype("Int64")
-            delta_df.sort_values(["Year", "Month", "District"], inplace=True)
-            write_deliverable_csv(delta_df[target_cols], deliverable_path)
-        else:
-            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
+            for col in integer_cols:
+                out[col] = pd.to_numeric(out[col], errors="coerce").astype("Int64")
+            out = out.sort_values(["year", "month", "district"]).reset_index(drop=True)
+            for c in target_cols:
+                if c not in out.columns:
+                    out[c] = pd.NA
+            return out[target_cols]
+
+        write_deliverable_csv(shape_output(delta_df), deliverable_path)
         new_state = dict(state)
         new_state.update(
             {

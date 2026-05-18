@@ -143,8 +143,10 @@ class Pipeline:
 
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
+        delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
+            "id",
             "year",
             "month",
             "district",
@@ -160,44 +162,30 @@ class Pipeline:
             "number_of_buyers_noneu",
         ]
 
-        if not inserted_df.empty:
-            integer_cols = [
-                "year",
-                "month",
-                "number_of_buyers_total",
-                "number_parcels_total",
-                "number_parcels_locals",
-                "number_parcels_eu",
-                "number_parcels_non_eu",
-                "number_of_buyers_locals",
-                "number_of_buyers_eu",
-                "number_of_buyers_noneu",
-            ]
+        integer_cols = [
+            "year", "month",
+            "number_of_buyers_total", "number_parcels_total",
+            "number_parcels_locals", "number_parcels_eu", "number_parcels_non_eu",
+            "number_of_buyers_locals", "number_of_buyers_eu", "number_of_buyers_noneu",
+        ]
+
+        def shape_output(df: pd.DataFrame) -> pd.DataFrame:
+            if df.empty:
+                return pd.DataFrame(columns=target_cols)
+            out = df.copy()
+            out["id"] = pd.to_numeric(out.get("id"), errors="coerce").map(
+                lambda x: "" if pd.isna(x) else str(int(x))
+            )
             for col in integer_cols:
-                inserted_df[col] = pd.to_numeric(inserted_df[col], errors="coerce").astype("Int64")
-            inserted_df.sort_values(["year", "month", "district"], inplace=True)
+                out[col] = pd.to_numeric(out[col], errors="coerce").astype("Int64")
+            out = out.sort_values(["year", "month", "district"]).reset_index(drop=True)
             for c in target_cols:
-                if c not in inserted_df.columns:
-                    inserted_df[c] = pd.NA
-            write_deliverable_csv(inserted_df[target_cols], deliverable_path)
-        else:
-            write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
-        if not updated_df.empty:
-            integer_cols = [
-                "year", "month",
-                "number_of_buyers_total", "number_parcels_total",
-                "number_parcels_locals", "number_parcels_eu", "number_parcels_non_eu",
-                "number_of_buyers_locals", "number_of_buyers_eu", "number_of_buyers_noneu",
-            ]
-            for col in integer_cols:
-                updated_df[col] = pd.to_numeric(updated_df[col], errors="coerce").astype("Int64")
-            updated_df.sort_values(["year", "month", "district"], inplace=True)
-            for c in target_cols:
-                if c not in updated_df.columns:
-                    updated_df[c] = pd.NA
-            updated_df[target_cols].to_csv(differences_path, index=False)
-        else:
-            pd.DataFrame(columns=target_cols).to_csv(differences_path, index=False)
+                if c not in out.columns:
+                    out[c] = pd.NA
+            return out[target_cols]
+
+        write_deliverable_csv(shape_output(delta_df), deliverable_path)
+        shape_output(updated_df).to_csv(differences_path, index=False)
 
         new_state.update(
             {
