@@ -87,17 +87,17 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
     table = Table(
         title=title,
         box=box.SIMPLE_HEAD,
-        title_style="bold cyan",
-        header_style="bold white",
-        border_style="bright_black",
+        title_style="bold white",
+        header_style="bold bright_white",
+        border_style="white",
         pad_edge=True,
         show_footer=False,
     )
 
-    table.add_column("Pipeline", style="white", min_width=48)
+    table.add_column("Pipeline", style="bright_white", min_width=48)
     table.add_column("Status",   justify="center", min_width=8)
     table.add_column("Files",    justify="right",  min_width=5)
-    table.add_column("Note",     style="dim")
+    table.add_column("Note",     style="white")
 
     total_up  = 0
     total_err = 0
@@ -109,12 +109,12 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
 
         if "skipped" in r:
             skipped += 1
-            table.add_row(pid, "[yellow]SKIP[/]", "-", r["skipped"])
+            table.add_row(pid, "[bright_yellow]SKIP[/]", "-", r["skipped"])
 
         elif "dry_run_keys" in r:
             keys = r["dry_run_keys"]
             total_up += len(keys)
-            table.add_row(pid, "[cyan]DRY[/]", str(len(keys)), "")
+            table.add_row(pid, "[bright_white]DRY[/]", str(len(keys)), "")
 
         else:
             uploaded = r.get("uploaded", [])
@@ -124,14 +124,14 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
 
             if not errors:
                 ok += 1
-                status = "[green]OK[/]"
+                status = "[bright_green]OK[/]"
                 note   = ""
             elif uploaded:
-                status = "[yellow]PARTIAL[/]"
-                note   = "\n".join(f"[red]{e}[/]" for e in errors)
+                status = "[bright_yellow]PARTIAL[/]"
+                note   = "\n".join(f"[bright_red]{e}[/]" for e in errors)
             else:
-                status = "[red]FAILED[/]"
-                note   = "\n".join(f"[red]{e}[/]" for e in errors)
+                status = "[bright_red]FAILED[/]"
+                note   = "\n".join(f"[bright_red]{e}[/]" for e in errors)
 
             table.add_row(pid, status, str(len(uploaded)), note)
 
@@ -142,16 +142,16 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
     if dry_run:
         for r in results:
             if "dry_run_keys" in r:
-                console.print(f"  [cyan]{r['pipeline']}[/]")
+                console.print(f"  [bright_white]{r['pipeline']}[/]")
                 for k in r["dry_run_keys"]:
-                    console.print(f"    [dim]s3://{_BUCKET}/{k}[/]")
+                    console.print(f"    [white]s3://{_BUCKET}/{k}[/]")
 
     print("-" * 70)
     console.print(
-        f"  [bold]{total_up} files{'  (dry run)' if dry_run else ' uploaded'}[/]   "
-        f"[green]{ok} ok[/]   "
-        f"[yellow]{skipped} skipped[/]   "
-        f"[red]{total_err} errors[/]"
+        f"  [bold bright_white]{total_up} files{'  (dry run)' if dry_run else ' uploaded'}[/]   "
+        f"[bright_green]{ok} ok[/]   "
+        f"[bright_yellow]{skipped} skipped[/]   "
+        f"[bright_red]{total_err} errors[/]"
     )
     print()
 
@@ -165,7 +165,7 @@ def main():
     targets = args.pipelines if args.pipelines else list_pipelines()
     targets = [t for t in targets if t in _PIPELINE_META]
 
-    console.print(f"\n[bold cyan]Syncing {len(targets)} pipeline(s) to [white]s3://{_BUCKET}[/][/]{'[yellow]  (DRY RUN)[/]' if args.dry_run else ''}\n")
+    console.print(f"\n[bold bright_white]Syncing {len(targets)} pipeline(s) to s3://{_BUCKET}[/]{'[bright_yellow]  (DRY RUN)[/]' if args.dry_run else ''}\n")
 
     results = []
     for t in tqdm(targets, desc="Uploading", unit="pipeline", ncols=80):
