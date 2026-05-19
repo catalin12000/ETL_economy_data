@@ -22,6 +22,8 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 
+from tqdm import tqdm
+
 from etl.core.s3_upload import upload_pipeline_files, _PIPELINE_META
 from etl.core.state import load_state
 from etl.core.runner import list_pipelines
@@ -97,7 +99,9 @@ def main():
 
     print(f"{'[DRY RUN] ' if args.dry_run else ''}Syncing {len(targets)} pipeline(s) to S3...\n")
 
-    results = [_sync_one(t, args.dry_run) for t in targets]
+    results = []
+    for t in tqdm(targets, desc="Syncing", unit="pipeline"):
+        results.append(_sync_one(t, args.dry_run))
 
     total_uploaded = sum(len(r.get("uploaded", [])) for r in results)
     total_errors = sum(len(r.get("errors", [])) for r in results)
