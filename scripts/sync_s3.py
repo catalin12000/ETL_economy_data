@@ -1,12 +1,6 @@
 """
 Sync pipeline outputs to S3.
 
-Reads each pipeline's state.json to find the last downloaded raw file(s)
-and the last deliverable, then uploads them to S3 under the agreed path template:
-
-  raw_data/{cy|gr}/{source}/{YYYYMMDD}/{pipeline_id}_{timestamp}.ext
-  transformed_data/{cy|gr}/{source}/{YYYYMMDD}/deliverable/{pipeline_id}_{timestamp}.csv
-
 Usage:
   python scripts/sync_s3.py                  # sync all pipelines
   python scripts/sync_s3.py gdp_greece       # sync one pipeline
@@ -24,7 +18,7 @@ sys.path.insert(0, str(_ROOT))
 
 from tqdm import tqdm
 
-from etl.core.s3_upload import upload_pipeline_files, _PIPELINE_META
+from etl.core.s3_upload import upload_pipeline_files, _PIPELINE_META, _BUCKET
 from etl.core.state import load_state
 from etl.core.runner import list_pipelines
 
@@ -40,6 +34,8 @@ _RAW_PATH_KEYS = (
     "last_download_path_foreigners_2025",
     "last_download_path_foreigners_2026",
 )
+
+W = 55  # pipeline column width
 
 
 def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
@@ -64,28 +60,56 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
     run_dt = datetime.now()
 
     if dry_run:
-        from etl.core.s3_upload import _s3_key, _BUCKET
-        keys = []
-        for p in raw_paths:
-            keys.append(_s3_key(pipeline_id, p, "raw_data", run_dt))
+        from etl.core.s3_upload import _s3_key
+        keys = [_s3_key(pipeline_id, p, "raw_data", run_dt) for p in raw_paths]
         if deliverable:
             base = _s3_key(pipeline_id, deliverable, "transformed_data", run_dt)
             parts = base.rsplit("/", 1)
             keys.append(f"{parts[0]}/deliverable/{parts[1]}")
-        print(f"  [DRY] {pipeline_id} -> {len(keys)} file(s)")
-        for k in keys:
-            print(f"    s3://{_BUCKET}/{k}")
         return {"pipeline": pipeline_id, "dry_run_keys": keys}
 
     result = upload_pipeline_files(pipeline_id, raw_paths, deliverable, run_dt)
-    uploaded = result.get("uploaded", [])
-    errors = result.get("errors", [])
+    return {
+        "pipeline": pipeline_id,
+        "uploaded": result.get("uploaded", []),
+        "errors": result.get("errors", []),
+    }
 
-    status = "ok" if not errors else ("partial" if uploaded else "failed")
-    print(f"  [{status.upper()}] {pipeline_id} — {len(uploaded)} uploaded, {len(errors)} errors")
-    for e in errors:
-        print(f"    ERROR: {e}")
-    return {"pipeline": pipeline_id, "uploaded": uploaded, "errors": errors}
+
+def _print_summary(results: list[dict], dry_run: bool) -> None:
+    sep  = "=" * 90
+    sep2 = "-" * 90
+
+    print(f"\n{sep}")
+    print(f"  S3 SYNC SUMMARY{'  [DRY RUN]' if dry_run else ''}")
+    print(sep)
+    print(f"  {'PIPELINE':<{W}}  {'STATUS':<8}  {'FILES':>5}  NOTE")
+    print(sep2)
+
+    for r in results:
+        pid = r["pipeline"]
+        if "skipped" in r:
+            print(f"  {pid:<{W}}  {'SKIP':<8}  {'':>5}  {r['skipped']}")
+        elif "dry_run_keys" in r:
+            keys = r["dry_run_keys"]
+            print(f"  {pid:<{W}}  {'DRY':<8}  {len(keys):>5}")
+            for k in keys:
+                print(f"  {'':>{W}}           s3://{_BUCKET}/{k}")
+        else:
+            uploaded = r.get("uploaded", [])
+            errors   = r.get("errors", [])
+            status   = "OK" if not errors else ("PARTIAL" if uploaded else "FAILED")
+            print(f"  {pid:<{W}}  {status:<8}  {len(uploaded):>5}")
+            for e in errors:
+                print(f"  {'':>{W}}           ERROR: {e}")
+
+    print(sep2)
+    total_up  = sum(len(r.get("uploaded", r.get("dry_run_keys", []))) for r in results)
+    total_err = sum(len(r.get("errors", [])) for r in results)
+    skipped   = sum(1 for r in results if "skipped" in r)
+    ok        = sum(1 for r in results if "uploaded" in r and not r.get("errors"))
+    print(f"  {'TOTAL':<{W}}  {'':8}  {total_up:>5}  {ok} ok  |  {skipped} skipped  |  {total_err} errors")
+    print(f"{sep}\n")
 
 
 def main():
@@ -97,17 +121,13 @@ def main():
     targets = args.pipelines if args.pipelines else list_pipelines()
     targets = [t for t in targets if t in _PIPELINE_META]
 
-    print(f"{'[DRY RUN] ' if args.dry_run else ''}Syncing {len(targets)} pipeline(s) to S3...\n")
+    print(f"\n{'[DRY RUN] ' if args.dry_run else ''}Syncing {len(targets)} pipeline(s) to s3://{_BUCKET} ...\n")
 
     results = []
-    for t in tqdm(targets, desc="Syncing", unit="pipeline"):
+    for t in tqdm(targets, desc="Uploading", unit="pipeline", ncols=80):
         results.append(_sync_one(t, args.dry_run))
 
-    total_uploaded = sum(len(r.get("uploaded", [])) for r in results)
-    total_errors = sum(len(r.get("errors", [])) for r in results)
-    skipped = sum(1 for r in results if "skipped" in r)
-
-    print(f"\nDone: {total_uploaded} files uploaded, {total_errors} errors, {skipped} skipped.")
+    _print_summary(results, args.dry_run)
 
 
 if __name__ == "__main__":
