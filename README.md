@@ -1,254 +1,174 @@
-# Economy Data ETL (Greece/Cyprus)
+# Economy Data ETL — Greece & Cyprus
 
-This repository is a reusable ETL framework for collecting economic datasets from public sources (PDFs, Excels, APIs), extracting structured data, comparing it to what we already have, and producing **deliverables** + **audit reports**.
-
-The goal is to scale to many pipelines (e.g., 54 datasets) without rewriting the same boilerplate each time.
+ETL framework for collecting economic datasets from public sources (PDFs, Excel, APIs),
+extracting structured data, comparing against a live Postgres DB, and producing deliverables.
 
 ---
 
-## What this framework does
+## Pipeline count
 
-For each dataset (“pipeline”), we do:
-
-1. **Download** the latest source file (PDF/XLS/XLSX/etc.)
-2. **Freshness check** to avoid unnecessary work:
-   - `file_sha256`: detects if the downloaded file bytes changed
-   - `data_sha256`: detects if extracted data actually changed (even if the file changed)
-3. **Extract** the raw file into a clean, tidy `DataFrame` (standard schema)
-4. **Compare** extracted data with our current “DB” (CSV/Excel for now)
-5. **Update + deliver**:
-   - produce an updated deliverable file (CSV or Excel)
-   - produce an update report showing what changed
-6. **Persist state** so next runs are incremental
+| | Count |
+|---|---|
+| Total pipelines | 65 |
+| Generating a deliverable | 63 |
+| Fully wired (download + extract + DB compare) | 61 |
+| Download = deliverable (raw XLS) | 3 |
+| Pending (no table in DB yet / no extractor) | 2 |
 
 ---
 
 ## Project structure
 
 ```
-.
-├── run.py
-├── etl/
-│   ├── core/
-│   │   ├── download.py
-│   │   ├── fingerprint.py
-│   │   ├── compare_excel.py
-│   │   ├── compare_csv.py
-│   │   ├── runner.py
-│   │   └── state.py
-│   └── pipelines/
-│       ├── ed_apartments_price_index_table/
-│       │   ├── pipeline.py
-│       │   └── extract.py
-│       └── ed_building_permits_table/
-│           ├── pipeline.py
-│           └── extract.py
-└── data/
-    ├── db/         (your “database” files: NOT committed)
-    ├── downloads/  (raw downloads: NOT committed)
-    ├── outputs/    (deliverables: NOT committed)
-    ├── reports/    (audit reports: NOT committed)
-    └── state/      (pipeline state JSON: NOT committed)
+ETL_economy_data/
+├── run.py                          # main entry point
+├── .env                            # DB + AWS credentials (not committed)
+├── requirements.txt
+├── scripts/
+│   ├── sync_s3.py                  # S3 upload step (run after pipelines)
+│   └── ...
+└── etl/
+    ├── core/
+    │   ├── runner.py               # loads + runs pipelines, prints summary
+    │   ├── download.py             # file download + hash
+    │   ├── compare_csv.py          # baseline CSV comparison
+    │   ├── database.py             # compare_with_postgres (read-only)
+    │   ├── output.py               # write_deliverable_csv (snake_case headers)
+    │   ├── s3_upload.py            # S3 path logic + boto3 upload
+    │   ├── paths.py                # PipelinePaths — centralised I/O paths
+    │   ├── state.py                # load/save state.json per pipeline
+    │   └── nulls.py                # normalise null tokens (..., u, N/A, :)
+    └── pipelines/
+        └── <pipeline_id>/
+            ├── pipeline.py         # download → extract → DB compare → deliverable
+            ├── extract.py          # pure extraction logic (file → DataFrame)
+            ├── __init__.py
+            ├── scripts/            # SQL query files for DB compare
+            ├── downloaded/
+            │   └── YYYY-MM/        # raw downloaded files (not committed)
+            ├── output/
+            │   └── YYYY-MM/        # deliverables + reports (not committed)
+            ├── baseline.csv        # local snapshot DB (not committed)
+            └── state.json          # run state / hashes (not committed)
 ```
 
-### Core modules (`etl/core`)
-These are shared by all pipelines:
+---
 
-- **`download.py`**  
-  Downloads a file to disk and returns metadata:
-  - `downloaded_at_utc`
-  - `etag`, `last_modified` (if server provides)
-  - `content_length`, `final_url`, etc.
+## Setup
 
-- **`fingerprint.py`**  
-  Computes `data_sha256` from extracted data (stable sorting + canonical bytes).  
-  This lets us skip runs where the publisher re-exports the same data.
+```bash
+pip install -r requirements.txt
+```
 
-- **`compare_excel.py`**  
-  Treats an Excel file as your current DB, merges extracted rows:
-  - updates changed values
-  - appends new rows
-  - (optionally) prevents inserting rows older than DB baseline  
-  Outputs:
-  - updated deliverable `.xlsx`
-  - `update_report.csv`
+Create a `.env` file in the project root:
 
-- **`compare_csv.py`**  
-  Same idea as `compare_excel.py`, but for DB CSV files.
-
-- **`state.py`**  
-  Reads/writes pipeline state to `data/state/<pipeline_id>.json`.  
-  Stores hashes + latest period + output locations.
-
-- **`runner.py`**  
-  Loads the pipeline, loads state, executes `pipe.run(state)`, saves returned state.
-  Also provides `list_pipelines()` so `--all` can run everything.
-
-### Pipelines (`etl/pipelines/<pipeline_id>`)
-Each pipeline contains only dataset-specific code:
-
-- **`pipeline.py`**  
-  “Orchestration” for this dataset:
-  - where to download from
-  - how to name the file locally
-  - which extractor to use
-  - which DB file to compare against
-  - where to output deliverables/reports
-
-- **`extract.py`**  
-  Pure extraction logic:
-  - input: downloaded file path
-  - output: clean tidy dataframe with correct types/columns
-  - no downloading, no state, no file writing (except optional debugging)
+```env
+DATABASE_URL=postgresql://...
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=eu-central-1
+S3_BUCKET=your-bucket-name
+```
 
 ---
 
 ## How to run
 
-### Run one pipeline
-```powershell
-python run.py --pipeline ed_apartments_price_index_table
-python run.py --pipeline ed_building_permits_table
-```
-
 ### Run all pipelines
-```powershell
+```bash
 python run.py --all
 ```
 
----
+### Run one pipeline
+```bash
+python run.py --pipeline gdp_greece
+```
 
-## Required “DB” files (your current database)
-
-For now we treat an Excel/CSV you maintain as the “database”.  
-These are expected locally in `data/db/` (not committed to git).
-
-Examples:
-
-- Apartments pipeline expects:
-  - `data/db/1503 Ed Apartments Price Index November 2025 (3).xlsx`
-
-- Building permits pipeline expects:
-  - `data/db/ed_building_permits_table.csv`
-
-If the DB file is missing, the pipeline will fail with `FileNotFoundError`.
-
-----> will later be changed with queries to the actual database
+A summary table is printed at the end showing status, rows added/updated, deliverable name, and any errors.
 
 ---
 
-## Outputs you get
+## When does a pipeline skip?
 
-After running a pipeline:
+A pipeline returns `skipped` (no deliverable produced) when:
 
-- Raw downloads:
-  - `data/downloads/<pipeline_id>/...`
+1. **File unchanged** — the downloaded file has the same SHA256 as the previous run.
+2. **No new data** — the file is new but DB compare finds 0 missing + 0 different rows and the baseline shows 0 new/updated rows.
 
-- Deliverables:
-  - `data/outputs/<pipeline_id>/Ed ... Table.xlsx` (or `.csv`)
-
-- Audit reports (diff log):
-  - `data/reports/<pipeline_id>/update_report.csv`
-
-- State (for incremental runs):
-  - `data/state/<pipeline_id>.json`
-
-The report CSV tells you exactly what changed:
-- new rows added
-- existing rows updated
-- which keys/periods changed
+This prevents empty deliverables and unnecessary S3 uploads when the source hasn't published new data.
 
 ---
 
-## Freshness checks: why two hashes?
+## S3 sync
 
-We store two hashes in state:
+S3 upload is a **separate step** — run it after verifying deliverables.
 
-- **`file_sha256`**
-  - computed from the raw downloaded file bytes
-  - skips when the file is literally identical
+### Dry run (preview keys without uploading)
+```bash
+python scripts/sync_s3.py --dry-run
+```
 
-- **`data_sha256`**
-  - computed from the extracted dataframe
-  - skips when the file changed but the extracted data did not (common when publishers re-exports)
+### Sync all pipelines
+```bash
+python scripts/sync_s3.py
+```
 
-This makes the framework efficient and prevents unnecessary updates.
+### Sync specific pipelines
+```bash
+python scripts/sync_s3.py gdp_greece cy_11_lro_transfers
+```
 
----
+### S3 path structure
+```
+raw_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.{ext}
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/deliverable/{filename}_{timestamp}.csv
+```
 
-## How to add a new pipeline (the standard recipe)
-
-1. Create a folder:
-   ```
-   etl/pipelines/<new_pipeline_id>/
-   ```
-
-2. Add:
-   - `pipeline.py`
-   - `extract.py`
-   - `__init__.py`
-
-3. Implement `extract.py`:
-   - take a file path
-   - return a tidy dataframe
-   - ensure types are correct (Year/Month/Quarter ints, numeric columns floats/ints)
-
-4. Implement `pipeline.py` using the same pattern:
-   - download URL
-   - compute `file_sha256`
-   - if unchanged: skip
-   - extract dataframe
-   - compute `data_sha256`
-   - if unchanged: skip
-   - compare/update DB (CSV or Excel)
-   - write deliverable + report
-   - update state
-
-5. Test:
-   - Run twice:
-     - first run should download + deliver
-     - second run should skip (same hash)
+**Sources:** `elstat`, `bank_of_greece`, `eurostat`, `migration_gov` (Greece) · `cystat`, `central_bank_cy`, `dls`, `eurostat` (Cyprus)
 
 ---
 
-## How we continue building from here
+## DB usage
 
-### Next improvements (recommended roadmap)
-1. **Central pipeline configuration**
-   - Move DB paths and URLs out of code into config (YAML/JSON)
-   - Pipelines become “config + extractor”
+The DB is **read-only** from ETL. We never insert or update DB rows from code.
+The DB is used only for:
+- Comparing extracted data to find missing / different rows
+- Looking up existing IDs to include in deliverables
 
-2. **Unified engine**
-   - Create `etl/core/engine.py` so pipelines are minimal:
-     - declare config
-     - provide extractor
-   - This avoids touching 54 pipelines for framework-level changes.
-
-3. **Database backend**
-   - Replace Excel/CSV DB with Postgres (or SQLite) later:
-     - `compare_db.py`
-     - store history + revisions
-     - use migrations for schema evolution
-
-4. **Observability**
-   - Add structured logs
-   - Add a “run summary” report for `--all`
-   - Optional: Slack/email notifications
-
-5. **Scheduled execution**
-   - Run daily/weekly with cron/Task Scheduler
-   - Only produce deliverables when data changes
+Two databases:
+- **athena** — Greek datasets (`ed_` pipelines)
+- **zeus** — Cyprus datasets (`cy_` pipelines)
 
 ---
 
-## Notes / gotchas
+## Data sources
 
-- PDFs are messy: table extraction depends on layout. Extractors should be defensive.
-- ELSTAT links may be stable but can redirect; download uses `allow_redirects=True`.
-- If you change state key names (e.g. `last_sha256` → `file_sha256`), delete old state JSON files once.
+| Source | Country | Pipelines |
+|---|---|---|
+| ELSTAT (statistics.gr) | Greece | ~25 pipelines (DKT, SOP, SEL, SFC series) |
+| Bank of Greece (bankofgreece.gr) | Greece | 11 pipelines |
+| Eurostat (ec.europa.eu) | Greece + Cyprus | 7 pipelines |
+| migration.gov.gr | Greece | 8 pipelines |
+| CYSTAT (cystatdb.cystat.gov.cy) | Cyprus | 11 pipelines |
+| Central Bank of Cyprus (centralbank.cy) | Cyprus | 3 pipelines |
+| DLS / DLS Portal (portal.dls.moi.gov.cy) | Cyprus | 2 pipelines |
 
 ---
 
-## License / Data
-This repo contains code only. Downloaded data and local DB files are not committed.
-You remain responsible for respecting the terms of the data providers.
+## Adding a new pipeline
+
+1. Create folder: `etl/pipelines/<pipeline_id>/`
+2. Add `__init__.py`, `pipeline.py`, `extract.py`
+3. Add a SQL query file to `scripts/` named after the DB table
+4. Follow the standard pattern:
+   - Download → hash check → extract → `compare_and_update_csv` → `compare_with_postgres` → `write_deliverable_csv`
+5. Add the pipeline to `_PIPELINE_META` in `etl/core/s3_upload.py`
+6. Run once, check console for any QA warnings (unmapped codes, etc.)
+
+---
+
+## Notes
+
+- All deliverable CSV headers are automatically snake_cased by `write_deliverable_csv`.
+- `...`, `u`, `N/A`, `:` and similar null tokens are normalised to `pd.NA` before DB compare.
+- Per-pipeline `.gitignore` excludes `downloaded/`, `output/`, `state.json`, `baseline.csv`.
