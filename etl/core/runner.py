@@ -6,7 +6,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
 from etl.core.state import load_state, save_state
-from etl.core.s3_upload import upload_pipeline_files, _PIPELINE_META
 
 
 def _safe_print(text: str) -> None:
@@ -80,8 +79,7 @@ def run_one(pipeline_id: str) -> Dict[str, Any]:
         new_state = state
         _safe_print(f"Error: {e}")
 
-    run_dt = datetime.now()
-    new_state["last_run_at_utc"] = run_dt.astimezone(timezone.utc).isoformat()
+    new_state["last_run_at_utc"] = datetime.now(timezone.utc).isoformat()
     new_state["last_status"] = status
     new_state["last_message"] = message
     if status in ("delivered", "verified", "skipped"):
@@ -89,33 +87,11 @@ def run_one(pipeline_id: str) -> Dict[str, Any]:
 
     save_state(pipeline_id, new_state)
 
-    # S3 upload — only on delivered, only for pipelines in the source map
-    s3_result: dict = {}
-    if status == "delivered" and pipeline_id in _PIPELINE_META:
-        raw_paths = [
-            Path(p) for key in (
-                "last_download_path",
-                "last_download_path_receipts", "last_download_path_travellers",
-                "last_download_path_turnover", "last_download_path_volume",
-                "last_download_path_totals_2025", "last_download_path_totals_2026",
-                "last_download_path_foreigners_2025", "last_download_path_foreigners_2026",
-            )
-            if (p := new_state.get(key))
-        ]
-        deliverable = Path(new_state["deliverable_path"]) if new_state.get("deliverable_path") else None
-        s3_result = upload_pipeline_files(pipeline_id, raw_paths, deliverable, run_dt)
-        if s3_result.get("uploaded"):
-            _safe_print(f"S3: uploaded {len(s3_result['uploaded'])} file(s) to {_PIPELINE_META[pipeline_id]}")
-        if s3_result.get("errors"):
-            for err in s3_result["errors"]:
-                _safe_print(f"S3 warning: {err}")
-
     return {
         "pipeline_id": pipeline_id,
         "status": status,
         "message": message,
         "state": new_state,
-        "s3": s3_result,
     }
 
 

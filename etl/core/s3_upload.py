@@ -107,12 +107,13 @@ def _s3_key(
     folder: str,
     run_dt: datetime,
 ) -> str:
-    """Build S3 key: {folder}/{country}/{source}/{YYYYMMDD}/{pipeline_id}_{YYYYMMDDHHmmss}.{ext}"""
+    """Build S3 key: {folder}/{country}/{source}/{YYYYMMDD}/{filename_stem}_{YYYYMMDDHHmmss}.{ext}"""
     country, source = _PIPELINE_META.get(pipeline_id, ("gr", "elstat"))
     date_folder = run_dt.strftime("%Y%m%d")
     timestamp = run_dt.strftime("%Y%m%d%H%M%S")
+    stem = file_path.stem
     ext = file_path.suffix
-    return f"{folder}/{country}/{source}/{date_folder}/{pipeline_id}_{timestamp}{ext}"
+    return f"{folder}/{country}/{source}/{date_folder}/{stem}_{timestamp}{ext}"
 
 
 def upload_pipeline_files(
