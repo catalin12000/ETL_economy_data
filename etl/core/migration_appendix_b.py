@@ -332,7 +332,7 @@ def _extract_snapshot_top10_current(pdf_path: Path, report_year: int, report_mon
                 "Rank": rank,
                 "Country": country,
                 "Permits_Granted_to_Men": men,
-                "Permit_Granted_to_Women": women,
+                "Permits_Granted_to_Women": women,
                 "Total_Permits_Granted": total,
             }
         )
