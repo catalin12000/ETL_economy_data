@@ -1,0 +1,161 @@
+from __future__ import annotations
+
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_BUCKET = os.getenv("S3_BUCKET", "test-data-bucket-catalin")
+_REGION = os.getenv("AWS_REGION", "eu-central-1")
+
+# Pipeline ID → (country_folder, source_folder)
+_PIPELINE_META: dict[str, tuple[str, str]] = {
+    # Cyprus — CYSTAT
+    "cy_01_average_monthly_earnings":              ("cy", "cystat"),
+    "cy_02_building_permits_by_district":          ("cy", "cystat"),
+    "cy_03_building_permits_by_property_type":     ("cy", "cystat"),
+    "cy_04_construction_index_cy":                 ("cy", "cystat"),
+    "cy_05_consumer_price_index":                  ("cy", "cystat"),
+    "cy_08_employment_cy":                         ("cy", "cystat"),
+    "cy_09_gross_value_added_sector":              ("cy", "cystat"),
+    "cy_12_monthly_gross_earnings_distribution":   ("cy", "cystat"),
+    "cy_14_per_day_expenditure_of_tourists":       ("cy", "cystat"),
+    "cy_17_tourist_arrivals_country":              ("cy", "cystat"),
+    "cy_18_tourist_arrivals_revenue":              ("cy", "cystat"),
+    # Cyprus — Central Bank of Cyprus
+    "cy_13_new_loans_millions":                    ("cy", "central_bank_cy"),
+    "cy_15_residential_price_indices":             ("cy", "central_bank_cy"),
+    "cy_16_total_households_loans_millions":       ("cy", "central_bank_cy"),
+    # Cyprus — DLS
+    "cy_10_lro_contracts_of_sale":                 ("cy", "dls"),
+    "cy_11_lro_transfers":                         ("cy", "dls"),
+    # Cyprus — Eurostat
+    "cy_06_economic_forecast_cy":                  ("cy", "eurostat"),
+    # Greece — ELSTAT
+    "ed_building_permits_table":                   ("gr", "elstat"),
+    "ed_building_permits_by_no_of_rooms":          ("gr", "elstat"),
+    "ed_construction_index":                       ("gr", "elstat"),
+    "ed_consumer_price_index":                     ("gr", "elstat"),
+    "ed_employment":                               ("gr", "elstat"),
+    "ed_gross_fixed_capital_formation":            ("gr", "elstat"),
+    "ed_gva_by_sector":                            ("gr", "elstat"),
+    "ed_household_income_allocation":              ("gr", "elstat"),
+    "ed_housing_finances":                         ("gr", "elstat"),
+    "ed_imports_exports_millions":                 ("gr", "elstat"),
+    "ed_industrial_production_index":              ("gr", "elstat"),
+    "ed_key_partners_primary_goods":               ("gr", "elstat"),
+    "ed_motor_trade_turnover_index":               ("gr", "elstat"),
+    "ed_new_built_properties_per_region":          ("gr", "elstat"),
+    "ed_new_establishments_building_permits":      ("gr", "elstat"),
+    "ed_new_residential_building_cost_index":      ("gr", "elstat"),
+    "ed_new_residential_buildings_work_categories": ("gr", "elstat"),
+    "ed_retail_trade_turnover_index":              ("gr", "elstat"),
+    "ed_retail_trade_volume_index":                ("gr", "elstat"),
+    "ed_services_sector_turnover_monthly_index":   ("gr", "elstat"),
+    "ed_wage_growth_index":                        ("gr", "elstat"),
+    "ed_wholesale_trade_turnover_index":           ("gr", "elstat"),
+    "gdp_greece":                                  ("gr", "elstat"),
+    # Greece — Bank of Greece
+    "ed_apartments_price_index_table":             ("gr", "bank_of_greece"),
+    "ed_fdi_activity":                             ("gr", "bank_of_greece"),
+    "ed_fdi_country":                              ("gr", "bank_of_greece"),
+    "ed_fdi_real_estate":                          ("gr", "bank_of_greece"),
+    "ed_loan_amounts_millions":                    ("gr", "bank_of_greece"),
+    "ed_loan_interest_rates":                      ("gr", "bank_of_greece"),
+    "ed_office_price_volume_index":                ("gr", "bank_of_greece"),
+    "ed_residents_di_activity":                    ("gr", "bank_of_greece"),
+    "ed_residents_di_country":                     ("gr", "bank_of_greece"),
+    "ed_retail_price_rental_index":                ("gr", "bank_of_greece"),
+    "ed_tourists_arrivals_revenue":                ("gr", "bank_of_greece"),
+    # Greece — Eurostat
+    "ed_economic_forecast":                        ("gr", "eurostat"),
+    "ed_economic_sentiment_indicator":             ("gr", "eurostat"),
+    "ed_eu_consumer_confidence_index":             ("gr", "eurostat"),
+    "ed_eu_gdp":                                   ("gr", "eurostat"),
+    "ed_eu_hicp":                                  ("gr", "eurostat"),
+    "ed_eu_unemployment_rate":                     ("gr", "eurostat"),
+    # Greece — migration.gov.gr
+    "ed_geo_distribution_of_issued_and_pending_permits": ("gr", "migration_gov"),
+    "ed_residence_permits_aggregate":              ("gr", "migration_gov"),
+    "ed_residence_permits_application":            ("gr", "migration_gov"),
+    "ed_residence_permits_current":                ("gr", "migration_gov"),
+    "ed_residence_permits_golden_visa":            ("gr", "migration_gov"),
+    "ed_residence_permits_issued":                 ("gr", "migration_gov"),
+    "ed_residence_permits_top10_countries":        ("gr", "migration_gov"),
+    "ed_residence_permits_top10_countries_golden_visa": ("gr", "migration_gov"),
+}
+
+
+def _get_client():
+    return boto3.client(
+        "s3",
+        region_name=_REGION,
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
+
+
+def _s3_key(
+    pipeline_id: str,
+    file_path: Path,
+    folder: str,
+    run_dt: datetime,
+) -> str:
+    """Build S3 key: {folder}/{country}/{source}/{YYYYMMDD}/{pipeline_id}_{YYYYMMDDHHmmss}.{ext}"""
+    country, source = _PIPELINE_META.get(pipeline_id, ("gr", "elstat"))
+    date_folder = run_dt.strftime("%Y%m%d")
+    timestamp = run_dt.strftime("%Y%m%d%H%M%S")
+    ext = file_path.suffix
+    return f"{folder}/{country}/{source}/{date_folder}/{pipeline_id}_{timestamp}{ext}"
+
+
+def upload_pipeline_files(
+    pipeline_id: str,
+    raw_paths: list[Path],
+    deliverable_path: Optional[Path],
+    run_dt: Optional[datetime] = None,
+) -> dict[str, list[str]]:
+    """
+    Upload raw downloaded files and the deliverable to S3.
+
+    Returns dict with keys 'uploaded' (list of S3 keys) and 'errors' (list of messages).
+    Failures are non-fatal — logged and returned but do not raise.
+    """
+    if pipeline_id not in _PIPELINE_META:
+        return {"uploaded": [], "errors": [f"Pipeline '{pipeline_id}' not in S3 source map."]}
+
+    run_dt = run_dt or datetime.now()
+    client = _get_client()
+    uploaded: list[str] = []
+    errors: list[str] = []
+
+    # Upload raw files
+    for path in raw_paths:
+        if not path or not Path(path).exists():
+            continue
+        key = _s3_key(pipeline_id, Path(path), "raw_data", run_dt)
+        try:
+            client.upload_file(str(path), _BUCKET, key)
+            uploaded.append(key)
+        except (BotoCoreError, ClientError) as e:
+            errors.append(f"raw {path.name}: {e}")
+
+    # Upload deliverable
+    if deliverable_path and Path(deliverable_path).exists():
+        key = _s3_key(pipeline_id, Path(deliverable_path), "transformed_data", run_dt)
+        # Insert /deliverable/ before the filename
+        parts = key.rsplit("/", 1)
+        key = f"{parts[0]}/deliverable/{parts[1]}"
+        try:
+            client.upload_file(str(deliverable_path), _BUCKET, key)
+            uploaded.append(key)
+        except (BotoCoreError, ClientError) as e:
+            errors.append(f"deliverable {Path(deliverable_path).name}: {e}")
+
+    return {"uploaded": uploaded, "errors": errors}
