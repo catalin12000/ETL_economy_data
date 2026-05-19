@@ -17,10 +17,15 @@ _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 
 from tqdm import tqdm
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 from etl.core.s3_upload import upload_pipeline_files, _PIPELINE_META, _BUCKET
 from etl.core.state import load_state
 from etl.core.runner import list_pipelines
+
+console = Console()
 
 
 _RAW_PATH_KEYS = (
@@ -77,39 +82,78 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
 
 
 def _print_summary(results: list[dict], dry_run: bool) -> None:
-    sep  = "=" * 90
-    sep2 = "-" * 90
+    title = "S3 Sync Summary" + (" [DRY RUN]" if dry_run else "")
 
-    print(f"\n{sep}")
-    print(f"  S3 SYNC SUMMARY{'  [DRY RUN]' if dry_run else ''}")
-    print(sep)
-    print(f"  {'PIPELINE':<{W}}  {'STATUS':<8}  {'FILES':>5}  NOTE")
-    print(sep2)
+    table = Table(
+        title=title,
+        box=box.SIMPLE_HEAD,
+        title_style="bold cyan",
+        header_style="bold white",
+        border_style="bright_black",
+        pad_edge=True,
+        show_footer=False,
+    )
+
+    table.add_column("Pipeline", style="white", min_width=48)
+    table.add_column("Status",   justify="center", min_width=8)
+    table.add_column("Files",    justify="right",  min_width=5)
+    table.add_column("Note",     style="dim")
+
+    total_up  = 0
+    total_err = 0
+    skipped   = 0
+    ok        = 0
 
     for r in results:
         pid = r["pipeline"]
+
         if "skipped" in r:
-            print(f"  {pid:<{W}}  {'SKIP':<8}  {'':>5}  {r['skipped']}")
+            skipped += 1
+            table.add_row(pid, "[yellow]SKIP[/]", "-", r["skipped"])
+
         elif "dry_run_keys" in r:
             keys = r["dry_run_keys"]
-            print(f"  {pid:<{W}}  {'DRY':<8}  {len(keys):>5}")
-            for k in keys:
-                print(f"  {'':>{W}}           s3://{_BUCKET}/{k}")
+            total_up += len(keys)
+            table.add_row(pid, "[cyan]DRY[/]", str(len(keys)), "")
+
         else:
             uploaded = r.get("uploaded", [])
             errors   = r.get("errors", [])
-            status   = "OK" if not errors else ("PARTIAL" if uploaded else "FAILED")
-            print(f"  {pid:<{W}}  {status:<8}  {len(uploaded):>5}")
-            for e in errors:
-                print(f"  {'':>{W}}           ERROR: {e}")
+            total_up  += len(uploaded)
+            total_err += len(errors)
 
-    print(sep2)
-    total_up  = sum(len(r.get("uploaded", r.get("dry_run_keys", []))) for r in results)
-    total_err = sum(len(r.get("errors", [])) for r in results)
-    skipped   = sum(1 for r in results if "skipped" in r)
-    ok        = sum(1 for r in results if "uploaded" in r and not r.get("errors"))
-    print(f"  {'TOTAL':<{W}}  {'':8}  {total_up:>5}  {ok} ok  |  {skipped} skipped  |  {total_err} errors")
-    print(f"{sep}\n")
+            if not errors:
+                ok += 1
+                status = "[green]OK[/]"
+                note   = ""
+            elif uploaded:
+                status = "[yellow]PARTIAL[/]"
+                note   = "\n".join(f"[red]{e}[/]" for e in errors)
+            else:
+                status = "[red]FAILED[/]"
+                note   = "\n".join(f"[red]{e}[/]" for e in errors)
+
+            table.add_row(pid, status, str(len(uploaded)), note)
+
+    console.print()
+    console.print(table)
+
+    # Print dry-run keys below the table
+    if dry_run:
+        for r in results:
+            if "dry_run_keys" in r:
+                console.print(f"  [cyan]{r['pipeline']}[/]")
+                for k in r["dry_run_keys"]:
+                    console.print(f"    [dim]s3://{_BUCKET}/{k}[/]")
+
+    print("-" * 70)
+    console.print(
+        f"  [bold]{total_up} files{'  (dry run)' if dry_run else ' uploaded'}[/]   "
+        f"[green]{ok} ok[/]   "
+        f"[yellow]{skipped} skipped[/]   "
+        f"[red]{total_err} errors[/]"
+    )
+    print()
 
 
 def main():
@@ -121,7 +165,7 @@ def main():
     targets = args.pipelines if args.pipelines else list_pipelines()
     targets = [t for t in targets if t in _PIPELINE_META]
 
-    print(f"\n{'[DRY RUN] ' if args.dry_run else ''}Syncing {len(targets)} pipeline(s) to s3://{_BUCKET} ...\n")
+    console.print(f"\n[bold cyan]Syncing {len(targets)} pipeline(s) to [white]s3://{_BUCKET}[/][/]{'[yellow]  (DRY RUN)[/]' if args.dry_run else ''}\n")
 
     results = []
     for t in tqdm(targets, desc="Uploading", unit="pipeline", ncols=80):
