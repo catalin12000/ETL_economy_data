@@ -70,24 +70,24 @@ def extract_building_permits_type(csv_path: Path) -> pd.DataFrame:
     # 3. Map Project Types to DB Columns
     TYPE_MAP = {
         "Single houses": "single_houses",
-        "Residential buildings with two housing units": "buildings_with_two_housing_units",
+        "Buildings with two housing units": "buildings_with_two_housing_units",
         "Residential apartment blocks": "residential_apartment_blocks",
         "Residential/commercial apartment blocks": "residential_commercial_apartment_blocks",
         "Cottage apartment complexes": "cottage_apartment_complexes",
         "Residencies for communities": "residencies_for_communities",
         "Hotels": "hotels",
         "Tourist apartments and villages": "tourist_apartments_and_villages",
-        "Restaurants, coffee-bars etc": "restaurants_coffee_bars",
+        "Restaurants, coffee shops and bars": "restaurants_coffee_bars",
         "Other tourist accommodation": "other_tourist_accommodation",
         "Office buildings": "office_buildings",
         "Wholesale and retail trade buildings": "wholesale_retail_buildings",
         "Transport and communication buildings": "transport_communication_buildings",
         "Industrial buildings and warehouses": "industrial_buildings_and_warehouses",
-        "Public entertainment, educational, medical and other institutional buildings": "public_entertainment_educational_medical",
+        "Public entertainment buildings and buildings used for recreational, educational or medical purposes": "public_entertainment_educational_medical",
         "Other non-residential buildings": "other_non_residential_buildings",
-        "Civil engineering": "civil_engineering",
-        "Division of plots": "division_of_plots",
-        "Road construction": "road_construction"
+        "CIVIL ENGINEERING PROJECTS": "civil_engineering",
+        "DIVISION OF PLOTS": "division_of_plots",
+        "ROAD CONSTRUCTION": "road_construction",
     }
     
     # We only care about specific types or 'Total'? 
