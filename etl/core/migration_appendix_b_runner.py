@@ -74,6 +74,17 @@ def _latest_db_period(table_name: str, db_name: str) -> tuple[int | None, int | 
     return value // 100, value % 100
 
 
+def _existing_db_periods(table_name: str, db_name: str) -> set[int]:
+    """Return set of period keys (year*100+month) already in the DB table."""
+    try:
+        engine = get_engine(db_name)
+        query = f'SELECT DISTINCT year * 100 + month AS pk FROM "public"."{table_name}"'
+        result = pd.read_sql(query, engine)
+        return set(result["pk"].dropna().astype(int).tolist())
+    except Exception:
+        return set()
+
+
 def _collect_snapshot_frames(
     *,
     pdf_path: Path,
@@ -82,20 +93,20 @@ def _collect_snapshot_frames(
     db_name: str,
     extractor: Callable[..., pd.DataFrame],
 ) -> pd.DataFrame:
-    latest_db_year, latest_db_month = _latest_db_period(table_name, db_name)
-    latest_db_key = _period_key(latest_db_year, latest_db_month)
+    existing_keys = _existing_db_periods(table_name, db_name)
 
     source_candidates: list[tuple[int, int, Path]] = []
     current_year, current_month = _parse_period(src_period)
     current_key = _period_key(current_year, current_month)
-    if current_key > latest_db_key:
+    if current_key > 0 and current_key not in existing_keys:
         source_candidates.append((current_year, current_month, pdf_path))
 
     archive_dir = pdf_path.parent / "archive"
     if archive_dir.exists():
         for archived_pdf in archive_dir.glob("migration_appendix_b_*.pdf"):
             year, month = _parse_archive_period_from_name(archived_pdf)
-            if _period_key(year, month) > latest_db_key:
+            key = _period_key(year, month)
+            if key > 0 and key not in existing_keys:
                 source_candidates.append((year, month, archived_pdf))
 
     if not source_candidates:
