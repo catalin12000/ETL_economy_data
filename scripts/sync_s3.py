@@ -68,7 +68,7 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
         from etl.core.s3_upload import _s3_key
         keys = [_s3_key(pipeline_id, p, "raw_data", run_dt) for p in raw_paths]
         if deliverable:
-            base = _s3_key(pipeline_id, deliverable, "transformed_data", run_dt)
+            base = _s3_key(pipeline_id, deliverable, "transformed_data", run_dt, use_table_name=True)
             parts = base.rsplit("/", 1)
             keys.append(f"{parts[0]}/deliverable/{parts[1]}")
         return {"pipeline": pipeline_id, "dry_run_keys": keys}
