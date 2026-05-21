@@ -74,11 +74,21 @@ def _latest_db_period(table_name: str, db_name: str) -> tuple[int | None, int | 
     return value // 100, value % 100
 
 
-def _existing_db_periods(table_name: str, db_name: str) -> set[int]:
-    """Return set of period keys (year*100+month) already in the DB table."""
+def _existing_db_periods(table_name: str, db_name: str, sync_cols: list[str] | None = None) -> set[int]:
+    """
+    Return period keys (year*100+month) that are fully populated in the DB.
+    A period is considered missing if it doesn't exist OR if any sync_col is NULL.
+    """
     try:
         engine = get_engine(db_name)
-        query = f'SELECT DISTINCT year * 100 + month AS pk FROM "public"."{table_name}"'
+        if sync_cols:
+            not_null = " AND ".join(f'"{c}" IS NOT NULL' for c in sync_cols)
+            query = (
+                f'SELECT DISTINCT year * 100 + month AS pk FROM "public"."{table_name}" '
+                f'WHERE {not_null}'
+            )
+        else:
+            query = f'SELECT DISTINCT year * 100 + month AS pk FROM "public"."{table_name}"'
         result = pd.read_sql(query, engine)
         return set(result["pk"].dropna().astype(int).tolist())
     except Exception:
@@ -92,8 +102,9 @@ def _collect_snapshot_frames(
     table_name: str,
     db_name: str,
     extractor: Callable[..., pd.DataFrame],
+    sync_cols: list[str] | None = None,
 ) -> pd.DataFrame:
-    existing_keys = _existing_db_periods(table_name, db_name)
+    existing_keys = _existing_db_periods(table_name, db_name, sync_cols=sync_cols)
 
     source_candidates: list[tuple[int, int, Path]] = []
     current_year, current_month = _parse_period(src_period)
@@ -153,6 +164,7 @@ def run_shared_appendix_b_pipeline(
             table_name=pipeline_id,
             db_name=db_name,
             extractor=extractor,
+            sync_cols=list(sync_cols),
         )
     else:
         df_new = extractor(pdf_path, report_year=report_year, report_month=report_month)
