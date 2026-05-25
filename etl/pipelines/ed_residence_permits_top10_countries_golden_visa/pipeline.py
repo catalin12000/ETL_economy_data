@@ -11,6 +11,9 @@ from .extract import extract_residence_permits_top10_countries_golden_visa
 
 class Pipeline:
     pipeline_id = "ed_residence_permits_top10_countries_golden_visa"
+    country = "gr"
+    source = "migration_gov"
+    db_table_name = "ed_residence_permits_top10_countries_golden_visa"
     display_name = "Ed Residence Permits Top10 Countries Golden Visa"
     TABLE_SPEC = "Appendix B Tables 12a and 12b"
 

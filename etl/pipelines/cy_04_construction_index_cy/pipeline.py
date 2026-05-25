@@ -17,6 +17,9 @@ from .extract import extract_construction_index
 
 class Pipeline:
     pipeline_id = "cy_04_construction_index_cy"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_construction_index_cy"
     display_name = "Cyprus: Construction Materials Price Index (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Price%20Index%20of%20Construction%20Materials/1420013E.px"
@@ -104,7 +107,7 @@ class Pipeline:
 
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_construction_index_cy",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month"],
             sync_cols=["index"],

@@ -15,6 +15,9 @@ from .extract import extract_loan_amounts
 
 class Pipeline:
     pipeline_id = "ed_loan_amounts_millions"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_loan_amounts_millions"
     display_name = "Housing & Consumer Loans (Amounts) - New Business"
 
     SOURCE_PIPELINE_ID = "ed_loan_interest_rates"
@@ -239,7 +242,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "group", "loan_type"],
             sync_cols=[c for c in col_map.values() if c not in ["year", "month", "group", "loan_type"]],

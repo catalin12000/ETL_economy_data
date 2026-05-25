@@ -130,7 +130,19 @@ def _collect_snapshot_frames(
         if period in seen_periods:
             continue
         seen_periods.add(period)
-        frames.append(extractor(source_pdf, report_year=year, report_month=month))
+        try:
+            frame = extractor(source_pdf, report_year=year, report_month=month)
+        except Exception:
+            # Older PDF formats may not be parseable — skip rather than abort.
+            continue
+        if frame is not None and not frame.empty:
+            frames.append(frame)
+
+    # If every candidate produced an empty frame (e.g. all archives are an
+    # incompatible older format), fall back to the current PDF so downstream
+    # steps still have something to work with.
+    if not frames:
+        return extractor(pdf_path, report_year=current_year, report_month=current_month)
 
     return pd.concat(frames, ignore_index=True)
 

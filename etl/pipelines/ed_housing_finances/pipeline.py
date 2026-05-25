@@ -17,6 +17,9 @@ from .extract import extract_housing_finances
 
 class Pipeline:
     pipeline_id = "ed_housing_finances"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_housing_finances"
     display_name = "Housing Finances (Households S.1M) - Quarterly"
 
     PUBLICATION_CODE = "SEL95"
@@ -116,7 +119,7 @@ class Pipeline:
         sql_path = pp.sql("ed_housing_finances.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter", "group", "category", "sub_category"],
             sync_cols=["value_millions"],

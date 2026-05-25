@@ -17,6 +17,9 @@ from .extract import BUCKETS_IN_ORDER, extract_monthly_gross_earnings_distributi
 
 class Pipeline:
     pipeline_id = "cy_12_monthly_gross_earnings_distribution"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_monthly_gross_earnings_distribution"
     display_name = "Cyprus: Monthly Gross Earnings Distribution (Annual)"
     MIN_DELIVERABLE_YEAR = 2021
 
@@ -155,7 +158,7 @@ class Pipeline:
         sync_cols = [db_col for _, db_col in self.BUCKET_TO_DB_COL]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_monthly_gross_earnings_distribution",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "sex"],
             sync_cols=sync_cols,

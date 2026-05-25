@@ -17,6 +17,9 @@ from .extract import extract_wholesale_trade_indices
 
 class Pipeline:
     pipeline_id = "ed_wholesale_trade_turnover_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_wholesales_turnover_index"
     display_name = "Wholesale Trade Turnover Index"
 
     PUBLICATION_CODE = "DKT42"
@@ -106,7 +109,7 @@ class Pipeline:
         sql_path = pp.sql("ed_wholesales_turnover_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_wholesales_turnover_index",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=["turnover_index", "volume_index"],

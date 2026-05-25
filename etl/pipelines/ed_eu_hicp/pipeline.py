@@ -15,6 +15,9 @@ from .extract import extract_eu_hicp
 
 class Pipeline:
     pipeline_id = "ed_eu_hicp"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_eu_harmonized_index_of_consumer_prices"
     display_name = "Ed EU Harmonized Index Of Consumer Prices (Eurostat)"
 
     DATASET_CODE = "prc_hicp_manr"
@@ -77,7 +80,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_eu_harmonized_index_of_consumer_prices",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["geopolitical_entity", "year", "month"],
             sync_cols=["annual_rate_of_change"],

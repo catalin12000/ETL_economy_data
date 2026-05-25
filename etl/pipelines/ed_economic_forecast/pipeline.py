@@ -16,6 +16,9 @@ from etl.core.paths import PipelinePaths
 
 class Pipeline:
     pipeline_id = "ed_economic_forecast"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_economic_forecast"
     display_name = "EU Economic Forecast - Greece"
 
     SOURCE_URL = (
@@ -91,7 +94,7 @@ class Pipeline:
         sql_path = pp.sql("ed_economic_forecast.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_economic_forecast",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year"],
             sync_cols=[

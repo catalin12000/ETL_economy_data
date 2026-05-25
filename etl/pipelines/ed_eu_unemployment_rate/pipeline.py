@@ -15,6 +15,9 @@ from .extract import extract_eu_unemployment
 
 class Pipeline:
     pipeline_id = "ed_eu_unemployment_rate"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_eu_unemployment_rate"
     display_name = "Ed EU Unemployment Rate (Eurostat)"
 
     DATASET_CODE = "une_rt_m"
@@ -77,7 +80,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["geopolitical_entity", "year", "month"],
             sync_cols=["adjusted_unemployed_000s", "adjusted_unemployment_rate"],

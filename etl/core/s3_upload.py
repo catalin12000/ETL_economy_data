@@ -14,10 +14,43 @@ load_dotenv()
 _BUCKET = os.getenv("S3_BUCKET", "test-data-bucket-catalin")
 _REGION = os.getenv("AWS_REGION", "eu-central-1")
 
+def _build_pipeline_meta() -> dict[str, tuple[str, str, str]]:
+    """
+    Build the (country, source, db_table_name) registry by introspecting every
+    Pipeline class under etl/pipelines/. Each Pipeline declares these as class
+    attributes — see ADR-0004.
+    """
+    from importlib import import_module
+    result: dict[str, tuple[str, str, str]] = {}
+    pipelines_root = Path(__file__).resolve().parents[1] / "pipelines"
+    for pdir in sorted(pipelines_root.iterdir()):
+        if not pdir.is_dir() or pdir.name.startswith("__"):
+            continue
+        if not (pdir / "pipeline.py").exists():
+            continue
+        try:
+            mod = import_module(f"etl.pipelines.{pdir.name}.pipeline")
+            cls = getattr(mod, "Pipeline", None)
+            if cls is None:
+                continue
+            pid = getattr(cls, "pipeline_id", pdir.name)
+            country = getattr(cls, "country", None)
+            source = getattr(cls, "source", None)
+            table = getattr(cls, "db_table_name", None)
+            if country and source and table:
+                result[pid] = (country, source, table)
+        except Exception:
+            continue
+    return result
+
+
 # Pipeline ID → (country_folder, source_folder, db_table_name)
-# db_table_name is used as the S3 deliverable filename so the backend can
-# identify which DB table to load it into.
-_PIPELINE_META: dict[str, tuple[str, str, str]] = {
+# Populated at import time from Pipeline class attributes. Fallback dict below
+# is kept ONLY as a backup for pipelines that fail to import.
+_PIPELINE_META: dict[str, tuple[str, str, str]] = _build_pipeline_meta()
+
+# Backup hardcoded registry (used only as a safety net if introspection fails).
+_PIPELINE_META_FALLBACK: dict[str, tuple[str, str, str]] = {
     # Cyprus — CYSTAT
     "cy_01_average_monthly_earnings":              ("cy", "cystat",          "ed_average_monthly_earnings"),
     "cy_02_building_permits_by_district":          ("cy", "cystat",          "ed_building_permits_by_district"),
@@ -92,6 +125,10 @@ _PIPELINE_META: dict[str, tuple[str, str, str]] = {
     "ed_residence_permits_top10_countries":        ("gr", "migration_gov",   "ed_residence_permits_top10_countries"),
     "ed_residence_permits_top10_countries_golden_visa": ("gr", "migration_gov", "ed_residence_permits_top10_countries_golden_visa"),
 }
+
+# Merge: fallback fills any gaps from auto-discovery (defensive — should be empty in practice).
+for _pid, _meta in _PIPELINE_META_FALLBACK.items():
+    _PIPELINE_META.setdefault(_pid, _meta)
 
 
 def _get_client():

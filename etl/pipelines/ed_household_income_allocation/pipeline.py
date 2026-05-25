@@ -10,6 +10,9 @@ from etl.core.paths import PipelinePaths
 
 class Pipeline:
     pipeline_id = "ed_household_income_allocation"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_household_income_allocation"
     display_name = "Household Income Allocation (Gross Savings) - Annual"
 
     # SEL60 is the ELSTAT code for Main aggregates of Households

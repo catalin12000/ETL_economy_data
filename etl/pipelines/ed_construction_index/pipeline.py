@@ -17,6 +17,9 @@ from .extract import extract_construction_index_quarterly
 
 class Pipeline:
     pipeline_id = "ed_construction_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_construction_index"
     display_name = "Ed Construction Index"
 
     TARGET_TITLE = "02. Evolution of the Production Index in Construction (working day adjusted data)"
@@ -80,7 +83,7 @@ class Pipeline:
         sql_path = pp.sql("ed_construction_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_construction_index",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=[

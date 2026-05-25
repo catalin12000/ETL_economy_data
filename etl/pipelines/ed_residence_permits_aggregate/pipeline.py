@@ -11,6 +11,9 @@ from .extract import extract_residence_permits_aggregate
 
 class Pipeline:
     pipeline_id = "ed_residence_permits_aggregate"
+    country = "gr"
+    source = "migration_gov"
+    db_table_name = "ed_residence_permits_aggregate"
     display_name = "Ed Residence Permits Aggregate"
     TABLE_SPEC = "Appendix B Table 1"
 

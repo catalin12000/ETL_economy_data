@@ -18,6 +18,9 @@ from .extract import extract_tourist_expenditure_distribution
 
 class Pipeline:
     pipeline_id = "cy_14_per_day_expenditure_of_tourists"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_per_day_expenditure_of_tourists"
     display_name = "Cyprus: Per Day Expenditure of Tourists (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Tourism/Revenue%20from%20Tourism/Monthly/2031024E.px"
@@ -144,7 +147,7 @@ class Pipeline:
         sql_path = pp.sql("ed_per_day_expenditure_of_tourists.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_per_day_expenditure_of_tourists",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month", "country_of_origin"],
             sync_cols=["average_length_of_stay", "expenditure_per_day"],

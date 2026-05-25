@@ -17,6 +17,9 @@ from .extract import extract_tourist_arrivals_country
 
 class Pipeline:
     pipeline_id = "cy_17_tourist_arrivals_country"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_tourist_arrivals_country"
     display_name = "Cyprus: Tourist Arrivals By Country (Monthly)"
     MIN_DELIVERABLE_YEAR = 2023
 
@@ -283,7 +286,7 @@ class Pipeline:
         sql_path = pp.sql("ed_tourist_arrivals_country.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_tourist_arrivals_country",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month"],
             sync_cols=self.DB_SYNC_COLS,

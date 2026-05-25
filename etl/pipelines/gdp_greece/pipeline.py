@@ -16,6 +16,9 @@ from .extract import extract_gdp
 
 class Pipeline:
     pipeline_id = "gdp_greece"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "gdp_greece"
     display_name = "GDP Greece - Quarterly"
 
     TARGET_TITLE_SUBSTRING = (
@@ -100,7 +103,7 @@ class Pipeline:
 
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=[

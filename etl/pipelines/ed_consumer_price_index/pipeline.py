@@ -16,6 +16,9 @@ from .extract import extract_cpi
 
 class Pipeline:
     pipeline_id = "ed_consumer_price_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_consumer_price_index"
     display_name = "Ed Consumer Price Index"
 
     TARGET_TITLE_SUBSTRING = "Συγκρίσεις Γενικού Δείκτη Τιμών Καταναλωτή"
@@ -67,7 +70,7 @@ class Pipeline:
             
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=["index", "year_over_year"],

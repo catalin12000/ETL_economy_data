@@ -16,6 +16,9 @@ from .extract import extract_residents_di_country
 
 class Pipeline:
     pipeline_id = "ed_residents_di_country"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_residents_di_by_country"
     display_name = "BoG FDI Flows - Residents by Country"
     MIN_DB_YEAR = 2020
 
@@ -103,7 +106,7 @@ class Pipeline:
         sql_path = pp.sql("ed_residents_di_by_country.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_residents_di_by_country",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "country"],
             sync_cols=["area", "amount_millions", "continent"],

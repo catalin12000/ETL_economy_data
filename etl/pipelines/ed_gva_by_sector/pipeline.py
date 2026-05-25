@@ -17,6 +17,9 @@ from .extract import extract_gva, DB_COLS
 
 class Pipeline:
     pipeline_id = "ed_gva_by_sector"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_gva_by_sector"
     display_name = "Ed GVA By Sector - Annual"
 
     PUBLICATION_CODE = "SEL12"
@@ -108,7 +111,7 @@ class Pipeline:
         sql_path = pp.sql("ed_gva_by_sector.sql")
         db_comp_res = compare_with_postgres(
             df=df_new,
-            table_name="ed_gva_by_sector",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year"],
             sync_cols=DB_COLS,

@@ -17,6 +17,9 @@ from .extract import extract_industrial_production
 
 class Pipeline:
     pipeline_id = "ed_industrial_production_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_industrial_production_index"
     display_name = "Industrial Production Index (Overall + Seasonally Adjusted)"
 
     PUBLICATION_CODE = "DKT21"
@@ -141,7 +144,7 @@ class Pipeline:
         sql_path = pp.sql("ed_industrial_production_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=[

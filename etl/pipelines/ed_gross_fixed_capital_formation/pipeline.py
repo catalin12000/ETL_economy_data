@@ -17,6 +17,9 @@ from .extract import extract_gfcf
 
 class Pipeline:
     pipeline_id = "ed_gross_fixed_capital_formation"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_gross_fixed_capital_formation"
     display_name = "Ed Gross Fixed Capital Formation (SEL81) - Quarterly"
     PUBLICATION_CODE = "SEL81"
     TARGET_TITLE_SUBSTRING = "Quarterly Gross fixed capital formation by Asset, Chain-linked volumes"
@@ -102,7 +105,7 @@ class Pipeline:
         sql_path = pp.sql("ed_gross_fixed_capital_formation.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_gross_fixed_capital_formation",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter", "seasonally"],
             sync_cols=[

@@ -17,6 +17,9 @@ from .extract import extract_motor_trade_turnover, extract_motor_trade_volume
 
 class Pipeline:
     pipeline_id = "ed_motor_trade_turnover_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_motor_trade_turnover_index"
     display_name = "Motor Trade Turnover and Volume Index"
 
     PUBLICATION_CODE = "DKT45"
@@ -140,7 +143,7 @@ class Pipeline:
         sql_path = pp.sql("ed_motor_trade_turnover_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=self.ALL_SYNC_COLS,

@@ -17,6 +17,9 @@ from .extract import extract_building_permits_monthly
 
 class Pipeline:
     pipeline_id = "ed_building_permits_table"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_building_permits"
     display_name = "Ed Building Permits (Monthly Private Building Activity)"
 
     TARGET_TITLE = "01. Monthly Private Building Activity, number of permits, surface and volume"
@@ -80,7 +83,7 @@ class Pipeline:
         sql_path = pp.sql("ed_building_permits.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_building_permits",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=["permits_number", "area", "volume"],

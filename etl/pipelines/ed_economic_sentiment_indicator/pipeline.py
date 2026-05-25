@@ -16,6 +16,9 @@ from .extract import extract_economic_sentiment_indicator
 
 class Pipeline:
     pipeline_id = "ed_economic_sentiment_indicator"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_economic_sentiment_indicator"
     display_name = "Ed Economic Sentiment Indicator (Eurostat)"
 
     DATASET_CODE = "teibs010"
@@ -82,7 +85,7 @@ class Pipeline:
         sql_path = pp.sql("ed_economic_sentiment_indicator.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_economic_sentiment_indicator",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "geopolitical_entity"],
             sync_cols=["economic_sentiment_indicator"],

@@ -16,6 +16,9 @@ from .extract import extract_cpi
 
 class Pipeline:
     pipeline_id = "cy_05_consumer_price_index"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_consumer_price_index"
     display_name = "Cyprus: Consumer Price Index (Monthly)"
     DB_TABLE_NAME = "ed_consumer_price_index"
     DB_BASE_YEAR = 2025
@@ -155,7 +158,7 @@ class Pipeline:
         sql_path = pp.sql("cy_05_consumer_price_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_primary,
-            table_name=self.DB_TABLE_NAME,
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month"],
             sync_cols=["index", "year_over_year"],

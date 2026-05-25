@@ -125,6 +125,9 @@ def _parse_archive_period(path: Path) -> tuple[int | None, int | None]:
 
 class Pipeline:
     pipeline_id = "ed_geo_distribution_of_issued_and_pending_permits"
+    country = "gr"
+    source = "migration_gov"
+    db_table_name = "ed_geo_distribution_of_issued_and_pending_permits"
     display_name = "Ed Geo Distribution of Issued and Pending Permits"
 
     INDEX_URL = "https://migration.gov.gr/en/statistika/"
@@ -207,7 +210,7 @@ class Pipeline:
 
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "permit_type", "period", "area"],
             sync_cols=["issued", "rejected", "revoked", "pending"],

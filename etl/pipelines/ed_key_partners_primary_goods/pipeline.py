@@ -17,6 +17,9 @@ from .extract import extract_key_partners_primary_goods
 
 class Pipeline:
     pipeline_id = "ed_key_partners_primary_goods"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_key_partners_primary_goods"
     display_name = "Key Partners - Primary Goods (SFC02) - Trade Balance Time Period"
 
     PUBLICATION_CODE = "SFC02"
@@ -143,7 +146,7 @@ class Pipeline:
         sql_path = pp.sql("ed_key_partners_primary_goods.sql")
         db_comp_res = compare_with_postgres(
             df=df_new,
-            table_name="ed_key_partners_primary_goods",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "country", "categories"],
             sync_cols=["imports_value", "exports_value", "codes"],

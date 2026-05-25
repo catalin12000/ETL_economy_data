@@ -11,6 +11,9 @@ from .extract import extract_residence_permits_golden_visa
 
 class Pipeline:
     pipeline_id = "ed_residence_permits_golden_visa"
+    country = "gr"
+    source = "migration_gov"
+    db_table_name = "ed_residence_permits_golden_visa"
     display_name = "Ed Residence Permits Golden Visa"
     TABLE_SPEC = "Appendix B Table 13b"
 

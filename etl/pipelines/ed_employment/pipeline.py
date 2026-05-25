@@ -15,6 +15,9 @@ from .extract import extract_employment
 
 class Pipeline:
     pipeline_id = "ed_employment"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_employment"
     display_name = "Employment Status & Unemployment Rate"
 
     TARGET_TITLE_SUBSTRING = "Κατάσταση απασχόλησης και ποσοστό ανεργίας"
@@ -80,7 +83,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "seasonally"],
             sync_cols=[

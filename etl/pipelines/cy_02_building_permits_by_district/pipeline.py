@@ -17,6 +17,9 @@ from .extract import extract_building_permits_district
 
 class Pipeline:
     pipeline_id = "cy_02_building_permits_by_district"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_building_permits_by_district"
     display_name = "Cyprus: Building Permits by District (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Building%20Permits/1440010E.px"
@@ -91,7 +94,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_building_permits_by_district",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month", "district", "urban_rural"],
             sync_cols=["area_m2", "dwelling_units", "number", "value_000s"],

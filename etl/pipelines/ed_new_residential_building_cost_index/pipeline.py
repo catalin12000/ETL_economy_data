@@ -17,6 +17,9 @@ from .extract import extract_new_residential_building_cost_index
 
 class Pipeline:
     pipeline_id = "ed_new_residential_building_cost_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_new_residential_building_cost_index"
     display_name = "Ed New Residential Building Cost Index (DKT63) - Quarterly"
 
     # DKT63: Price Indices for New Residential Buildings Construction
@@ -96,7 +99,7 @@ class Pipeline:
         sql_path = pp.sql("ed_new_residential_building_cost_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=["overall_cost_index", "material_costs_index", "labour_costs_index"],

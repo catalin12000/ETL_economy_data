@@ -17,6 +17,9 @@ from .extract import extract_services_sector_turnover
 
 class Pipeline:
     pipeline_id = "ed_services_sector_turnover_monthly_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_services_sector_turnover_monthly_index"
     display_name = "Ed Services Sector Turnover Monthly Index (DKT54)"
 
     PUBLICATION_CODE = "DKT54"
@@ -97,7 +100,7 @@ class Pipeline:
         sql_path = pp.sql("ed_services_sector_turnover_monthly_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_services_sector_turnover_monthly_index",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "economic_activity", "code"],
             sync_cols=["index"],

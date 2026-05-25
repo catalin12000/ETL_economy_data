@@ -15,6 +15,9 @@ from .extract import extract_eu_consumer_confidence
 
 class Pipeline:
     pipeline_id = "ed_eu_consumer_confidence_index"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_eu_consumer_confidence_index"
     display_name = "Ed EU Consumer Confidence Index (Eurostat)"
 
     DATASET_CODE = "ei_bsco_m"
@@ -74,7 +77,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "geopolitical_entity"],
             sync_cols=["consumer_confidence_indicator"],

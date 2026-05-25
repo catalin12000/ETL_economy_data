@@ -17,6 +17,9 @@ from .extract import extract_building_permits_type
 
 class Pipeline:
     pipeline_id = "cy_03_building_permits_by_property_type"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_building_permits_by_property_type"
     display_name = "Cyprus: Building Permits by Property Type (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Building%20Permits/1440005E.px"
@@ -78,7 +81,7 @@ class Pipeline:
 
         db_comp_res = compare_with_postgres(
             df=df_new_db,
-            table_name="ed_building_permits_by_property_type",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month", "permits"],
             sync_cols=sync_cols,

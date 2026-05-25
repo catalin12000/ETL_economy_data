@@ -17,6 +17,9 @@ from .extract import extract_gross_value_added_sector
 
 class Pipeline:
     pipeline_id = "cy_09_gross_value_added_sector"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_gross_value_added_sector"
     display_name = "Cyprus: Gross Value Added By Sector (Annual)"
     MIN_DELIVERABLE_YEAR = 2021
 
@@ -174,7 +177,7 @@ class Pipeline:
         sync_cols = [db_col for _, db_col in self.ACTIVITY_DB_MAP]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_gross_value_added_sector",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year"],
             sync_cols=sync_cols,

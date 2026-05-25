@@ -17,6 +17,9 @@ from .extract import extract_average_monthly_earnings
 
 class Pipeline:
     pipeline_id = "cy_01_average_monthly_earnings"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_average_monthly_earnings"
     display_name = "Cyprus: Average Monthly Earnings (Quarterly)"
     MIN_DELIVERABLE_YEAR = 2023  # Keep only data after 2024.
 
@@ -112,7 +115,7 @@ class Pipeline:
         sql_path = pp.sql("ed_average_monthly_earnings.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_average_monthly_earnings",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "quarter", "sex"],
             sync_cols=[

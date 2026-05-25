@@ -15,6 +15,9 @@ from .extract import extract_eu_gdp
 
 class Pipeline:
     pipeline_id = "ed_eu_gdp"
+    country = "gr"
+    source = "eurostat"
+    db_table_name = "ed_eu_gdp"
     display_name = "Ed EU GDP (Eurostat)"
 
     DATASET_CODE = "namq_10_gdp"
@@ -77,7 +80,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["geopolitical_entity", "year", "quarter"],
             sync_cols=[

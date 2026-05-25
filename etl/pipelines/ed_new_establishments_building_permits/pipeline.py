@@ -11,6 +11,9 @@ from etl.core.paths import PipelinePaths
 
 class Pipeline:
     pipeline_id = "ed_new_establishments_building_permits"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_new_establishments_building_permits"
     display_name = "Ed New Establishments Building Permits (SOP03 - Table 16)"
 
     PUBLICATION_CODE = "SOP03"

@@ -17,6 +17,9 @@ from .extract import extract_wage_growth_index
 
 class Pipeline:
     pipeline_id = "ed_wage_growth_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_wage_growth_index"
     display_name = "Ed Wage Growth Index - Quarterly"
 
     TARGET_TITLE = "Evolution of Gross Wages and Salaries in main sections of the economy"
@@ -116,7 +119,7 @@ class Pipeline:
         sql_path = pp.sql("ed_wage_growth_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_wage_growth_index",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=[

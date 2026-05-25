@@ -16,6 +16,9 @@ from .extract import extract_retail_price_rental_index
 
 class Pipeline:
     pipeline_id = "ed_retail_price_rental_index"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_retail_price_rental_index"
     display_name = "Ed Retail Price and Rent Indices (BoG)"
 
     PRICE_INDEX_URL = "https://www.bankofgreece.gr/RelatedDocuments/RETAIL_PRICE_INDEX.pdf"
@@ -126,7 +129,7 @@ class Pipeline:
         ]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "year_half"],
             sync_cols=sync_cols,

@@ -17,6 +17,9 @@ from .extract import extract_tourist_arrivals_revenue
 
 class Pipeline:
     pipeline_id = "cy_18_tourist_arrivals_revenue"
+    country = "cy"
+    source = "cystat"
+    db_table_name = "ed_tourist_arrivals_revenue"
     display_name = "Cyprus: Tourist Arrivals and Revenue (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Tourism/Revenue%20from%20Tourism/Monthly/2031010E.px"
@@ -112,7 +115,7 @@ class Pipeline:
         sql_path = pp.sql("ed_tourist_arrivals_revenue.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_tourist_arrivals_revenue",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month"],
             sync_cols=["arrivals", "revenue_millions"],

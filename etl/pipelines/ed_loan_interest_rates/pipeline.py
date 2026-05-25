@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 import pandas as pd
@@ -14,6 +15,9 @@ from .extract import extract_loan_interest_rates
 
 class Pipeline:
     pipeline_id = "ed_loan_interest_rates"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_loan_interest_rates"
     display_name = "Housing & Consumer Loans (Interest Rates)"
 
     SOURCE_PAGE = (
@@ -24,103 +28,41 @@ class Pipeline:
     FILE_URL = "https://www.bankofgreece.gr/RelatedDocuments/Rates_TABLE_1+1a.xls"
 
     @staticmethod
-    def _build_full_replace_df(df_for_db: pd.DataFrame, sql_path: Path) -> pd.DataFrame:
-        """
-        Build a full replacement deliverable:
-        - keep all extracted rows
-        - attach DB id when keys match
-        - use DB key labels for group/loan_type when matched
-        """
-        match_cols = ["year", "month", "group", "loan_type"]
-        df_local = df_for_db.copy()
-
-        query = sql_path.read_text(encoding="utf-8")
-        df_db = pd.read_sql(query, get_engine("athena"))
-        df_db.columns = [c.lower() for c in df_db.columns]
-        df_local.columns = [c.lower() for c in df_local.columns]
-
-        for col in match_cols:
-            if col in {"year", "month", "quarter"}:
-                df_local[col] = pd.to_numeric(df_local[col], errors="coerce").fillna(0).astype(int)
-                df_db[col] = pd.to_numeric(df_db[col], errors="coerce").fillna(0).astype(int)
-            else:
-                df_local[f"{col}_norm"] = df_local[col].apply(lambda x: _normalize_match_value(col, x))
-                df_db[f"{col}_norm"] = df_db[col].apply(lambda x: _normalize_match_value(col, x))
-
-        norm_match_cols = [
-            c if c in {"year", "month", "quarter"} else f"{c}_norm"
-            for c in match_cols
-        ]
-
-        lookup_cols = norm_match_cols + ["id", "group", "loan_type"]
-        df_lookup = df_db[lookup_cols].copy()
-        df_lookup = df_lookup.sort_values("id", na_position="last").drop_duplicates(norm_match_cols, keep="first")
-
-        merged = df_local.merge(df_lookup, on=norm_match_cols, how="left", suffixes=("", "_db"))
-        merged["group"] = merged["group_db"].combine_first(merged["group"])
-        merged["loan_type"] = merged["loan_type_db"].combine_first(merged["loan_type"])
-        merged["id"] = pd.to_numeric(merged["id"], errors="coerce").astype("Int64")
-
-        drop_cols = [f"{c}_norm" for c in match_cols if c not in {"year", "month", "quarter"}]
-        drop_cols += ["group_db", "loan_type_db"]
-        merged = merged.drop(columns=[c for c in drop_cols if c in merged.columns], errors="ignore")
-        return merged
-
-    @staticmethod
     def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
         target_cols = [
-            'id', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Consumer_Loans_Aprc',
-            'Total_Housing_Loans_Aprc', 'Delta_Interest_Rate_Deposits',
-            'Weighted_Average_Interest_Rate_New_Loans_In_Euro', 'Weighted_Average_Interest_Rate',
-            'Credit_Cards', 'Open_Account_Loans', 'Debit_Balances_On_Current_Accounts',
-            'Total_Interest_Rate', 'Total_Collateral_Guarantees_Interest_Rates',
-            'Total_Small_Medium_Enterprises_Interest_Rates', 'Floating_Rate_1_Year_Fixation',
-            'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees',
-            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation',
-            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation',
-            'Credit_Lines', 'Debit_Balances_Sight_Deposits'
+            "id", "year", "month", "group", "loan_type",
+            "total_consumer_loans_aprc", "total_housing_loans_aprc",
+            "delta_interest_rate_deposits",
+            "weighted_average_interest_rate_new_loans_in_euro",
+            "weighted_average_interest_rate", "credit_cards", "open_account_loans",
+            "debit_balances_on_current_accounts", "total_interest_rate",
+            "total_collateral_guarantees_interest_rates",
+            "total_small_medium_enterprises_interest_rates",
+            "floating_rate_1_year_fixation",
+            "floating_rate_1_year_rate_fixation_collateral_guarantees",
+            "floating_rate_1_year_rate_fixation_floating_rate",
+            "over_1_to_5_years_rate_fixation", "over_5_years_rate_fixation",
+            "over_5_to_10_years_rate_fixation", "over_10_years_rate_fixation",
+            "credit_lines", "debit_balances_sight_deposits",
         ]
 
         if df.empty:
             return pd.DataFrame(columns=target_cols)
 
         out = df.copy()
-        rev_map = {
-            "id": "id",
-            "year": "Year",
-            "month": "Month",
-            "group": "Group",
-            "loan_type": "Loan_Type",
-            "total_consumer_loans_aprc": "Total_Consumer_Loans_Aprc",
-            "total_housing_loans_aprc": "Total_Housing_Loans_Aprc",
-            "delta_interest_rate_deposits": "Delta_Interest_Rate_Deposits",
-            "weighted_average_interest_rate_new_loans_in_euro": "Weighted_Average_Interest_Rate_New_Loans_In_Euro",
-            "weighted_average_interest_rate": "Weighted_Average_Interest_Rate",
-            "credit_cards": "Credit_Cards",
-            "open_account_loans": "Open_Account_Loans",
-            "debit_balances_on_current_accounts": "Debit_Balances_On_Current_Accounts",
-            "total_interest_rate": "Total_Interest_Rate",
-            "total_collateral_guarantees_interest_rates": "Total_Collateral_Guarantees_Interest_Rates",
-            "total_small_medium_enterprises_interest_rates": "Total_Small_Medium_Enterprises_Interest_Rates",
-            "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
-            "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
-            "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
-            "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
-            "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
-            "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
-            "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation",
-            "credit_lines": "Credit_Lines",
-            "debit_balances_sight_deposits": "Debit_Balances_Sight_Deposits",
-        }
-        out.rename(columns=rev_map, inplace=True)
         if "id" in out.columns:
             out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
+        out["year"] = pd.to_numeric(out["year"], errors="coerce")
+        out["month"] = pd.to_numeric(out["month"], errors="coerce")
+        out = out.dropna(subset=["year", "month"]).copy()
+        out["year"] = out["year"].astype(int)
+        out["month"] = out["month"].astype(int)
+        out = out.sort_values(["year", "month", "group", "loan_type"]).reset_index(drop=True)
+
         for c in target_cols:
             if c not in out.columns:
                 out[c] = pd.NA
 
-        sort_cols = ["Year", "Month", "Group", "Loan_Type"]
-        out = out.sort_values(sort_cols).reset_index(drop=True)
         return out[target_cols]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -213,7 +155,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "group", "loan_type"],
             sync_cols=[c for c in col_map.values() if c not in ["year", "month", "group", "loan_type"]],
@@ -238,8 +180,7 @@ class Pipeline:
         db_diff_only_df.to_csv(db_diff_only_file, index=False)
 
         # 5. Timestamped Deliverable (DB delta only: missing + different)
-        import datetime
-        now = datetime.datetime.now()
+        now = datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 

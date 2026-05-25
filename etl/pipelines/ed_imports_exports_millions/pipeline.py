@@ -63,6 +63,9 @@ DB_NUMERIC_COLS = [
 
 class Pipeline:
     pipeline_id = "ed_imports_exports_millions"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_imports_exports_millions"
     display_name = "Imports-Exports of Goods and Services (Millions) - Annual"
 
     PUBLICATION_CODE = "SEL30"
@@ -181,7 +184,7 @@ class Pipeline:
         sql_path = pp.sql("ed_imports_exports_millions.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year"],
             sync_cols=DB_NUMERIC_COLS,

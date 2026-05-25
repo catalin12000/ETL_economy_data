@@ -16,6 +16,9 @@ from .extract import extract_tourists_arrivals_revenue
 
 class Pipeline:
     pipeline_id = "ed_tourists_arrivals_revenue"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_tourists_arrivals_revenue"
     display_name = "Ed Tourists Arrivals and Revenue (BoG)"
 
     RECEIPTS_URL = "https://www.bankofgreece.gr/RelatedDocuments/RECEIPTS_BY_COUNTRY_OF_ORIGIN.xls"
@@ -93,7 +96,7 @@ class Pipeline:
         sql_path = pp.sql("ed_tourists_arrivals_revenue.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_tourists_arrivals_revenue",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter", "area", "country_of_origin"],
             sync_cols=["number_of_travellers_000s", "revenues_by_country_of_origin_millions"],

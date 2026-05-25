@@ -183,7 +183,7 @@ def extract_loan_interest_rates(file_path: Path) -> pd.DataFrame:
             "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million",
             "_sort_order": 11
         })
-        
+
         # Loans with a defined maturity and up to an amount of EUR 0.25
         records.append({
             "Year": year, "Month": month,

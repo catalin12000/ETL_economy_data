@@ -19,6 +19,9 @@ from .extract import extract_rppi
 
 class Pipeline:
     pipeline_id = "cy_15_residential_price_indices"
+    country = "cy"
+    source = "central_bank_cy"
+    db_table_name = "ed_residential_price_indices"
     display_name = "Cyprus: Residential Property Price Indices (RPPI)"
 
     # Page listing the RPPI data
@@ -98,7 +101,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_residential_price_indices",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "quarter"],
             sync_cols=sync_cols,

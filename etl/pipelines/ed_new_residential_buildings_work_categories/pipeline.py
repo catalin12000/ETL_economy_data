@@ -17,6 +17,9 @@ from .extract import extract_new_residential_buildings_work_categories
 
 class Pipeline:
     pipeline_id = "ed_new_residential_buildings_work_categories"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_new_residential_buildings_work_categories"
     display_name = "Ed New Residential Buildings Work Categories (DKT63) - Quarterly"
 
     PUBLICATION_CODE = "DKT63"
@@ -132,7 +135,7 @@ class Pipeline:
         ]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter"],
             sync_cols=sync_cols,

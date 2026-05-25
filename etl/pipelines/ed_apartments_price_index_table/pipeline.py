@@ -16,6 +16,9 @@ from etl.pipelines.ed_apartments_price_index_table.extract import extract_apartm
 
 class Pipeline:
     pipeline_id = "ed_apartments_price_index_table"
+    country = "gr"
+    source = "bank_of_greece"
+    db_table_name = "ed_apartments_price_index"
     display_name = "Ed Apartments Price Index Table"
 
     PDF_URL = "https://www.bankofgreece.gr/RelatedDocuments/Νέοι_Πίνακες_Τιμών_Κατοικιών_full.pdf"
@@ -75,7 +78,7 @@ class Pipeline:
         sql_path = pp.sql("ed_apartments_price_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_apartments_price_index",
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "quarter", "region"],
             sync_cols=["index", "up_to_5_years_old_index", "over_5_years_old_index"],

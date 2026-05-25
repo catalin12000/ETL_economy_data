@@ -17,6 +17,9 @@ from .extract import extract_lro_transfers
 
 class Pipeline:
     pipeline_id = "cy_11_lro_transfers"
+    country = "cy"
+    source = "dls"
+    db_table_name = "ed_lro_transfers"
     display_name = "Cyprus: LRO Transfers (DLS Portal)"
 
     TRANSFERS_PAGE_URLS = {
@@ -118,7 +121,7 @@ class Pipeline:
         print("Comparing with live Cyprus Postgres DB (zeus)...")
         db_comp_res = compare_with_postgres(
             df=df_new,
-            table_name="ed_lro_transfers",
+            table_name=self.db_table_name,
             db_name="zeus",
             match_cols=["year", "month", "district"],
             sync_cols=[

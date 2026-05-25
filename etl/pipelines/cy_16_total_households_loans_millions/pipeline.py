@@ -19,6 +19,9 @@ from .extract import extract_households_loans
 
 class Pipeline:
     pipeline_id = "cy_16_total_households_loans_millions"
+    country = "cy"
+    source = "central_bank_cy"
+    db_table_name = "ed_total_households_loans_millions"
     display_name = "Cyprus: Total Households Loans Millions (NPLs)"
 
     # Page listing the aggregate banking sector data
@@ -108,7 +111,7 @@ class Pipeline:
         
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name="ed_total_households_loans_millions",
+            table_name=self.db_table_name,
             db_name="zeus", # CYPRUS
             match_cols=["year", "month"],
             sync_cols=[c for c in col_map.values() if c not in ["year", "month"]],

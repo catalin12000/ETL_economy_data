@@ -17,6 +17,9 @@ from .extract import extract_retail_trade_turnover
 
 class Pipeline:
     pipeline_id = "ed_retail_trade_turnover_index"
+    country = "gr"
+    source = "elstat"
+    db_table_name = "ed_retail_trade_turnover_index"
     display_name = "Retail Trade Turnover Index"
 
     PUBLICATION_CODE = "DKT39"
@@ -134,7 +137,7 @@ class Pipeline:
         ]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
-            table_name=self.pipeline_id,
+            table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
             sync_cols=sync_cols,
