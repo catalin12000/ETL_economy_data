@@ -3,6 +3,9 @@
 ETL framework for collecting economic datasets from public sources (PDFs, Excel, APIs),
 extracting structured data, comparing against a live Postgres DB, and producing deliverables.
 
+For the current operational picture, including the run flow, logging policy, S3 Sync behavior,
+and what changed in the latest refactor, see [docs/ETL_CURRENT_OVERVIEW.md](docs/ETL_CURRENT_OVERVIEW.md).
+
 ---
 
 ## Pipeline count
