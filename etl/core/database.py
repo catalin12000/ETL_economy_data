@@ -118,7 +118,24 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
     # Standardize column names
     df_db.columns = [c.lower() for c in df_db.columns]
     df.columns = [c.lower() for c in df.columns]
-    
+
+    # Schema validation: surface typos/mismatches loudly instead of producing
+    # a misleading Delta where every row looks "different" for a missing column.
+    extracted_cols = set(df.columns)
+    db_cols = set(df_db.columns)
+    missing_in_extract = [c for c in match_cols + sync_cols if c.lower() not in extracted_cols]
+    missing_in_db      = [c for c in match_cols + sync_cols if c.lower() not in db_cols]
+    if missing_in_extract or missing_in_db:
+        msg = (
+            f"Schema mismatch for table {table_name!r}: "
+            f"missing in extracted df={missing_in_extract}, "
+            f"missing in DB={missing_in_db}. "
+            f"Extracted cols: {sorted(extracted_cols)}. "
+            f"DB cols: {sorted(db_cols)}."
+        )
+        print(f"ERROR: {msg}")
+        return {"error": msg}
+
     # Store original DB values for restoration later
     orig_db_values = {}
     cols_to_restore = ['geopolitical_entity', 'group', 'loan_type', 'seasonally']
