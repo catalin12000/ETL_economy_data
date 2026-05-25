@@ -8,8 +8,8 @@ import requests
 import pandas as pd
 
 from etl.core.download import sha256_file
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.fingerprint import dataframe_sha256, should_skip_api
 from etl.core.output import write_deliverable_csv
 from etl.core.paths import PipelinePaths
 from .extract import extract_cpi
@@ -124,12 +124,13 @@ class Pipeline:
         df_new = extract_cpi(out_path)
         df_primary = self._prepare_primary_series(df_new)
 
+        data_hash = dataframe_sha256(df_primary, sort_cols=["year", "month"])
+        new_state["data_sha256"] = data_hash
+        if should_skip_api(state, data_hash):
+            return {"status": "skipped", "message": "API data unchanged.", "state": new_state}
+
         # 1b. Local baseline comparison (for mock snapshot + new entries files)
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        db_path = pp.baseline
-        report_csv = pp.output / "update_report.csv"
 
         df_local = (
             df_primary.rename(
@@ -143,16 +144,6 @@ class Pipeline:
             .copy()
         )
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_local,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year", "month"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
         
         # 2. Sync with live Cyprus Postgres DB (zeus)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
@@ -195,14 +186,8 @@ class Pipeline:
         }
 
         new_state.update({
-            "rows_before": res.rows_before,
-            "rows_after": res.rows_after,
-            "new_rows": res.new_rows,
-            "updated_cells": res.updated_cells,
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path),
-            "delta_path": str(output_file),
-            "mock_db_snapshot_path": str(out_csv_full),
         })
 
         return {

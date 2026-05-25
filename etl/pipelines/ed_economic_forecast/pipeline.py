@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Any
@@ -6,7 +6,6 @@ from typing import Dict, Any
 import datetime
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.fingerprint import dataframe_sha256
 from etl.core.output import write_deliverable_csv
@@ -62,21 +61,6 @@ class Pipeline:
 
         # 4) Sync with local baseline
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        db_path = pp.baseline
-        report_csv = pp.output / "update_report.csv"
-
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_new,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         # 5) Compare with live Postgres (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
@@ -128,23 +112,16 @@ class Pipeline:
         new_state.update(
             {
                 "data_sha256": data_hash,
-                "rows_before": res.rows_before,
-                "rows_after": res.rows_after,
-                "new_rows": res.new_rows,
-                "updated_cells": res.updated_cells,
                 "db_comparison": db_summary,
                 "deliverable_path": str(deliverable_path),
-                "delta_path": str(output_file),
-                "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 
         no_source_change = not is_new_by_hash(state.get("file_sha256"), file_hash)
         no_data_change = state.get("data_sha256") == data_hash
-        no_local_change = res.new_rows == 0 and res.updated_cells == 0
         no_db_change = db_comp_res.get("inserted", 0) == 0 and db_comp_res.get("updated", 0) == 0
 
-        if no_source_change and no_data_change and no_local_change and no_db_change:
+        if no_source_change and no_data_change and no_db_change:
             return {
                 "status": "skipped",
                 "message": f"No new data detected. Deliverable refreshed: {deliverable_name}",

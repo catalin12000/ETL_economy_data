@@ -187,17 +187,6 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
         missing_in_db=[],
     )
 
-    # Store original DB values for restoration later
-    orig_db_values = {}
-    cols_to_restore = ['geopolitical_entity', 'group', 'loan_type', 'seasonally']
-    for col in cols_to_restore:
-        if col in df_db.columns:
-            # Create a map: normalized_key -> original_db_value
-            # We use the match columns as the key for this map
-            temp_db = df_db.copy()
-            # We need a unique key for restoration. Month/Year/Quarter + Normalized String
-            pass # We will handle this during the loop instead for better accuracy
-
     # 2. Key Normalization for JOIN
     for col in match_cols:
         if col in ['year', 'month', 'quarter']:

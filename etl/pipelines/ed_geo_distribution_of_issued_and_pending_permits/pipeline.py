@@ -9,7 +9,6 @@ from typing import Any
 import pandas as pd
 import requests
 
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
@@ -180,20 +179,7 @@ class Pipeline:
             )
 
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        report_csv = pp.output / "update_report.csv"
-        db_path = pp.baseline
 
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_new,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year", "month", "permit_type", "period", "area"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         df_for_db = df_new.rename(
             columns={
@@ -253,25 +239,17 @@ class Pipeline:
                 "final_url": meta.get("final_url"),
                 "downloaded_at_utc": meta.get("downloaded_at_utc"),
                 "table_spec": self.TABLE_SPEC,
-                "rows_before": res.rows_before,
-                "rows_after": res.rows_after,
-                "new_rows": res.new_rows,
-                "updated_cells": res.updated_cells,
                 "db_comparison": {
                     "status": db_comp_res.get("status"),
                     "missing_in_db": db_comp_res.get("inserted"),
                     "different_in_db": db_comp_res.get("updated"),
                 },
                 "deliverable_path": str(deliverable_path),
-                "delta_path": str(output_file),
-                "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 
         if (
             not is_new_by_hash(state.get("file_sha256"), file_hash)
-            and res.new_rows == 0
-            and res.updated_cells == 0
             and db_comp_res.get("inserted") == 0
             and db_comp_res.get("updated") == 0
         ):

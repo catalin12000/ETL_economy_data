@@ -6,7 +6,6 @@ import pandas as pd
 
 from etl.core.download import is_new_by_hash
 from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprint
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres, get_engine, _normalize_match_value
 from etl.core.output import write_deliverable_csv
 from etl.core.paths import PipelinePaths
@@ -187,19 +186,8 @@ class Pipeline:
             }
 
         # 2. Sync with Baseline DB (Local Reference)
-        db_path = pp.baseline
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = pp.output / "update_report.csv"
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_new,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year", "month", "group", "loan_type"]
-        )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
@@ -232,7 +220,6 @@ class Pipeline:
         db_diff_only_file = output_dir / "db_differences_only.csv"
 
         # 4. Create Deliverables
-        output_file = output_dir / "new_entries.csv"
 
         enriched_snapshot_df = self._attach_ids_to_local_output(res.updated_df, full_replace_df)
         enriched_diff_df = self._attach_ids_to_local_output(res.diff_df, full_replace_df)
@@ -268,18 +255,12 @@ class Pipeline:
         }
 
         new_state.update({
-            "rows_before": res.rows_before,
-            "rows_after": res.rows_after,
-            "new_rows": res.new_rows,
-            "updated_cells": res.updated_cells,
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path),
-            "delta_path": str(output_file),
             "db_differences_only_path": str(db_diff_only_file),
-            "mock_db_snapshot_path": str(out_csv_full),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), src_hash) and res.new_rows == 0 and res.updated_cells == 0 and db_comp_res.get("inserted") == 0 and db_comp_res.get("updated") == 0:
+        if not is_new_by_hash(state.get("file_sha256"), src_hash) and db_comp_res.get("inserted") == 0 and db_comp_res.get("updated") == 0:
             return {"status": "skipped", "message": "No new data detected.", "state": new_state}
 
         return {

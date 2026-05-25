@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file
+from etl.core.fingerprint import should_skip_scraped
 from etl.core.output import write_deliverable_csv
 from etl.core.paths import PipelinePaths
 from .extract import extract_lro_transfers
@@ -118,6 +119,12 @@ class Pipeline:
                 "state": new_state,
             }
 
+        latest_row = df_new.sort_values(["year", "month"]).iloc[-1]
+        latest_period = f"{int(latest_row['year'])}-{int(latest_row['month']):02d}"
+        new_state["latest_period_seen"] = latest_period
+        if should_skip_scraped(state, latest_period):
+            return {"status": "skipped", "message": "Source period unchanged.", "state": new_state}
+
         output_dir = pp.output
         print("Comparing with live Cyprus Postgres DB (zeus)...")
         db_comp_res = compare_with_postgres(
@@ -177,7 +184,8 @@ class Pipeline:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
             out = df.copy()
-            out["id"] = pd.to_numeric(out.get("id"), errors="coerce").map(
+            id_series = out["id"] if "id" in out.columns else pd.Series([pd.NA] * len(out), dtype=object)
+            out["id"] = pd.to_numeric(id_series, errors="coerce").map(
                 lambda x: "" if pd.isna(x) else str(int(x))
             )
             for col in integer_cols:
@@ -194,8 +202,8 @@ class Pipeline:
         new_state.update(
             {
                 "db_comparison": {
-                    "missing": db_comp_res.get("inserted"),
-                    "different": db_comp_res.get("updated"),
+                    "missing_in_db": db_comp_res.get("inserted"),
+                    "different_in_db": db_comp_res.get("updated"),
                 },
                 "deliverable_path": str(deliverable_path),
                 "differences_path": str(differences_path),

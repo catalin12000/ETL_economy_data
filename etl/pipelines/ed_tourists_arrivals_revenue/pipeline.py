@@ -6,7 +6,6 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, is_new_by_hash, sha256_file
 from etl.core.output import write_deliverable_csv
@@ -67,21 +66,7 @@ class Pipeline:
         df_new = extract_tourists_arrivals_revenue(receipts_path, travellers_path)
 
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        report_csv = pp.output / "update_report.csv"
-        db_path = pp.baseline
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_new,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year", "quarter", "area", "country_of_origin"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (athena)...")
         df_for_db = df_new.rename(
@@ -168,23 +153,15 @@ class Pipeline:
         }
         new_state.update(
             {
-                "rows_before": res.rows_before,
-                "rows_after": res.rows_after,
-                "new_rows": res.new_rows,
-                "updated_cells": res.updated_cells,
                 "db_comparison": db_summary,
                 "deliverable_path": str(deliverable_path),
-                "delta_path": str(output_file),
                 "db_differences_only_path": str(db_diff_only_path),
-                "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 
         if (
             not is_new_by_hash(state.get("file_sha256_receipts"), hash_receipts)
             and not is_new_by_hash(state.get("file_sha256_travellers"), hash_travellers)
-            and res.new_rows == 0
-            and res.updated_cells == 0
             and db_comp_res.get("inserted") == 0
             and db_comp_res.get("updated") == 0
         ):

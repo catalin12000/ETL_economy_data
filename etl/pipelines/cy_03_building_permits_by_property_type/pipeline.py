@@ -8,8 +8,8 @@ import requests
 import pandas as pd
 
 from etl.core.download import sha256_file, is_new_by_hash
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
+from etl.core.fingerprint import dataframe_sha256, should_skip_api
 from etl.core.output import write_deliverable_csv
 from etl.core.paths import PipelinePaths
 from .extract import extract_building_permits_type
@@ -61,19 +61,13 @@ class Pipeline:
         print("Extracting data to DB format...")
         df_new_db = extract_building_permits_type(out_path)
 
-        db_path = pp.baseline
-        output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = pp.output / "update_report.csv"
+        data_hash = dataframe_sha256(df_new_db, sort_cols=["year", "month", "permits"])
+        new_state["data_sha256"] = data_hash
+        if should_skip_api(state, data_hash):
+            return {"status": "skipped", "message": "API data unchanged.", "state": new_state}
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_path,
-            df_new_db,
-            out_csv_full,
-            report_csv,
-            key_cols=["year", "month", "permits"],
-        )
+        output_dir = pp.output
+
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         sql_path = pp.sql("ed_building_permits_by_property_type.sql")
@@ -94,9 +88,6 @@ class Pipeline:
             f"{db_comp_res.get('updated')} different."
         )
 
-        output_file = output_dir / "new_entries.csv"
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         now = datetime.now()
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
@@ -167,14 +158,8 @@ class Pipeline:
 
         new_state.update(
             {
-                "rows_before": res.rows_before,
-                "rows_after": res.rows_after,
-                "new_rows": res.new_rows,
-                "updated_cells": res.updated_cells,
                 "db_comparison": db_summary,
                 "deliverable_path": str(deliverable_path),
-                "delta_path": str(output_file),
-                "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 

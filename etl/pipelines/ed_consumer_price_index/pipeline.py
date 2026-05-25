@@ -7,7 +7,6 @@ import pandas as pd
 
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_latest_publication_url, get_download_url_by_title
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.output import write_deliverable_csv
 from etl.core.paths import PipelinePaths
@@ -51,13 +50,8 @@ class Pipeline:
         df_new = extract_cpi(xls_path)
         
         # 2. Sync with master DB (Read-Only Reference)
-        db_path = pp.baseline
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        report_csv = pp.output / "update_report.csv"
         
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(db_path, df_new, out_csv_full, report_csv)
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
@@ -79,13 +73,10 @@ class Pipeline:
         print(f"Postgres comparison result: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} different.")
 
         # 4. Create "New Entries" deliverable
-        output_file = output_dir / "new_entries.csv"
 
         # Snapshot (full updated DB)
-        res.updated_df.to_csv(out_csv_full, index=False)
 
         # Deliverable (additions/updates only)
-        res.diff_df.to_csv(output_file, index=False)
         
         # 5. User-Requested Timestamped Deliverable (DB Delta ONLY)
         import datetime
@@ -118,17 +109,11 @@ class Pipeline:
         }
 
         new_state.update({
-            "rows_before": res.rows_before,
-            "rows_after": res.rows_after,
-            "new_rows": res.new_rows,
-            "updated_cells": res.updated_cells,
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path), 
-            "delta_path": str(output_file),
-            "mock_db_snapshot_path": str(out_csv_full),
         })
 
-        if not is_new_by_hash(state.get("file_sha256"), file_hash) and res.new_rows == 0 and res.updated_cells == 0 and db_comp_res.get("inserted") == 0 and db_comp_res.get("updated") == 0:
+        if not is_new_by_hash(state.get("file_sha256"), file_hash) and db_comp_res.get("inserted") == 0 and db_comp_res.get("updated") == 0:
             return {"status": "skipped", "message": "No new data detected.", "state": new_state}
 
         return {

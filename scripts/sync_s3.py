@@ -38,6 +38,12 @@ _RAW_PATH_KEYS = (
     "last_download_path_totals_2026",
     "last_download_path_foreigners_2025",
     "last_download_path_foreigners_2026",
+    "last_download_path_contracts_2025",
+    "last_download_path_contracts_2026",
+    "last_download_path_03",
+    "last_download_path_04",
+    "last_download_path_price",
+    "last_download_path_rent",
 )
 
 W = 55  # pipeline column width

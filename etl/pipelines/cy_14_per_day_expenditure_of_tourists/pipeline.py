@@ -7,7 +7,6 @@ from typing import Any, Dict
 import pandas as pd
 import requests
 
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import is_new_by_hash, sha256_file
 from etl.core.nulls import normalize_nulls
@@ -116,22 +115,8 @@ class Pipeline:
         if "average_length_of_stay_nights" in df_new.columns and "average_length_of_stay" not in df_new.columns:
             df_new = df_new.rename(columns={"average_length_of_stay_nights": "average_length_of_stay"})
 
-        db_path = pp.baseline
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        report_csv = pp.output / "update_report.csv"
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_path,
-            df_new,
-            out_csv_full,
-            report_csv,
-            key_cols=["year", "month", "country_of_origin"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (zeus)...")
         df_for_db = df_new.copy()
@@ -210,22 +195,14 @@ class Pipeline:
         }
         new_state.update(
             {
-                "rows_before": res.rows_before,
-                "rows_after": res.rows_after,
-                "new_rows": res.new_rows,
-                "updated_cells": res.updated_cells,
                 "db_comparison": db_summary,
                 "deliverable_path": str(deliverable_path),
-                "delta_path": str(output_file),
                 "db_differences_only_path": str(db_diff_only_path),
-                "mock_db_snapshot_path": str(out_csv_full),
             }
         )
 
         if (
             not is_new_by_hash(state.get("file_sha256"), file_hash)
-            and res.new_rows == 0
-            and res.updated_cells == 0
             and db_comp_res.get("inserted") == 0
             and db_comp_res.get("updated") == 0
         ):

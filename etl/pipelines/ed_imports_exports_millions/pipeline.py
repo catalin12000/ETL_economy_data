@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 import pandas as pd
 
-from etl.core.compare_csv import compare_and_update_csv
 from etl.core.database import compare_with_postgres
 from etl.core.download import download_file, sha256_file, is_new_by_hash
 from etl.core.elstat import get_download_url_by_title, get_latest_publication_year_url
@@ -125,26 +124,12 @@ class Pipeline:
             }
 
         output_dir = pp.output
-        out_csv_full = output_dir / "mock_db_snapshot.csv"
-        output_file = output_dir / "new_entries.csv"
-        report_csv = pp.output / "update_report.csv"
-        db_path = pp.baseline
 
         # Local baseline compare (deliverable shape, without ID)
         df_local = pd.DataFrame({"Year": df_new["Year"]})
         for db_col, out_col in DISPLAY_MAP.items():
             df_local[out_col] = df_new[db_col]
 
-        print(f"Comparing with baseline DB {db_path}...")
-        res = compare_and_update_csv(
-            db_csv_path=db_path,
-            extracted_df=df_local,
-            out_csv_path=out_csv_full,
-            report_csv_path=report_csv,
-            key_cols=["year"],
-        )
-        res.updated_df.to_csv(out_csv_full, index=False)
-        res.diff_df.to_csv(output_file, index=False)
 
         # DB compare (read-only)
         print("Comparing extraction with live Postgres DB (athena)...")
@@ -232,20 +217,12 @@ class Pipeline:
             "different_in_db": db_comp_res.get("updated"),
         }
         new_state.update({
-            "rows_before": res.rows_before,
-            "rows_after": res.rows_after,
-            "new_rows": res.new_rows,
-            "updated_cells": res.updated_cells,
             "db_comparison": db_summary,
             "deliverable_path": str(deliverable_path),
-            "delta_path": str(output_file),
-            "mock_db_snapshot_path": str(out_csv_full),
         })
 
         if (
             not is_new_by_hash(state.get("file_sha256"), file_hash)
-            and res.new_rows == 0
-            and res.updated_cells == 0
             and db_comp_res.get("inserted") == 0
             and db_comp_res.get("updated") == 0
         ):

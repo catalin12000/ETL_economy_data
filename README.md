@@ -1,22 +1,8 @@
 # Economy Data ETL — Greece & Cyprus
 
 ETL framework for collecting economic datasets from public sources (PDFs, Excel, APIs),
-extracting structured data, comparing against a live Postgres DB, and producing deliverables.
-
-For the current operational picture, including the run flow, logging policy, S3 Sync behavior,
-and what changed in the latest refactor, see [docs/ETL_CURRENT_OVERVIEW.md](docs/ETL_CURRENT_OVERVIEW.md).
-
----
-
-## Pipeline count
-
-| | Count |
-|---|---|
-| Total pipelines | 65 |
-| Generating a deliverable | 63 |
-| Fully wired (download + extract + DB compare) | 61 |
-| Download = deliverable (raw XLS) | 3 |
-| Pending (no table in DB yet / no extractor) | 2 |
+extracting structured data, comparing against a live Postgres DB, and producing deliverables
+for a downstream Backend to load.
 
 ---
 
@@ -28,31 +14,26 @@ ETL_economy_data/
 ├── .env                            # DB + AWS credentials (not committed)
 ├── requirements.txt
 ├── scripts/
-│   ├── sync_s3.py                  # S3 upload step (run after pipelines)
-│   └── ...
+│   └── sync_s3.py                  # S3 upload step (run after pipelines)
 └── etl/
     ├── core/
-    │   ├── runner.py               # loads + runs pipelines, prints summary
-    │   ├── download.py             # file download + hash
-    │   ├── compare_csv.py          # baseline CSV comparison
+    │   ├── runner.py               # discovers + runs pipelines, prints summary
+    │   ├── download.py             # file download + SHA256 hash
+    │   ├── fingerprint.py          # skip-signal helpers per source type
     │   ├── database.py             # compare_with_postgres (read-only)
     │   ├── output.py               # write_deliverable_csv (snake_case headers)
     │   ├── s3_upload.py            # S3 path logic + boto3 upload
     │   ├── paths.py                # PipelinePaths — centralised I/O paths
     │   ├── state.py                # load/save state.json per pipeline
-    │   └── nulls.py                # normalise null tokens (..., u, N/A, :)
+    │   └── pipeline_logging.py     # structured run + sync logs
     └── pipelines/
         └── <pipeline_id>/
-            ├── pipeline.py         # download → extract → DB compare → deliverable
+            ├── pipeline.py         # download → skip? → extract → DB compare → deliverable
             ├── extract.py          # pure extraction logic (file → DataFrame)
             ├── __init__.py
-            ├── scripts/            # SQL query files for DB compare
-            ├── downloaded/
-            │   └── YYYY-MM/        # raw downloaded files (not committed)
-            ├── output/
-            │   └── YYYY-MM/        # deliverables + reports (not committed)
-            ├── baseline.csv        # local snapshot DB (not committed)
-            └── state.json          # run state / hashes (not committed)
+            ├── downloaded/         # raw downloaded files (not committed)
+            ├── output/             # deliverables (not committed)
+            └── state.json          # per-run cache: hashes, paths, last status (not committed)
 ```
 
 ---
@@ -77,69 +58,69 @@ S3_BUCKET=your-bucket-name
 
 ## How to run
 
-### Run all pipelines
 ```bash
+# Run all pipelines
 python run.py --all
-```
 
-### Run one pipeline
-```bash
+# Run one pipeline
 python run.py --pipeline gdp_greece
 ```
 
-A summary table is printed at the end showing status, rows added/updated, deliverable name, and any errors.
+A summary table is printed at the end showing each pipeline's status, rows inserted/updated, deliverable name, and any errors.
 
 ---
 
-## When does a pipeline skip?
+## Pipeline flow
 
-A pipeline returns `skipped` (no deliverable produced) when:
+Each `Pipeline.run(state)` follows the same pattern:
 
-1. **File unchanged** — the downloaded file has the same SHA256 as the previous run.
-2. **No new data** — the file is new but DB compare finds 0 missing + 0 different rows and the baseline shows 0 new/updated rows.
+1. **Download** — fetch source file(s) and hash them
+2. **Skip check** — compare against `state.json`; return `skipped` if source is unchanged
+3. **Extract** — parse the file into a tidy DataFrame
+4. **DB Compare** — `compare_with_postgres` against the live DB to find the Delta (inserts + updates)
+5. **Deliverable** — write the Delta as a CSV via `write_deliverable_csv`
 
-This prevents empty deliverables and unnecessary S3 uploads when the source hasn't published new data.
+The skip signal depends on the pipeline's `source_type`:
+
+| `source_type` | Skip when |
+|---|---|
+| `api` | `data_sha256` unchanged |
+| `dynamic_file` | `file_sha256` unchanged + DB has no delta |
+| `static_file` | `file_sha256` unchanged + DB has no delta |
+| `scraped` | `latest_period_seen` unchanged |
 
 ---
 
 ## S3 sync
 
-S3 upload is a **separate step** — run it after verifying deliverables.
+S3 upload is a **separate step** — run it after verifying deliverables locally.
 
-### Dry run (preview keys without uploading)
 ```bash
+# Preview what would be uploaded (no actual upload)
 python scripts/sync_s3.py --dry-run
-```
 
-### Sync all pipelines
-```bash
+# Upload all pipelines
 python scripts/sync_s3.py
-```
 
-### Sync specific pipelines
-```bash
+# Upload specific pipelines
 python scripts/sync_s3.py gdp_greece cy_11_lro_transfers
 ```
 
-### S3 path structure
+S3 path structure:
 ```
-raw_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.{ext}
-transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.csv
-transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.log
+raw_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{stem}_{timestamp}.{ext}
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{db_table_name}_{timestamp}.csv
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{db_table_name}_{timestamp}.log
 ```
 
-**Sources:** `elstat`, `bank_of_greece`, `eurostat`, `migration_gov` (Greece) · `cystat`, `central_bank_cy`, `dls`, `eurostat` (Cyprus)
+Pipelines whose last run was `skipped` or `error` are not uploaded.
 
 ---
 
 ## DB usage
 
-The DB is **read-only** from ETL. We never insert or update DB rows from code.
-The DB is used only for:
-- Comparing extracted data to find missing / different rows
-- Looking up existing IDs to include in deliverables
+The DB is **read-only**. This ETL never inserts or updates rows — it only reads to find the Delta.
 
-Two databases:
 - **athena** — Greek datasets (`ed_` pipelines)
 - **zeus** — Cyprus datasets (`cy_` pipelines)
 
@@ -147,32 +128,36 @@ Two databases:
 
 ## Data sources
 
-| Source | Country | Pipelines |
+| Source | Country | Type |
 |---|---|---|
-| ELSTAT (statistics.gr) | Greece | ~25 pipelines (DKT, SOP, SEL, SFC series) |
-| Bank of Greece (bankofgreece.gr) | Greece | 11 pipelines |
-| Eurostat (ec.europa.eu) | Greece + Cyprus | 7 pipelines |
-| migration.gov.gr | Greece | 8 pipelines |
-| CYSTAT (cystatdb.cystat.gov.cy) | Cyprus | 11 pipelines |
-| Central Bank of Cyprus (centralbank.cy) | Cyprus | 3 pipelines |
-| DLS / DLS Portal (portal.dls.moi.gov.cy) | Cyprus | 2 pipelines |
+| ELSTAT (statistics.gr) | Greece | dynamic_file / api |
+| Bank of Greece (bankofgreece.gr) | Greece | static_file / dynamic_file |
+| Eurostat (ec.europa.eu) | Greece + Cyprus | api |
+| migration.gov.gr | Greece | scraped |
+| CYSTAT (cystatdb.cystat.gov.cy) | Cyprus | api |
+| Central Bank of Cyprus (centralbank.cy) | Cyprus | static_file |
+| DLS Portal (portal.dls.moi.gov.cy) | Cyprus | scraped |
 
 ---
 
 ## Adding a new pipeline
 
-1. Create folder: `etl/pipelines/<pipeline_id>/`
-2. Add `__init__.py`, `pipeline.py`, `extract.py`
-3. Add a SQL query file to `scripts/` named after the DB table
-4. Follow the standard pattern:
-   - Download → hash check → extract → `compare_and_update_csv` → `compare_with_postgres` → `write_deliverable_csv`
-5. Add the pipeline to `_PIPELINE_META` in `etl/core/s3_upload.py`
-6. Run once, check console for any QA warnings (unmapped codes, etc.)
+1. Create `etl/pipelines/<pipeline_id>/` with `__init__.py`, `pipeline.py`, `extract.py`
+2. In `Pipeline`, set `pipeline_id`, `country`, `source`, `source_type`, `db_table_name`, `display_name`
+3. Implement `run(state)`:
+   - Download + hash
+   - Skip check via the appropriate `fingerprint.py` helper
+   - Extract to DataFrame
+   - `compare_with_postgres` for the Delta
+   - `write_deliverable_csv`
+4. Add the pipeline to `_PIPELINE_META` in `etl/core/s3_upload.py`
+5. Run once and check the summary
 
 ---
 
 ## Notes
 
-- All deliverable CSV headers are automatically snake_cased by `write_deliverable_csv`.
+- Deliverable CSV headers are automatically snake_cased by `write_deliverable_csv`.
 - `...`, `u`, `N/A`, `:` and similar null tokens are normalised to `pd.NA` before DB compare.
-- Per-pipeline `.gitignore` excludes `downloaded/`, `output/`, `state.json`, `baseline.csv`.
+- `state.json` is a local cache — safe to delete; losing it costs one redundant run.
+- Per-pipeline `.gitignore` excludes `downloaded/`, `output/`, and `state.json`.
