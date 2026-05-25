@@ -94,24 +94,24 @@ def extract_tourist_expenditure_distribution(csv_path: Path) -> pd.DataFrame:
             key = (year, month, country)
             if key not in records_map:
                 records_map[key] = {
-                    "Year": year,
-                    "Month": month,
-                    "Country_of_origin": country,
-                    "Average_length_of_stay_(nights)": "",
-                    "Expenditure_per_day": "",
+                    "year": year,
+                    "month": month,
+                    "country_of_origin": country,
+                    "average_length_of_stay_nights": "",
+                    "expenditure_per_day": "",
                 }
 
             value = _clean_value(row.get(raw_country, ""))
             if is_length:
-                records_map[key]["Average_length_of_stay_(nights)"] = value
+                records_map[key]["average_length_of_stay_nights"] = value
             elif is_per_day:
-                records_map[key]["Expenditure_per_day"] = value
+                records_map[key]["expenditure_per_day"] = value
 
     out = pd.DataFrame(records_map.values())
     if out.empty:
         raise RuntimeError("No rows extracted for tourist expenditure distribution.")
 
-    out["__country_ord"] = out["Country_of_origin"].map(country_rank).fillna(999)
-    out = out.sort_values(["Year", "Month", "__country_ord"]).drop(columns=["__country_ord"])
+    out["__country_ord"] = out["country_of_origin"].map(country_rank).fillna(999)
+    out = out.sort_values(["year", "month", "__country_ord"]).drop(columns=["__country_ord"])
     out = out.reset_index(drop=True)
     return out

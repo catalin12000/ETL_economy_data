@@ -133,11 +133,11 @@ def extract_services_sector_turnover(xls_path: Path) -> pd.DataFrame:
                 continue
             records.append(
                 {
-                    "Year": current_year,
-                    "Month": month,
-                    "Code": code,
-                    "Economic_Activity": activity,
-                    "Index": round(val, 6),
+                    "year": current_year,
+                    "month": month,
+                    "code": code,
+                    "economic_activity": activity,
+                    "index": round(val, 6),
                 }
             )
 
@@ -145,4 +145,4 @@ def extract_services_sector_turnover(xls_path: Path) -> pd.DataFrame:
     if out.empty:
         raise RuntimeError(f"No data extracted from {xls_path.name}.")
 
-    return out.sort_values(["Year", "Month", "Code"]).reset_index(drop=True)
+    return out.sort_values(["year", "month", "code"]).reset_index(drop=True)

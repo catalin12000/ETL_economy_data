@@ -4,7 +4,9 @@ from importlib import import_module
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+from time import perf_counter
 
+from etl.core.pipeline_logging import emit_event, flush_pipeline_log, new_run_id, set_log_context
 from etl.core.state import load_state, save_state
 
 
@@ -58,17 +60,40 @@ def _summary_fields(state: Dict[str, Any]) -> Dict[str, Optional[int | str]]:
     }
 
 
-def run_one(pipeline_id: str) -> Dict[str, Any]:
+def run_one(pipeline_id: str, run_id: str | None = None) -> Dict[str, Any]:
     """
     Runs one pipeline. Returns a result dict so callers (e.g. run.py --all) can
     accumulate results and print one consolidated summary table at the end.
     """
-    pipe = _load_pipeline(pipeline_id)
-    state: Dict[str, Any] = load_state(pipeline_id)
-
+    run_id = run_id or new_run_id()
+    set_log_context(run_id=run_id, pipeline_id=pipeline_id)
+    started = perf_counter()
+    state: Dict[str, Any] = {}
     _safe_print(f"\n=== Running pipeline: {pipeline_id} ===")
+    emit_event(stage="pipeline", event="pipeline_started", status="start")
 
     try:
+        pipe = _load_pipeline(pipeline_id)
+        emit_event(
+            stage="pipeline",
+            event="pipeline_loaded",
+            status="success",
+            country=getattr(pipe, "country", None),
+            source=getattr(pipe, "source", None),
+            source_type=getattr(pipe, "source_type", None),
+            display_name=getattr(pipe, "display_name", None),
+            db_table_name=getattr(pipe, "db_table_name", None),
+        )
+        state = load_state(pipeline_id)
+        emit_event(
+            stage="state",
+            event="state_loaded",
+            status="success",
+            state_path=str(Path("etl") / "pipelines" / pipeline_id / "state.json"),
+            state_keys=sorted(state.keys()),
+            previous_status=state.get("last_status"),
+            previous_success_at_utc=state.get("last_success_at_utc"),
+        )
         result = pipe.run(state)
         status = result.get("status", "unknown")
         message = result.get("message", "")
@@ -78,6 +103,14 @@ def run_one(pipeline_id: str) -> Dict[str, Any]:
         message = str(e)
         new_state = state
         _safe_print(f"Error: {e}")
+        emit_event(
+            stage="pipeline",
+            event="pipeline_failed",
+            status="error",
+            error_type=type(e).__name__,
+            error_message=str(e),
+            duration_ms=round((perf_counter() - started) * 1000),
+        )
 
     new_state["last_run_at_utc"] = datetime.now(timezone.utc).isoformat()
     new_state["last_status"] = status
@@ -86,13 +119,82 @@ def run_one(pipeline_id: str) -> Dict[str, Any]:
         new_state["last_success_at_utc"] = new_state["last_run_at_utc"]
 
     save_state(pipeline_id, new_state)
+    emit_event(
+        stage="state",
+        event="state_saved",
+        status="success",
+        state_path=str(Path("etl") / "pipelines" / pipeline_id / "state.json"),
+        state_keys=sorted(new_state.keys()),
+    )
+
+    emit_event(
+        stage="pipeline",
+        event="pipeline_completed",
+        status=status,
+        message=message,
+        duration_ms=round((perf_counter() - started) * 1000),
+        summary=_summary_fields(new_state),
+    )
+    pipeline_log_path = flush_pipeline_log(status=status, pipeline_id=pipeline_id, run_id=run_id)
 
     return {
         "pipeline_id": pipeline_id,
         "status": status,
         "message": message,
         "state": new_state,
+        "pipeline_log_path": str(pipeline_log_path) if pipeline_log_path else "",
     }
+
+
+def write_run_log(
+    run_id: str,
+    results: List[Dict[str, Any]],
+    *,
+    mode: str,
+    started_at: datetime | None = None,
+) -> Path:
+    now = datetime.now(timezone.utc)
+    path = Path("etl") / "logs" / "runs" / now.strftime("%Y-%m") / f"{run_id}.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    counts: Dict[str, int] = {}
+    for result in results:
+        counts[result["status"]] = counts.get(result["status"], 0) + 1
+
+    lines = [
+        "=" * 88,
+        "Run Log",
+        f"Run ID: {run_id}",
+        f"Mode: {mode}",
+        f"Started: {(started_at or now).isoformat()}",
+        f"Completed: {now.isoformat()}",
+        "=" * 88,
+        "",
+        "Summary:",
+        f"  total: {len(results)}",
+    ]
+    for status, count in sorted(counts.items()):
+        lines.append(f"  {status}: {count}")
+
+    lines.extend(["", "Pipelines:"])
+    for result in sorted(results, key=lambda r: (r["status"], r["pipeline_id"])):
+        fields = _summary_fields(result["state"])
+        note = " ".join((result.get("message") or "").split())
+        lines.append(f"  {result['pipeline_id']}")
+        lines.append(f"    status: {result['status']}")
+        if fields["deliverable"]:
+            lines.append(f"    deliverable: {fields['deliverable']}")
+        if fields["added"] is not None:
+            lines.append(f"    db_added: {fields['added']}")
+        if fields["updated"] is not None:
+            lines.append(f"    db_updated: {fields['updated']}")
+        if result.get("pipeline_log_path"):
+            lines.append(f"    pipeline_run_log: {result['pipeline_log_path']}")
+        if note and result["status"] != "delivered":
+            lines.append(f"    note: {note}")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def print_run_summary(results: List[Dict[str, Any]]) -> None:

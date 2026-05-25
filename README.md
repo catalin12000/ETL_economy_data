@@ -121,7 +121,8 @@ python scripts/sync_s3.py gdp_greece cy_11_lro_transfers
 ### S3 path structure
 ```
 raw_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.{ext}
-transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/deliverable/{filename}_{timestamp}.csv
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.csv
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{filename}_{timestamp}.log
 ```
 
 **Sources:** `elstat`, `bank_of_greece`, `eurostat`, `migration_gov` (Greece) · `cystat`, `central_bank_cy`, `dls`, `eurostat` (Cyprus)

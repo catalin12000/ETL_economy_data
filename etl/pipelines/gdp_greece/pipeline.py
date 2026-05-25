@@ -85,20 +85,11 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Quarter"]
+            key_cols=["year", "quarter"]
         )
 
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Year": "year",
-            "Quarter": "quarter",
-            "Chain_Linked_Volumes": "chain_linked_volumes",
-            "Quarter_Over_Quarter": "quarter_over_quarter",
-            "Year_Over_Year": "year_over_year",
-            "Current_prices": "current_prices"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
 
         sql_path = pp.sql("gdp_greece.sql")
 
@@ -131,21 +122,11 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "id", "Year", "Quarter", "Chain_Linked_Volumes",
-            "Quarter_Over_Quarter", "Year_Over_Year", "Current_Prices"
+            "id", "year", "quarter", "chain_linked_volumes",
+            "quarter_over_quarter", "year_over_year", "current_prices"
         ]
 
         if not delta_df.empty:
-            rev_map = {
-                "id": "id",
-                "year": "Year",
-                "quarter": "Quarter",
-                "chain_linked_volumes": "Chain_Linked_Volumes",
-                "quarter_over_quarter": "Quarter_Over_Quarter",
-                "year_over_year": "Year_Over_Year",
-                "current_prices": "Current_Prices"
-            }
-            delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:

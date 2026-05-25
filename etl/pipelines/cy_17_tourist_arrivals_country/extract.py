@@ -96,12 +96,12 @@ def extract_tourist_arrivals_country(csv_path: Path) -> pd.DataFrame:
             arrivals = _format_arrivals(row.get(col_name, ""))
             records.append(
                 {
-                    "Year": year,
-                    "Month": month,
-                    "Country_key": key,
-                    "Country_order": int(row_idx),
-                    "Country_of_origin": display,
-                    "Arrivals": arrivals,
+                    "year": year,
+                    "month": month,
+                    "country_key": key,
+                    "country_order": int(row_idx),
+                    "country_of_origin": display,
+                    "arrivals": arrivals,
                 }
             )
 
@@ -109,5 +109,5 @@ def extract_tourist_arrivals_country(csv_path: Path) -> pd.DataFrame:
     if out.empty:
         raise RuntimeError("No rows extracted for tourist arrivals by country.")
 
-    out = out.sort_values(["Year", "Month", "Country_order"]).reset_index(drop=True)
+    out = out.sort_values(["year", "month", "country_order"]).reset_index(drop=True)
     return out

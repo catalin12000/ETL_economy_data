@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -163,12 +163,47 @@ def _s3_key(
     return f"{folder}/{country}/economy_data/{source}/{date_folder}/{name}_{timestamp}{ext}"
 
 
+def _pipeline_log_path(pipeline_id: str) -> Path | None:
+    logs_root = Path("etl") / "pipelines" / pipeline_id / "logs"
+    if not logs_root.exists():
+        return None
+
+    logs = sorted(logs_root.glob("*/*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return logs[0] if logs else None
+
+
+def _log_s3_key(deliverable_key: str) -> str:
+    return str(Path(deliverable_key).with_suffix(".log")).replace("\\", "/")
+
+
+def _append_s3_upload_section(
+    log_path: Path,
+    *,
+    bucket: str,
+    deliverable_key: str,
+    log_key: str,
+    uploaded_at: datetime,
+) -> None:
+    deliverable_name = deliverable_key.rsplit("/", 1)[-1]
+    section = (
+        "\n"
+        "[S3 Sync]\n"
+        f"  uploaded_at: {uploaded_at.isoformat()}\n"
+        f"  bucket: {bucket}\n"
+        f"  s3_deliverable_name: {deliverable_name}\n"
+        f"  s3_deliverable_key: {deliverable_key}\n"
+        f"  s3_log_key: {log_key}\n"
+    )
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(section)
+
+
 def upload_pipeline_files(
     pipeline_id: str,
     raw_paths: list[Path],
     deliverable_path: Optional[Path],
     run_dt: Optional[datetime] = None,
-) -> dict[str, list[str]]:
+) -> dict[str, Any]:
     """
     Upload raw downloaded files and the deliverable to S3.
 
@@ -182,12 +217,18 @@ def upload_pipeline_files(
     client = _get_client()
     uploaded: list[str] = []
     errors: list[str] = []
+    details: dict[str, Any] = {}
+
+    raw_keys: list[str] = []
+    deliverable_uploaded = False
+    pipeline_log_uploaded = False
 
     # Upload raw files
     for path in raw_paths:
         if not path or not Path(path).exists():
             continue
         key = _s3_key(pipeline_id, Path(path), "raw_data", run_dt)
+        raw_keys.append(key)
         try:
             client.upload_file(str(path), _BUCKET, key)
             uploaded.append(key)
@@ -197,12 +238,37 @@ def upload_pipeline_files(
     # Upload deliverable — named after the DB table so the backend knows where to load it
     if deliverable_path and Path(deliverable_path).exists():
         key = _s3_key(pipeline_id, Path(deliverable_path), "transformed_data", run_dt, use_table_name=True)
-        parts = key.rsplit("/", 1)
-        key = f"{parts[0]}/deliverable/{parts[1]}"
+        log_path = _pipeline_log_path(pipeline_id)
+        log_key = _log_s3_key(key) if log_path else None
+        details["s3_deliverable_name"] = key.rsplit("/", 1)[-1]
+        details["s3_deliverable_key"] = key
+        if log_key:
+            details["s3_log_key"] = log_key
+        details["raw_keys"] = raw_keys
+
         try:
             client.upload_file(str(deliverable_path), _BUCKET, key)
             uploaded.append(key)
+            deliverable_uploaded = True
         except (BotoCoreError, ClientError) as e:
             errors.append(f"deliverable {Path(deliverable_path).name}: {e}")
 
-    return {"uploaded": uploaded, "errors": errors}
+        if deliverable_uploaded and log_path and log_key:
+            try:
+                _append_s3_upload_section(
+                    log_path,
+                    bucket=_BUCKET,
+                    deliverable_key=key,
+                    log_key=log_key,
+                    uploaded_at=run_dt,
+                )
+                client.upload_file(str(log_path), _BUCKET, log_key)
+                uploaded.append(log_key)
+                pipeline_log_uploaded = True
+            except (OSError, BotoCoreError, ClientError) as e:
+                errors.append(f"log {log_path.name}: {e}")
+
+    details["raw_keys"] = raw_keys
+    details["deliverable_uploaded"] = deliverable_uploaded
+    details["pipeline_log_uploaded"] = pipeline_log_uploaded
+    return {"uploaded": uploaded, "errors": errors, "details": details}

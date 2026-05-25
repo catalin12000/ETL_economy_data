@@ -110,12 +110,12 @@ def extract_fdi_activity_sheet(xls_path: Path, sheet_name: str) -> pd.DataFrame:
 
             records.append(
                 {
-                    "Year": year,
-                    "Section Code": section_code,
-                    "Section Name": section_name,
-                    "Subsection Code": code,
-                    "Subsection Name": name,
-                    "Amount": float(amount),
+                    "year": year,
+                    "section_code": section_code,
+                    "section_name": section_name,
+                    "subsection_code": code,
+                    "subsection_name": name,
+                    "amount": float(amount),
                     "_row_order": row_order,
                 }
             )
@@ -124,9 +124,9 @@ def extract_fdi_activity_sheet(xls_path: Path, sheet_name: str) -> pd.DataFrame:
     if out.empty:
         raise RuntimeError("No rows extracted from FDI activity source.")
 
-    out = out.sort_values(["Year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
+    out = out.sort_values(["year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
     return out[
-        ["Year", "Section Code", "Section Name", "Subsection Code", "Subsection Name", "Amount"]
+        ["year", "section_code", "section_name", "subsection_code", "subsection_name", "amount"]
     ]
 
 

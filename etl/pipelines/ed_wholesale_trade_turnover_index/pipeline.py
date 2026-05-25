@@ -93,7 +93,7 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
@@ -133,30 +133,22 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["id", "Year", "Month", "Turnover Index", "Volume Index"]
+        target_cols = ["id", "year", "month", "turnover_index", "volume_index"]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(
-                columns={
-                    "id": "id",
-                    "year": "Year",
-                    "month": "Month",
-                    "turnover_index": "Turnover Index",
-                    "volume_index": "Volume Index",
-                }
-            ).copy()
+            shaped = df.copy()
             shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
-            shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
-            shaped["Month"] = pd.to_numeric(shaped["Month"], errors="coerce")
-            shaped = shaped.dropna(subset=["Year", "Month"]).copy()
-            shaped["Year"] = shaped["Year"].astype(int)
-            shaped["Month"] = shaped["Month"].astype(int)
-            shaped = shaped.sort_values(["Year", "Month"]).reset_index(drop=True)
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["month"] = pd.to_numeric(shaped["month"], errors="coerce")
+            shaped = shaped.dropna(subset=["year", "month"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
+            shaped["month"] = shaped["month"].astype(int)
+            shaped = shaped.sort_values(["year", "month"]).reset_index(drop=True)
             shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
-            for column in ["Turnover Index", "Volume Index"]:
+            for column in ["turnover_index", "volume_index"]:
                 if column in shaped.columns:
                     shaped[column] = pd.to_numeric(shaped[column], errors="coerce").map(
                         lambda x: "" if pd.isna(x) else f"{float(x):.6f}"

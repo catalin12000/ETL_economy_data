@@ -70,11 +70,11 @@ def extract_cpi(xls_path: Path) -> pd.DataFrame:
             
         if pd.notna(index_val):
             records.append({
-                "Year": current_year,
-                "Month": month,
-                "Index": index_val,
-                "Year Over Year": yoy_val
+                "year": current_year,
+                "month": month,
+                "index": index_val,
+                "year_over_year": yoy_val
             })
 
-    out = pd.DataFrame(records).sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = pd.DataFrame(records).sort_values(["year", "month"]).reset_index(drop=True)
     return out

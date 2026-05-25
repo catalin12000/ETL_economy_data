@@ -82,22 +82,19 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Quarter"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "quarter"]
         )
 
         # 5. DB Comparison (READ-ONLY - ZEUS DB)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = df_new.copy()
-        
-        # Map columns to lowercase for DB comparison (Already lowercase in extract.py except Year/Quarter)
-        df_for_db.columns = [c.lower() for c in df_for_db.columns]
-        
+
         sql_path = pp.sql("ed_residential_price_indices.sql")
-        
+
         sync_cols = [c for c in df_for_db.columns if c not in ["year", "quarter"]]
         
         db_comp_res = compare_with_postgres(
@@ -146,25 +143,24 @@ class Pipeline:
             "paphos_houses",
             "famagusta_houses",
         ]
-        target_cols = ["id", "Year", "Quarter"] + index_cols
+        target_cols = ["id", "year", "quarter"] + index_cols
 
         if not delta_db_df.empty:
-            delta_db_df = delta_db_df.rename(columns={"id": "id", "year": "Year", "quarter": "Quarter"})
-            delta_db_df = delta_db_df[delta_db_df["Year"] >= 2023].copy()
+            delta_db_df = delta_db_df[delta_db_df["year"] >= 2023].copy()
 
         if not delta_db_df.empty:
             if "id" in delta_db_df.columns:
                 delta_db_df["id"] = pd.to_numeric(delta_db_df["id"], errors="coerce").astype("Int64")
             else:
                 delta_db_df["id"] = pd.NA
-            delta_db_df["Year"] = pd.to_numeric(delta_db_df["Year"], errors="coerce").astype("Int64")
-            delta_db_df["Quarter"] = pd.to_numeric(delta_db_df["Quarter"], errors="coerce").astype("Int64")
+            delta_db_df["year"] = pd.to_numeric(delta_db_df["year"], errors="coerce").astype("Int64")
+            delta_db_df["quarter"] = pd.to_numeric(delta_db_df["quarter"], errors="coerce").astype("Int64")
 
             for c in index_cols:
                 if c in delta_db_df.columns:
                     delta_db_df[c] = pd.to_numeric(delta_db_df[c], errors="coerce")
 
-            delta_db_df = delta_db_df.sort_values(["Year", "Quarter"]).reset_index(drop=True)
+            delta_db_df = delta_db_df.sort_values(["year", "quarter"]).reset_index(drop=True)
 
             for c in target_cols:
                 if c not in delta_db_df.columns:

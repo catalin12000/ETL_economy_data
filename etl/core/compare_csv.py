@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+
+from etl.core.pipeline_logging import emit_event
 
 
 @dataclass
@@ -19,9 +22,16 @@ class CsvUpdateResult:
     diff_df: pd.DataFrame # Contains the actual rows that were added or modified
 
 
+def _to_snake_col(name: str) -> str:
+    s = str(name).strip().lower()
+    s = s.replace("&", "and").replace("+", "and")
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    return s.strip("_")
+
+
 def _clean_cols(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    cols = [str(c).strip() for c in df.columns]
+    cols = [_to_snake_col(c) for c in df.columns]
 
     # dedupe: Year, Year -> Year, Year__1
     seen = {}
@@ -56,13 +66,12 @@ def _to_num(x):
 
 
 def _period_num(df: pd.DataFrame) -> pd.Series:
-    # Fallback if Month is not present (e.g. Annual)
-    if "Month" in df.columns:
-        return df["Year"].astype(int) * 100 + df["Month"].astype(int)
-    elif "Quarter" in df.columns:
-        return df["Year"].astype(int) * 10 + df["Quarter"].astype(int)
-    else:
-        return df["Year"].astype(int)
+    # Fallback if month is not present (e.g. annual).
+    if "month" in df.columns and "year" in df.columns:
+        return df["year"].astype(int) * 100 + df["month"].astype(int)
+    if "quarter" in df.columns and "year" in df.columns:
+        return df["year"].astype(int) * 10 + df["quarter"].astype(int)
+    return df["year"].astype(int)
 
 
 def compare_and_update_csv(
@@ -77,6 +86,10 @@ def compare_and_update_csv(
 ) -> CsvUpdateResult:
     if not isinstance(db_csv_path, Path):
         db_csv_path = Path(db_csv_path)
+
+    key_cols = [_to_snake_col(c) for c in key_cols]
+    if val_cols is not None:
+        val_cols = [_to_snake_col(c) for c in val_cols]
 
     df_new = extracted_df.copy()
     df_new = _clean_cols(df_new)
@@ -229,7 +242,7 @@ def compare_and_update_csv(
     # Removed: df_updated.to_csv(db_csv_path, index=False) - Keeping DB as baseline reference only
     pd.DataFrame(changes).to_csv(report_csv_path, index=False)
 
-    return CsvUpdateResult(
+    result = CsvUpdateResult(
         rows_before=len(df_db),
         rows_after=len(df_updated),
         updated_cells=updated_cells,
@@ -238,3 +251,19 @@ def compare_and_update_csv(
         updated_df=df_updated,
         diff_df=df_diff
     )
+    emit_event(
+        stage="baseline_compare",
+        event="baseline_compare_completed",
+        status="success",
+        baseline_path=str(db_csv_path),
+        snapshot_path=str(out_csv_path),
+        report_path=str(report_csv_path),
+        rows_before=result.rows_before,
+        rows_after=result.rows_after,
+        new_rows=result.new_rows,
+        updated_cells=result.updated_cells,
+        key_cols=key_cols,
+        val_cols=val_cols,
+        columns=list(df_new.columns),
+    )
+    return result

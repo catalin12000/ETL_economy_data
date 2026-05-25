@@ -48,8 +48,8 @@ def extract_rppi(xls_path: Path) -> pd.DataFrame:
     records = []
     for _, row in data.iterrows():
         records.append({
-            "Year": int(row[0]),
-            "Quarter": int(row["Q_Int"]),
+            "year": int(row[0]),
+            "quarter": int(row["Q_Int"]),
             "residential_price_property_price_index": to_f(row[2]),
             "apartments_cy": to_f(row[3]),
             "houses_cy": to_f(row[4]),
@@ -70,5 +70,5 @@ def extract_rppi(xls_path: Path) -> pd.DataFrame:
             "famagusta_houses": to_f(row[19])
         })
         
-    out = pd.DataFrame(records).sort_values(["Year", "Quarter"]).reset_index(drop=True)
+    out = pd.DataFrame(records).sort_values(["year", "quarter"]).reset_index(drop=True)
     return out

@@ -141,7 +141,7 @@ class Pipeline:
             extracted_df=df_local,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year"],
+            key_cols=["year"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
@@ -208,18 +208,17 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["id", "Year"] + list(DISPLAY_MAP.values())
+        target_cols = ["id", "year"] + list(DISPLAY_MAP.keys())
 
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"id": "id", "year": "Year"})
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce").astype("Int64")
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce").astype("Int64")
 
-            for db_col, out_col in DISPLAY_MAP.items():
-                delta_df[out_col] = pd.to_numeric(delta_df.get(db_col), errors="coerce")
+            for db_col in DISPLAY_MAP:
+                delta_df[db_col] = pd.to_numeric(delta_df.get(db_col), errors="coerce")
 
-            delta_df = delta_df.sort_values(["Year"]).reset_index(drop=True)
+            delta_df = delta_df.sort_values(["year"]).reset_index(drop=True)
 
             for c in target_cols:
                 if c not in delta_df.columns:

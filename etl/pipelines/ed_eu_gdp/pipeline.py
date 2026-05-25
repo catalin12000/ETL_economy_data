@@ -56,26 +56,16 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Quarter", "Geopolitical Entity"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "quarter", "geopolitical_entity"]
         )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Geopolitical Entity": "geopolitical_entity",
-            "Year": "year",
-            "Quarter": "quarter",
-            "Chain Linked Volumes": "chain_linked_volumes",
-            "Quarter Over Quarter": "quarter_over_quarter",
-            "Year Over Year": "year_over_year",
-            "Current Prices": "current_prices"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
         
         sql_path = pp.sql("ed_eu_gdp.sql")
         
@@ -114,23 +104,11 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'id', 'Geopolitical_Entity', 'Year', 'Quarter', 'Chain_Linked_Volumes', 
-            'Quarter_Over_Quarter', 'Year_Over_Year', 'Current_Prices'
+            'id', 'geopolitical_entity', 'year', 'quarter', 'chain_linked_volumes',
+            'quarter_over_quarter', 'year_over_year', 'current_prices'
         ]
-        
+
         if not delta_df.empty:
-            # Map back to Capitalized for deliverable
-            rev_map = {
-                "id": "id",
-                "geopolitical_entity": "Geopolitical_Entity",
-                "year": "Year",
-                "quarter": "Quarter",
-                "chain_linked_volumes": "Chain_Linked_Volumes",
-                "quarter_over_quarter": "Quarter_Over_Quarter",
-                "year_over_year": "Year_Over_Year",
-                "current_prices": "Current_Prices"
-            }
-            delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:

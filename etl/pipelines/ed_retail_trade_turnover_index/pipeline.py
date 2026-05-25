@@ -95,31 +95,13 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Month": "month",
-                "Overall Index": "overall_index",
-                "Overall index except automotive fuel": "overall_index_excl_automotive",
-                "Food sector (supermarkets, food,beverages, tobacco)": "food_sector_index",
-                "Overall index except Food sector and Automotive fuel": "overall_index_excl_food_sector",
-                "Super Markets": "supermarkets_index",
-                "Department stores": "department_stores_index",
-                "Automotive fuel": "automotive_fuel_index",
-                "Food beverages, tobacco": "food_beverages_tobacco_index",
-                "Pharmaceutical products, cosmetics": "pharmaceutical_cosmetics_index",
-                "Clothing and footwear": "clothing_footwear_index",
-                "Furniture, electrical and household equipment": "furniture_electrical_household_equipment_index",
-                "Books stationery, other goods": "books_stationary_other_goods_index",
-                "Retail sale not in stores": "retail_sale_outside_stores_index",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_retail_trade_turnover_index.sql")
         sync_cols = [
             "overall_index",

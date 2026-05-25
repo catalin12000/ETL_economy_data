@@ -44,11 +44,11 @@ def extract_building_permits_district(csv_path: Path) -> pd.DataFrame:
     # 1. Parse Year and Month
     # Format: "2003M01"
     period = df[month_col].astype(str).str.strip().str.replace('"', "", regex=False)
-    df["Year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
-    df["Month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
-    df = df.dropna(subset=["Year", "Month"]).copy()
-    df["Year"] = df["Year"].astype(int)
-    df["Month"] = df["Month"].astype(int)
+    df["year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
+    df["month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
+    df = df.dropna(subset=["year", "month"]).copy()
+    df["year"] = df["year"].astype(int)
+    df["month"] = df["month"].astype(int)
 
     # 2. Rename Columns and Map Labels
     # DISTRICT Mapping to match zeus DB
@@ -60,32 +60,32 @@ def extract_building_permits_district(csv_path: Path) -> pd.DataFrame:
         "Pafos": "Paphos"
     }
 
-    df["District"] = df[district_col].map(lambda x: DISTRICT_MAP.get(x, x))
-    df["Urban_Rural"] = df[urban_col]
+    df["district"] = df[district_col].map(lambda x: DISTRICT_MAP.get(x, x))
+    df["urban_rural"] = df[urban_col]
 
     # CSV columns are named like: "Number Monthly data Number of permits", etc.
     col_map = {}
     for col in df.columns:
-        if "Number of permits" in col: col_map[col] = "Number"
-        if "Area (m2)" in col: col_map[col] = "Area_m2"
-        if "Value (" in col: col_map[col] = "Value_000s"
-        if "Dwelling units" in col: col_map[col] = "Dwelling_Units"
-    
+        if "Number of permits" in col: col_map[col] = "number"
+        if "Area (m2)" in col: col_map[col] = "area_m2"
+        if "Value (" in col: col_map[col] = "value_000s"
+        if "Dwelling units" in col: col_map[col] = "dwelling_units"
+
     df = df.rename(columns=col_map)
-    
+
     # 3. Filter and Clean
     # DB only has 'Urban' and 'Rural' (no 'Total')
-    df = df[df["Urban_Rural"].isin(["Urban", "Rural"])].copy()
+    df = df[df["urban_rural"].isin(["Urban", "Rural"])].copy()
     # DB only has the 5 specific districts
-    df = df[df["District"].isin(DISTRICT_MAP.values())].copy()
-    
-    numeric_cols = ["Number", "Area_m2", "Value_000s", "Dwelling_Units"]
+    df = df[df["district"].isin(DISTRICT_MAP.values())].copy()
+
+    numeric_cols = ["number", "area_m2", "value_000s", "dwelling_units"]
     for c in numeric_cols:
         df[c] = pd.to_numeric(df[c], errors='coerce')
-    
+
     # 4. Final selection
-    target_cols = ["Year", "Month", "District", "Urban_Rural"] + numeric_cols
+    target_cols = ["year", "month", "district", "urban_rural"] + numeric_cols
     out = df[target_cols].copy()
-    out = out.sort_values(["Year", "Month", "District", "Urban_Rural"]).reset_index(drop=True)
+    out = out.sort_values(["year", "month", "district", "urban_rural"]).reset_index(drop=True)
     
     return out

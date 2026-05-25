@@ -42,12 +42,12 @@ def extract_eu_consumer_confidence(csv_path: Path) -> pd.DataFrame:
             val = pd.NA
 
         records.append({
-            "Year": year,
-            "Month": month,
-            "Geopolitical_Entity": geo_name,
-            "Consumer_confidence_indicator": val
+            "year": year,
+            "month": month,
+            "geopolitical_entity": geo_name,
+            "consumer_confidence_indicator": val
         })
 
     out = pd.DataFrame(records)
-    out = out.sort_values(["Year", "Month", "Geopolitical_Entity"]).reset_index(drop=True)
+    out = out.sort_values(["year", "month", "geopolitical_entity"]).reset_index(drop=True)
     return out

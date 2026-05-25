@@ -82,10 +82,10 @@ def extract_fdi_real_estate(xlsx_path: Path) -> pd.DataFrame:
 
             records.append(
                 {
-                    "Year": year,
-                    "Country": country,
-                    "Area": current_area,
-                    "Amount": float(amount),
+                    "year": year,
+                    "country": country,
+                    "area": current_area,
+                    "amount": float(amount),
                     "_row_order": row_order,
                 }
             )
@@ -94,5 +94,5 @@ def extract_fdi_real_estate(xlsx_path: Path) -> pd.DataFrame:
     if out.empty:
         raise RuntimeError("No rows extracted from FDI real estate source.")
 
-    out = out.sort_values(["Year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
-    return out[["Year", "Country", "Area", "Amount"]]
+    out = out.sort_values(["year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
+    return out[["year", "country", "area", "amount"]]

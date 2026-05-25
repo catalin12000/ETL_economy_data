@@ -41,7 +41,7 @@ def _extract_sector_code(label: str) -> str | None:
 def extract_gross_value_added_sector(csv_path: Path) -> pd.DataFrame:
     """
     Extract CYSTAT GVA by sector as:
-      Year, Economic Activity, Volume_measures_(million)
+      year, economic_activity, volume_measures_million
     """
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     df.columns = [str(c).replace("\ufeff", "").replace('"', "").strip() for c in df.columns]
@@ -72,9 +72,9 @@ def extract_gross_value_added_sector(csv_path: Path) -> pd.DataFrame:
                 continue
             rows.append(
                 {
-                    "Year": int(year),
-                    "Economic Activity": activity,
-                    "Volume_measures_(million)": round(float(value), 1),
+                    "year": int(year),
+                    "economic_activity": activity,
+                    "volume_measures_million": round(float(value), 1),
                 }
             )
 
@@ -83,6 +83,6 @@ def extract_gross_value_added_sector(csv_path: Path) -> pd.DataFrame:
         raise RuntimeError("No rows extracted for GVA by sector.")
 
     activity_order = {name: i for i, name in enumerate(SECTOR_CODE_TO_ACTIVITY.values())}
-    out["__ord"] = out["Economic Activity"].map(activity_order).fillna(999)
-    out = out.sort_values(["Year", "__ord"]).drop(columns=["__ord"]).reset_index(drop=True)
+    out["__ord"] = out["economic_activity"].map(activity_order).fillna(999)
+    out = out.sort_values(["year", "__ord"]).drop(columns=["__ord"]).reset_index(drop=True)
     return out

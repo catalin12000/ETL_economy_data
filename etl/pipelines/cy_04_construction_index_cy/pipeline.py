@@ -98,12 +98,12 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
 
         # 4) DB compare (READ-ONLY, zeus)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
-        df_for_db = df_new.rename(columns={"Year": "year", "Month": "month", "Index": "index"})
+        df_for_db = df_new
         sql_path = pp.sql("ed_construction_index_cy.sql")
 
         db_comp_res = compare_with_postgres(
@@ -137,18 +137,17 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["id", "Year", "Month", "Index"]
+        target_cols = ["id", "year", "month", "index"]
         if not delta_df.empty:
-            delta_df = delta_df.rename(columns={"id": "id", "year": "Year", "month": "Month", "index": "Index"})
             delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce")
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
-            delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
-            delta_df["Index"] = pd.to_numeric(delta_df["Index"], errors="coerce").round(2)
-            delta_df = delta_df[delta_df["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
-            delta_df = delta_df.dropna(subset=["Year", "Month", "Index"])
-            delta_df["Year"] = delta_df["Year"].astype(int)
-            delta_df["Month"] = delta_df["Month"].astype(int)
-            delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce")
+            delta_df["month"] = pd.to_numeric(delta_df["month"], errors="coerce")
+            delta_df["index"] = pd.to_numeric(delta_df["index"], errors="coerce").round(2)
+            delta_df = delta_df[delta_df["year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+            delta_df = delta_df.dropna(subset=["year", "month", "index"])
+            delta_df["year"] = delta_df["year"].astype(int)
+            delta_df["month"] = delta_df["month"].astype(int)
+            delta_df = delta_df.sort_values(["year", "month"]).reset_index(drop=True)
 
             delta_df["id"] = delta_df["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
 

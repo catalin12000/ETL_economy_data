@@ -6,19 +6,19 @@ import pandas as pd
 
 
 TARGET_COLUMNS = [
-    "Year",
-    "Quarter",
-    "Mining and Quarrying",
-    "Manufacturing",
-    "Electricity, Gas, Steam and Air Conditioning Supply",
-    "Water Supply, Sewerage, Waste Management and Remediation Activities",
-    "Construction",
-    "Wholesale and Retal Trade, Repair of Motor Vehicles and Motorcycles",
-    "Transportation and Storage",
-    "Accommodation and Food Service Activities",
-    "Information and Communication",
-    "Professional, Scientific and Technical Activities",
-    "Administrative and Support Service Activities",
+    "year",
+    "quarter",
+    "mining_and_quarrying",
+    "manufacturing",
+    "electricity_gas_steam_air_conditioning_supply",
+    "water_supply_sewerage_waste_management_remediation_activities",
+    "construction",
+    "wholesale_retail_trade_repair_of_motor_vehicles_motorcycles",
+    "transportation_and_storage",
+    "accommodation_and_food_service_activities",
+    "information_and_communication",
+    "professional_scientific_and_technical_activities",
+    "administrative_and_support_service_activities",
 ]
 
 
@@ -44,25 +44,25 @@ def extract_wage_growth_index(xls_path: Path) -> pd.DataFrame:
             continue
 
         values = {
-            "Mining and Quarrying": pd.to_numeric(df.iat[row_idx, 2], errors="coerce"),
-            "Manufacturing": pd.to_numeric(df.iat[row_idx, 3], errors="coerce"),
-            "Electricity, Gas, Steam and Air Conditioning Supply": pd.to_numeric(df.iat[row_idx, 4], errors="coerce"),
-            "Water Supply, Sewerage, Waste Management and Remediation Activities": pd.to_numeric(df.iat[row_idx, 5], errors="coerce"),
-            "Construction": pd.to_numeric(df.iat[row_idx, 7], errors="coerce"),
-            "Wholesale and Retal Trade, Repair of Motor Vehicles and Motorcycles": pd.to_numeric(df.iat[row_idx, 8], errors="coerce"),
-            "Transportation and Storage": pd.to_numeric(df.iat[row_idx, 9], errors="coerce"),
-            "Accommodation and Food Service Activities": pd.to_numeric(df.iat[row_idx, 10], errors="coerce"),
-            "Information and Communication": pd.to_numeric(df.iat[row_idx, 11], errors="coerce"),
-            "Professional, Scientific and Technical Activities": pd.to_numeric(df.iat[row_idx, 13], errors="coerce"),
-            "Administrative and Support Service Activities": pd.to_numeric(df.iat[row_idx, 14], errors="coerce"),
+            "mining_and_quarrying": pd.to_numeric(df.iat[row_idx, 2], errors="coerce"),
+            "manufacturing": pd.to_numeric(df.iat[row_idx, 3], errors="coerce"),
+            "electricity_gas_steam_air_conditioning_supply": pd.to_numeric(df.iat[row_idx, 4], errors="coerce"),
+            "water_supply_sewerage_waste_management_remediation_activities": pd.to_numeric(df.iat[row_idx, 5], errors="coerce"),
+            "construction": pd.to_numeric(df.iat[row_idx, 7], errors="coerce"),
+            "wholesale_retail_trade_repair_of_motor_vehicles_motorcycles": pd.to_numeric(df.iat[row_idx, 8], errors="coerce"),
+            "transportation_and_storage": pd.to_numeric(df.iat[row_idx, 9], errors="coerce"),
+            "accommodation_and_food_service_activities": pd.to_numeric(df.iat[row_idx, 10], errors="coerce"),
+            "information_and_communication": pd.to_numeric(df.iat[row_idx, 11], errors="coerce"),
+            "professional_scientific_and_technical_activities": pd.to_numeric(df.iat[row_idx, 13], errors="coerce"),
+            "administrative_and_support_service_activities": pd.to_numeric(df.iat[row_idx, 14], errors="coerce"),
         }
 
         if all(pd.isna(v) for v in values.values()):
             continue
 
         row = {
-            "Year": current_year,
-            "Quarter": quarter,
+            "year": current_year,
+            "quarter": quarter,
         }
         row.update({k: float(v) if pd.notna(v) else pd.NA for k, v in values.items()})
         records.append(row)

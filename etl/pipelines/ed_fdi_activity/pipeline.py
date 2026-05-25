@@ -57,7 +57,7 @@ class Pipeline:
 
         print("Extracting FDI activity data...")
         df_all = extract_fdi_activity(out_path)
-        df_new = df_all[pd.to_numeric(df_all["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        df_new = df_all[pd.to_numeric(df_all["year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
         if df_new.empty:
             return {
                 "status": "error",
@@ -76,20 +76,11 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Subsection Code"],
+            key_cols=["year", "subsection_code"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Section Code": "section_code",
-                "Section Name": "section_name",
-                "Subsection Code": "subsection_code",
-                "Subsection Name": "subsection_name",
-                "Amount": "amount",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_fdi_activity.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
@@ -122,36 +113,25 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         target_cols = [
-            "Year",
-            "Section Code",
-            "Section Name",
-            "Subsection Code",
-            "Subsection Name",
-            "Amount",
+            "year",
+            "section_code",
+            "section_name",
+            "subsection_code",
+            "subsection_name",
+            "amount",
         ]
 
         if not delta_df.empty:
-            delta_df = delta_df.rename(
-                columns={
-                    "year": "Year",
-                    "section_code": "Section Code",
-                    "section_name": "Section Name",
-                    "subsection_code": "Subsection Code",
-                    "subsection_name": "Subsection Name",
-                    "amount": "Amount",
-                }
-            )
-
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
-            delta_df["Amount"] = pd.to_numeric(delta_df["Amount"], errors="coerce")
-            delta_df = delta_df.dropna(subset=["Year", "Subsection Code"]).copy()
-            delta_df["Year"] = delta_df["Year"].astype(int)
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce")
+            delta_df["amount"] = pd.to_numeric(delta_df["amount"], errors="coerce")
+            delta_df = delta_df.dropna(subset=["year", "subsection_code"]).copy()
+            delta_df["year"] = delta_df["year"].astype(int)
             delta_df = delta_df.sort_values(
-                ["Year", "Section Code", "Subsection Code"],
+                ["year", "section_code", "subsection_code"],
                 ascending=[False, True, True],
             ).reset_index(drop=True)
 
-            delta_df["Amount"] = delta_df["Amount"].map(
+            delta_df["amount"] = delta_df["amount"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.6f}".rstrip("0").rstrip(".")
             )
 

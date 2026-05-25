@@ -72,13 +72,13 @@ class Pipeline:
             df_new_db,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month", "permits"],
+            key_cols=["year", "month", "permits"],
         )
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         sql_path = pp.sql("ed_building_permits_by_property_type.sql")
         all_cols = df_new_db.columns.tolist()
-        sync_cols = [c for c in all_cols if c.lower() not in ["year", "month", "permits"]]
+        sync_cols = [c for c in all_cols if c not in ["year", "month", "permits"]]
 
         db_comp_res = compare_with_postgres(
             df=df_new_db,
@@ -127,19 +127,18 @@ class Pipeline:
             "division_of_plots",
             "road_construction",
         ]
-        target_cols = ["id", "Year", "Month", "permits"] + subcategory_cols
+        target_cols = ["id", "year", "month", "permits"] + subcategory_cols
 
         if not delta_db_df.empty:
-            delta_db_df = delta_db_df.rename(columns={"id": "id", "year": "Year", "month": "Month"})
-            delta_db_df = delta_db_df[delta_db_df["Year"] >= 2023].copy()
+            delta_db_df = delta_db_df[delta_db_df["year"] >= 2023].copy()
 
         if not delta_db_df.empty:
             if "id" in delta_db_df.columns:
                 delta_db_df["id"] = pd.to_numeric(delta_db_df["id"], errors="coerce").astype("Int64")
             else:
                 delta_db_df["id"] = pd.NA
-            delta_db_df["Year"] = pd.to_numeric(delta_db_df["Year"], errors="coerce").astype("Int64")
-            delta_db_df["Month"] = pd.to_numeric(delta_db_df["Month"], errors="coerce").astype("Int64")
+            delta_db_df["year"] = pd.to_numeric(delta_db_df["year"], errors="coerce").astype("Int64")
+            delta_db_df["month"] = pd.to_numeric(delta_db_df["month"], errors="coerce").astype("Int64")
 
             for c in subcategory_cols:
                 if c in delta_db_df.columns:
@@ -152,7 +151,7 @@ class Pipeline:
                 "Dwelling Units": 3,
             }
             delta_db_df["__m_ord"] = delta_db_df.get("permits", pd.Series([], dtype=object)).map(measure_order).fillna(99)
-            delta_db_df = delta_db_df.sort_values(["Year", "Month", "__m_ord"]).drop(columns="__m_ord").reset_index(drop=True)
+            delta_db_df = delta_db_df.sort_values(["year", "month", "__m_ord"]).drop(columns="__m_ord").reset_index(drop=True)
 
             for c in target_cols:
                 if c not in delta_db_df.columns:

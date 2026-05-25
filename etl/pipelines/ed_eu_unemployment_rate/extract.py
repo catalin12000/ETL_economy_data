@@ -23,16 +23,16 @@ def extract_eu_unemployment(csv_path: Path) -> pd.DataFrame:
     }
 
     # 1. Parse Year and Month from TIME_PERIOD (e.g., "2025-01")
-    df[["Year", "Month"]] = df["TIME_PERIOD"].str.split("-", expand=True)
-    df["Year"] = pd.to_numeric(df["Year"])
-    df["Month"] = pd.to_numeric(df["Month"])
+    df[["year", "month"]] = df["TIME_PERIOD"].str.split("-", expand=True)
+    df["year"] = pd.to_numeric(df["year"])
+    df["month"] = pd.to_numeric(df["month"])
 
     # 2. Map Geopolitical Entity
-    df["Geopolitical Entity"] = df["geo"].map(lambda x: GEO_MAP.get(x, x))
+    df["geopolitical_entity"] = df["geo"].map(lambda x: GEO_MAP.get(x, x))
 
     # 3. Pivot Units to Columns
     df_pivot = df.pivot_table(
-        index=["Geopolitical Entity", "Year", "Month"],
+        index=["geopolitical_entity", "year", "month"],
         columns="unit",
         values="OBS_VALUE",
         aggfunc="first"
@@ -40,23 +40,23 @@ def extract_eu_unemployment(csv_path: Path) -> pd.DataFrame:
 
     # 4. Rename Columns to match DB
     df_pivot = df_pivot.rename(columns={
-        "PC_ACT": "Adjusted Unemployment Rate",
-        "THS_PER": "Adjusted Unemployed 000s"
+        "PC_ACT": "adjusted_unemployment_rate",
+        "THS_PER": "adjusted_unemployed_000s"
     })
 
     # 5. Ensure all requested columns exist
-    for col in ["Adjusted Unemployment Rate", "Adjusted Unemployed 000s"]:
+    for col in ["adjusted_unemployment_rate", "adjusted_unemployed_000s"]:
         if col not in df_pivot.columns:
             df_pivot[col] = pd.NA
 
     # 6. Reorder and Clean
-    cols = ["Geopolitical Entity", "Year", "Month", "Adjusted Unemployed 000s", "Adjusted Unemployment Rate"]
+    cols = ["geopolitical_entity", "year", "month", "adjusted_unemployed_000s", "adjusted_unemployment_rate"]
     df_out = df_pivot[cols].copy()
-    
-    # Rounding
-    df_out["Adjusted Unemployment Rate"] = pd.to_numeric(df_out["Adjusted Unemployment Rate"], errors="coerce").round(1)
-    df_out["Adjusted Unemployed 000s"] = pd.to_numeric(df_out["Adjusted Unemployed 000s"], errors="coerce").round(0)
 
-    df_out = df_out.sort_values(["Year", "Month", "Geopolitical Entity"]).reset_index(drop=True)
+    # Rounding
+    df_out["adjusted_unemployment_rate"] = pd.to_numeric(df_out["adjusted_unemployment_rate"], errors="coerce").round(1)
+    df_out["adjusted_unemployed_000s"] = pd.to_numeric(df_out["adjusted_unemployed_000s"], errors="coerce").round(0)
+
+    df_out = df_out.sort_values(["year", "month", "geopolitical_entity"]).reset_index(drop=True)
     
     return df_out

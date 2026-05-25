@@ -116,7 +116,7 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month", "Group", "Loan Type"]
+            key_cols=["year", "month", "group", "loan_type"]
         )
 
         # 3. DB Comparison (READ-ONLY)

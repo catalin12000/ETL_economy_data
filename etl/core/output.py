@@ -6,6 +6,8 @@ from typing import Any
 
 import pandas as pd
 
+from etl.core.pipeline_logging import emit_event
+
 
 def _to_db_col(name: str) -> str:
     """Convert any header to snake_case matching DB column convention."""
@@ -45,3 +47,12 @@ def write_deliverable_csv(
     out = round_for_output(df, decimals=decimals).copy()
     out.columns = [_to_db_col(c) for c in out.columns]
     out.to_csv(path, **kwargs)
+    emit_event(
+        stage="deliverable",
+        event="deliverable_written",
+        status="success",
+        path=str(path),
+        rows_written=len(out),
+        columns=list(out.columns),
+        decimals=decimals,
+    )

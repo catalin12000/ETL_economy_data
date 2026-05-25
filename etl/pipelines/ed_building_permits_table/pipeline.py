@@ -68,7 +68,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")
@@ -112,29 +112,20 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["Year", "Month", "Permits Number", "Area", "Volume"]
+        target_cols = ["year", "month", "permits_number", "area", "volume"]
         if not delta_df.empty:
-            delta_df = delta_df.rename(
-                columns={
-                    "year": "Year",
-                    "month": "Month",
-                    "permits_number": "Permits Number",
-                    "area": "Area",
-                    "volume": "Volume",
-                }
-            )
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
-            delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
-            for c in ["Permits Number", "Area", "Volume"]:
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce")
+            delta_df["month"] = pd.to_numeric(delta_df["month"], errors="coerce")
+            for c in ["permits_number", "area", "volume"]:
                 delta_df[c] = pd.to_numeric(delta_df[c], errors="coerce")
 
-            delta_df = delta_df.dropna(subset=["Year", "Month"]).copy()
-            delta_df["Year"] = delta_df["Year"].astype(int)
-            delta_df["Month"] = delta_df["Month"].astype(int)
-            delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
+            delta_df = delta_df.dropna(subset=["year", "month"]).copy()
+            delta_df["year"] = delta_df["year"].astype(int)
+            delta_df["month"] = delta_df["month"].astype(int)
+            delta_df = delta_df.sort_values(["year", "month"]).reset_index(drop=True)
 
             # Plain integers; DB stores as numerics, no thousand separators.
-            for c in ["Permits Number", "Area", "Volume"]:
+            for c in ["permits_number", "area", "volume"]:
                 delta_df[c] = delta_df[c].map(
                     lambda x: pd.NA if pd.isna(x) else int(round(float(x)))
                 )

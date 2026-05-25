@@ -57,28 +57,17 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month", "Seasonally"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month", "seasonally"]
         )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         # Prepare DF for DB comparison (standardize column names)
         df_for_db = df_new.copy()
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "Seasonally": "seasonally",
-            "Employed 000s": "employed_000s",
-            "Unemployed 000s": "unemployed_000s",
-            "Inactives 000s": "inactives_000s",
-            "Adjusted_Unemployment_Rate": "adjusted_unemployment_rate",
-            "Unadjusted_Unemployment_Rate": "unadjusted_unemployment_rate"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
         
         sql_path = pp.sql("ed_employment.sql")
         
@@ -116,46 +105,31 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'id', 'Year', 'Month', 'Seasonally', 'Employed_000s', 'Unemployed_000s', 
-            'Inactives_000s', 'Adjusted_Unemployment_Rate', 'Unadjusted_Unemployment_Rate'
+            'id', 'year', 'month', 'seasonally', 'employed_000s', 'unemployed_000s',
+            'inactives_000s', 'adjusted_unemployment_rate', 'unadjusted_unemployment_rate'
         ]
-        
+
         if not delta_df.empty:
-            # Map database columns (lowercase) back to Capitalized for deliverable
-            rev_col_map = {
-                "id": "id",
-                "year": "Year",
-                "month": "Month",
-                "seasonally": "Seasonally",
-                "employed_000s": "Employed_000s",
-                "unemployed_000s": "Unemployed_000s",
-                "inactives_000s": "Inactives_000s",
-                "adjusted_unemployment_rate": "Adjusted_Unemployment_Rate",
-                "unadjusted_unemployment_rate": "Unadjusted_Unemployment_Rate"
-            }
-            delta_df.rename(columns=rev_col_map, inplace=True)
-            
             for c in target_cols:
                 if c not in delta_df.columns:
                     delta_df[c] = pd.NA
 
             season_order = {"Adjusted": 0, "Unadjusted": 1}
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
-            delta_df["Month"] = pd.to_numeric(delta_df["Month"], errors="coerce")
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce")
+            delta_df["month"] = pd.to_numeric(delta_df["month"], errors="coerce")
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             delta_df["__season_order"] = (
-                delta_df["Seasonally"].astype(str).map(season_order).fillna(99).astype(int)
+                delta_df["seasonally"].astype(str).map(season_order).fillna(99).astype(int)
             )
             delta_df = (
-                delta_df.sort_values(["Year", "Month", "__season_order"], kind="stable")
+                delta_df.sort_values(["year", "month", "__season_order"], kind="stable")
                 .drop(columns=["__season_order"])
                 .reset_index(drop=True)
             )
 
             write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            # If no changes were made to the DB, create an empty file with headers
             write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),

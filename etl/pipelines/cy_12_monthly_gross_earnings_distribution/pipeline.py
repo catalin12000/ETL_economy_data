@@ -98,11 +98,11 @@ class Pipeline:
 
     def _to_db_wide(self, df_long: pd.DataFrame) -> pd.DataFrame:
         records: list[dict[str, Any]] = []
-        for (year, category), grp in df_long.groupby(["Year", "Category"]):
+        for (year, category), grp in df_long.groupby(["year", "category"]):
             row: dict[str, Any] = {"year": int(year), "sex": category}
             for bucket_label, db_col in self.BUCKET_TO_DB_COL:
                 vals = grp.loc[
-                    grp["Gross_monthly_earnings"] == bucket_label, "Percentage_of_employees"
+                    grp["gross_monthly_earnings"] == bucket_label, "percentage_of_employees"
                 ]
                 row[db_col] = pd.to_numeric(vals.iloc[0], errors="coerce") if not vals.empty else pd.NA
             records.append(row)
@@ -150,7 +150,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Category", "Gross_monthly_earnings"],
+            key_cols=["year", "category", "gross_monthly_earnings"],
         )
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
@@ -188,26 +188,25 @@ class Pipeline:
         delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         db_cols = [db_col for _, db_col in self.BUCKET_TO_DB_COL]
-        target_cols = ["id", "Year", "sex"] + db_cols
+        target_cols = ["id", "year", "sex"] + db_cols
 
         if not delta_wide.empty:
-            delta_wide = delta_wide.rename(columns={"id": "id", "year": "Year"})
             if "id" in delta_wide.columns:
                 delta_wide["id"] = pd.to_numeric(delta_wide["id"], errors="coerce").astype("Int64")
             else:
                 delta_wide["id"] = pd.NA
-            delta_wide["Year"] = pd.to_numeric(delta_wide["Year"], errors="coerce").astype("Int64")
+            delta_wide["year"] = pd.to_numeric(delta_wide["year"], errors="coerce").astype("Int64")
 
             for db_col in db_cols:
                 if db_col in delta_wide.columns:
                     delta_wide[db_col] = pd.to_numeric(delta_wide[db_col], errors="coerce").round(1)
 
-            delta_wide = delta_wide.dropna(subset=["Year"])
-            delta_wide = delta_wide[delta_wide["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+            delta_wide = delta_wide.dropna(subset=["year"])
+            delta_wide = delta_wide[delta_wide["year"] >= self.MIN_DELIVERABLE_YEAR].copy()
 
             category_order = {"Total": 0, "Males": 1, "Females": 2}
             delta_wide["__cat_ord"] = delta_wide.get("sex", pd.Series([], dtype=object)).map(category_order).fillna(99)
-            delta_wide = delta_wide.sort_values(["Year", "__cat_ord"]).drop(columns="__cat_ord").reset_index(drop=True)
+            delta_wide = delta_wide.sort_values(["year", "__cat_ord"]).drop(columns="__cat_ord").reset_index(drop=True)
 
             for c in target_cols:
                 if c not in delta_wide.columns:

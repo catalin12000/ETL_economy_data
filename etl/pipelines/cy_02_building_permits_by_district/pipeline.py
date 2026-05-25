@@ -69,28 +69,17 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month", "District", "Urban_Rural"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month", "district", "urban_rural"]
         )
 
         # 3. DB Comparison (READ-ONLY - ZEUS DB)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "District": "district",
-            "Urban_Rural": "urban_rural",
-            "Area_m2": "area_m2",
-            "Dwelling_Units": "dwelling_units",
-            "Number": "number",
-            "Value_000s": "value_000s"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
-        
+
         sql_path = Path(__file__).parent / f"{self.pipeline_id}.sql"
         
         db_comp_res = compare_with_postgres(
@@ -118,19 +107,14 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = ['id', 'Year', 'Month', 'District', 'Urban_Rural', 'Area_m2', 'Dwelling_Units', 'Number', 'Value_000s']
-        
+        target_cols = ['id', 'year', 'month', 'district', 'urban_rural', 'area_m2', 'dwelling_units', 'number', 'value_000s']
+
         if not delta_df.empty:
-            rev_map = {v: k for k, v in col_map.items()}
-            delta_df.rename(columns=rev_map, inplace=True)
-            if "id" in delta_df.columns:
-                delta_df.rename(columns={"id": "id"}, inplace=True)
-            
-            if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2023].copy()
-            
+            if "year" in delta_df.columns:
+                delta_df = delta_df[delta_df["year"] >= 2023].copy()
+
             if not delta_df.empty:
-                delta_df = delta_df.sort_values(["Year", "Month", "District", "Urban_Rural"]).reset_index(drop=True)
+                delta_df = delta_df.sort_values(["year", "month", "district", "urban_rural"]).reset_index(drop=True)
                 for c in target_cols:
                     if c not in delta_df.columns: delta_df[c] = pd.NA
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce")

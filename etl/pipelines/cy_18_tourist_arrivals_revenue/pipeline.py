@@ -100,7 +100,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")

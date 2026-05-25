@@ -84,39 +84,35 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month"]
         )
 
         # 5. DB Comparison (READ-ONLY - ZEUS DB)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = df_new.copy()
-        
-        # Standardize columns for DB sync result return (lowercase)
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "Total_Loans": "total_loans",
-            "Total_Households_Loans": "total_households_loans",
-            "Non_Performing_Loans": "non_performing_loans",
-            "Loan_Amounts_Past_90_Days": "loan_amounts_past_90_days",
-            "Restructured_Loans_Forbearance": "restructured_loans_forbearance",
-            "Non_Performing_Restructured_Loans": "non_performing_restructured_loans"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
-        
+
+        sync_cols = [
+            "total_loans",
+            "total_households_loans",
+            "non_performing_loans",
+            "loan_amounts_past_90_days",
+            "restructured_loans_forbearance",
+            "non_performing_restructured_loans",
+        ]
+
         sql_path = pp.sql("ed_total_households_loans_millions.sql")
-        
+
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.db_table_name,
-            db_name="zeus", # CYPRUS
+            db_name="zeus",
             match_cols=["year", "month"],
-            sync_cols=[c for c in col_map.values() if c not in ["year", "month"]],
-            tolerance=0.11, # Same as others
+            sync_cols=sync_cols,
+            tolerance=0.11,
             sql_file_path=str(sql_path)
         )
         print(f"Postgres (zeus) comparison result: {db_comp_res.get('inserted')} missing, {db_comp_res.get('updated')} different.")
@@ -136,21 +132,18 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'Year', 'Month', 'Total_Loans', 'Total_Households_Loans', 
-            'Non_Performing_Loans', 'Loan_Amounts_Past_90_Days', 
-            'Restructured_Loans_Forbearance', 'Non_Performing_Restructured_Loans'
+            'year', 'month', 'total_loans', 'total_households_loans',
+            'non_performing_loans', 'loan_amounts_past_90_days',
+            'restructured_loans_forbearance', 'non_performing_restructured_loans',
         ]
-        
+
         if not delta_df.empty:
-            rev_map = {v: k for k, v in col_map.items()}
-            delta_df.rename(columns=rev_map, inplace=True)
-            
             # Apply Filter: Only 2023 onwards
-            if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2023].copy()
-            
+            if "year" in delta_df.columns:
+                delta_df = delta_df[delta_df["year"] >= 2023].copy()
+
             if not delta_df.empty:
-                delta_df = delta_df.sort_values(["Year", "Month"]).reset_index(drop=True)
+                delta_df = delta_df.sort_values(["year", "month"]).reset_index(drop=True)
                 for c in target_cols:
                     if c not in delta_df.columns: delta_df[c] = pd.NA
                 write_deliverable_csv(delta_df[target_cols], deliverable_path)

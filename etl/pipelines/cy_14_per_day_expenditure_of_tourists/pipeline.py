@@ -113,6 +113,8 @@ class Pipeline:
 
         print("Extracting tourist expenditure distribution data...")
         df_new = extract_tourist_expenditure_distribution(out_path)
+        if "average_length_of_stay_nights" in df_new.columns and "average_length_of_stay" not in df_new.columns:
+            df_new = df_new.rename(columns={"average_length_of_stay_nights": "average_length_of_stay"})
 
         db_path = pp.baseline
         output_dir = pp.output
@@ -126,21 +128,13 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month", "Country_of_origin"],
+            key_cols=["year", "month", "country_of_origin"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (zeus)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Month": "month",
-                "Country_of_origin": "country_of_origin",
-                "Average_length_of_stay_(nights)": "average_length_of_stay",
-                "Expenditure_per_day": "expenditure_per_day",
-            }
-        )
+        df_for_db = df_new.copy()
         normalize_nulls(df_for_db, columns=["average_length_of_stay", "expenditure_per_day"])
         for c in ["average_length_of_stay", "expenditure_per_day"]:
             df_for_db[c] = pd.to_numeric(df_for_db[c], errors="coerce")

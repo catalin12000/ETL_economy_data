@@ -94,29 +94,13 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Quarter"],
+            key_cols=["year", "quarter"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Quarter": "quarter",
-                "Mining and Quarrying": "mining_and_quarrying",
-                "Manufacturing": "manufacturing",
-                "Electricity, Gas, Steam and Air Conditioning Supply": "electricity_gas_steam_air_conditioning_supply",
-                "Water Supply, Sewerage, Waste Management and Remediation Activities": "water_supply_sewerage_waste_management_remediation_activities",
-                "Construction": "construction",
-                "Wholesale and Retal Trade, Repair of Motor Vehicles and Motorcycles": "wholesale_retail_trade_repair_of_motor_vehicles_motorcycles",
-                "Transportation and Storage": "transportation_and_storage",
-                "Accommodation and Food Service Activities": "accommodation_and_food_service_activities",
-                "Information and Communication": "information_and_communication",
-                "Professional, Scientific and Technical Activities": "professional_scientific_and_technical_activities",
-                "Administrative and Support Service Activities": "administrative_and_support_service_activities",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_wage_growth_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,

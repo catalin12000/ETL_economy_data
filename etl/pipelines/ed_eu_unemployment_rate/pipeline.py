@@ -58,24 +58,16 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month", "Geopolitical Entity"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month", "geopolitical_entity"]
         )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Geopolitical Entity": "geopolitical_entity",
-            "Year": "year",
-            "Month": "month",
-            "Adjusted Unemployed 000s": "adjusted_unemployed_000s",
-            "Adjusted Unemployment Rate": "adjusted_unemployment_rate"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
         
         sql_path = pp.sql("ed_eu_unemployment_rate.sql")
         
@@ -123,21 +115,11 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'id', 'Geopolitical_Entity', 'Year', 'Month', 
-            'Adjusted_Unemployed_000s', 'Adjusted_Unemployment_Rate'
+            'id', 'geopolitical_entity', 'year', 'month',
+            'adjusted_unemployed_000s', 'adjusted_unemployment_rate'
         ]
-        
+
         if not delta_df.empty:
-            # Map back to Capitalized for deliverable
-            rev_map = {
-                "id": "id",
-                "geopolitical_entity": "Geopolitical_Entity",
-                "year": "Year",
-                "month": "Month",
-                "adjusted_unemployed_000s": "Adjusted_Unemployed_000s",
-                "adjusted_unemployment_rate": "Adjusted_Unemployment_Rate"
-            }
-            delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:

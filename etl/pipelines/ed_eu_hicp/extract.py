@@ -46,12 +46,12 @@ def extract_eu_hicp(csv_path: Path) -> pd.DataFrame:
             val = pd.NA
 
         records.append({
-            "Geopolitical Entity": geo_name,
-            "Year": year,
-            "Month": month,
-            "Annual Rate Of Change": val
+            "geopolitical_entity": geo_name,
+            "year": year,
+            "month": month,
+            "annual_rate_of_change": val
         })
 
     out = pd.DataFrame(records)
-    out = out.sort_values(["Year", "Month", "Geopolitical Entity"]).reset_index(drop=True)
+    out = out.sort_values(["year", "month", "geopolitical_entity"]).reset_index(drop=True)
     return out

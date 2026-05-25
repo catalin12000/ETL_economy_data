@@ -103,27 +103,27 @@ def extract_new_loans(xls_path: Path) -> pd.DataFrame:
             return pd.NA
 
         records.append({
-            "Year": y, "Month": m,
+            "year": y, "month": m,
             # T12: D(3), E(4), G(6), H(7)
-            "Consumer_Pure_New_Loans": get_val(df12, ts12_map, 3),
-            "Consumer_Renegotiated_Loans": get_val(df12, ts12_map, 4),
-            "Housing_Pure_New_Loans": get_val(df12, ts12_map, 6),
-            "Housing_Renegotiated_Loans": get_val(df12, ts12_map, 7),
+            "consumer_pure_new_loans": get_val(df12, ts12_map, 3),
+            "consumer_renegotiated_loans": get_val(df12, ts12_map, 4),
+            "housing_pure_new_loans": get_val(df12, ts12_map, 6),
+            "housing_renegotiated_loans": get_val(df12, ts12_map, 7),
             # T9: D(3), E(4), F(5), G(6)
-            "Consumer_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate": get_val(df9, ts9_map, 3),
-            "Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate": get_val(df9, ts9_map, 4),
-            "Consumer_Annual_Percentage_Rate_Of_Charge": get_val(df9, ts9_map, 5),
-            "Housing_Annual_Percentage_Rate_Of_Charge": get_val(df9, ts9_map, 6),
+            "consumer_floating_rate_up_to_1_year_initial_fixation_rate": get_val(df9, ts9_map, 3),
+            "housing_floating_rate_up_to_1_year_initial_fixation_rate": get_val(df9, ts9_map, 4),
+            "consumer_annual_percentage_rate_of_charge": get_val(df9, ts9_map, 5),
+            "housing_annual_percentage_rate_of_charge": get_val(df9, ts9_map, 6),
             # T6.1: H(7), I(8)
-            "Outstanding_Housing_Loans_Locals": get_val(df61, ts61_map, 8),
-            "Outstanding_Consumer_Loans_Locals": get_val(df61, ts61_map, 7),
+            "outstanding_housing_loans_locals": get_val(df61, ts61_map, 8),
+            "outstanding_consumer_loans_locals": get_val(df61, ts61_map, 7),
             # T6.2: G(6), H(7)
-            "Outstanding_Housing_Loans_Eu": get_val(df62, ts62_map, 7),
-            "Outstanding_Consumer_Loans_Eu": get_val(df62, ts62_map, 6),
+            "outstanding_housing_loans_eu": get_val(df62, ts62_map, 7),
+            "outstanding_consumer_loans_eu": get_val(df62, ts62_map, 6),
             # T6.3: K(10), L(11) - These are the Interest Rate columns, which match the DB values (e.g., 0.6)
-            "Outstanding_Housing_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 11),
-            "Outstanding_Consumer_Loans_Non_Eu_Rates": get_val(df63, ts63_map, 10)
+            "outstanding_housing_loans_non_eu_rates": get_val(df63, ts63_map, 11),
+            "outstanding_consumer_loans_non_eu_rates": get_val(df63, ts63_map, 10)
         })
 
-    out = pd.DataFrame(records).sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = pd.DataFrame(records).sort_values(["year", "month"]).reset_index(drop=True)
     return out

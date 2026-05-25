@@ -197,17 +197,16 @@ class Pipeline:
 
     def _to_db_wide(self, df_long: pd.DataFrame) -> pd.DataFrame:
         df = df_long.copy()
-        df["arrivals_num"] = pd.to_numeric(df["Arrivals"], errors="coerce")
+        df["arrivals_num"] = pd.to_numeric(df["arrivals"], errors="coerce")
 
         wide = (
             df.pivot_table(
-                index=["Year", "Month"],
-                columns="Country_key",
+                index=["year", "month"],
+                columns="country_key",
                 values="arrivals_num",
                 aggfunc="first",
             )
             .reset_index()
-            .rename(columns={"Year": "year", "Month": "month"})
         )
 
         out = pd.DataFrame({"year": wide["year"], "month": wide["month"]})
@@ -279,7 +278,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Month", "Country_key"],
+            key_cols=["year", "month", "country_key"],
         )
 
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
@@ -311,28 +310,27 @@ class Pipeline:
         deliverable_name = f"deliverable_{self.pipeline_id}_{now.strftime('%B_%Y')}.csv"
         deliverable_path = output_dir / deliverable_name
 
-        target_cols = ["id", "Year", "Month"] + self.DB_SYNC_COLS
+        target_cols = ["id", "year", "month"] + self.DB_SYNC_COLS
 
         inserted_df = db_comp_res.get("inserted_df", pd.DataFrame())
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_wide = pd.concat([inserted_df, updated_df], ignore_index=True)
 
         if not delta_wide.empty:
-            delta_wide = delta_wide.rename(columns={"id": "id", "year": "Year", "month": "Month"})
             if "id" in delta_wide.columns:
                 delta_wide["id"] = pd.to_numeric(delta_wide["id"], errors="coerce").astype("Int64")
             else:
                 delta_wide["id"] = pd.NA
-            delta_wide["Year"] = pd.to_numeric(delta_wide["Year"], errors="coerce").astype("Int64")
-            delta_wide["Month"] = pd.to_numeric(delta_wide["Month"], errors="coerce").astype("Int64")
+            delta_wide["year"] = pd.to_numeric(delta_wide["year"], errors="coerce").astype("Int64")
+            delta_wide["month"] = pd.to_numeric(delta_wide["month"], errors="coerce").astype("Int64")
 
             for c in self.DB_SYNC_COLS:
                 if c in delta_wide.columns:
                     delta_wide[c] = pd.to_numeric(delta_wide[c], errors="coerce")
 
-            delta_wide = delta_wide.dropna(subset=["Year", "Month"])
-            delta_wide = delta_wide[delta_wide["Year"] >= self.MIN_DELIVERABLE_YEAR].copy()
-            delta_wide = delta_wide.sort_values(["Year", "Month"]).reset_index(drop=True)
+            delta_wide = delta_wide.dropna(subset=["year", "month"])
+            delta_wide = delta_wide[delta_wide["year"] >= self.MIN_DELIVERABLE_YEAR].copy()
+            delta_wide = delta_wide.sort_values(["year", "month"]).reset_index(drop=True)
 
             for c in target_cols:
                 if c not in delta_wide.columns:

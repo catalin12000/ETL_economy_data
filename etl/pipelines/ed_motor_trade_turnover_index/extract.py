@@ -90,14 +90,14 @@ def _extract_two_col_table(path: Path, sheet_name: str, col1: str, col2: str) ->
         if v1 is None and v2 is None:
             continue
 
-        records.append({"Year": current_year, "Month": month, col1: v1, col2: v2})
+        records.append({"year": current_year, "month": month, col1: v1, col2: v2})
 
     out = pd.DataFrame(records)
     if out.empty:
         raise RuntimeError(f"No rows extracted from {sheet_name} in {path.name}.")
 
-    out = out.drop_duplicates(subset=["Year", "Month"], keep="last")
-    out = out.sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = out.drop_duplicates(subset=["year", "month"], keep="last")
+    out = out.sort_values(["year", "month"]).reset_index(drop=True)
     return out
 
 

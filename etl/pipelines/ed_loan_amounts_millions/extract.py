@@ -53,40 +53,40 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
         
         # Segment 1: Consumer loans with a defined maturity
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Individuals and private non-profit institutions",
-            "Loan Type": "Consumer loans with a defined maturity",
-            "Total Loan Amount": to_f(row[1]), # B
-            "Total Collateral Guarantees Loans": to_f(row[2]), # C
-            "Floating Rate 1 Year Fixation": to_f(row[3]), # D
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[4]), # E
-            "Over 1 To 5 Years Rate Fixation": to_f(row[5]), # F
-            "Over 5 Years Rate Fixation": to_f(row[6]), # G
+            "year": year, "month": month,
+            "group": "Individuals and private non-profit institutions",
+            "loan_type": "Consumer loans with a defined maturity",
+            "total_loan_amount": to_f(row[1]), # B
+            "total_collateral_guarantees_loans": to_f(row[2]), # C
+            "floating_rate_1_year_fixation": to_f(row[3]), # D
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[4]), # E
+            "over_1_to_5_years_rate_fixation": to_f(row[5]), # F
+            "over_5_years_rate_fixation": to_f(row[6]), # G
             "_sort_order": 1
         })
         
         # Segment 2: Housing loans
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Individuals and private non-profit institutions",
-            "Loan Type": "Housing loans",
-            "Total Loan Amount": to_f(row[7]), # H
-            "Floating Rate 1 Year Fixation": to_f(row[8]), # I
-            "Floating Rate 1 Year Rate Fixation Floating Rate": to_f(row[9]), # J
-            "Over 1 To 5 Years Rate Fixation": to_f(row[10]), # K
-            "Over 5 To 10 Years Rate Fixation": to_f(row[11]), # L
-            "Over 10 Years Rate Fixation": to_f(row[12]), # M
+            "year": year, "month": month,
+            "group": "Individuals and private non-profit institutions",
+            "loan_type": "Housing loans",
+            "total_loan_amount": to_f(row[7]), # H
+            "floating_rate_1_year_fixation": to_f(row[8]), # I
+            "floating_rate_1_year_rate_fixation_floating_rate": to_f(row[9]), # J
+            "over_1_to_5_years_rate_fixation": to_f(row[10]), # K
+            "over_5_to_10_years_rate_fixation": to_f(row[11]), # L
+            "over_10_years_rate_fixation": to_f(row[12]), # M
             "_sort_order": 2
         })
 
         # Segment 3: Other loans with a defined maturity
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Individuals and private non-profit institutions",
-            "Loan Type": "Other loans with a defined maturity",
-            "Floating Rate 1 Year Fixation": to_f(row[13]), # N
-            "Over 1 To 5 Years Rate Fixation": to_f(row[14]), # O
-            "Over 5 Years Rate Fixation": to_f(row[15]), # P
+            "year": year, "month": month,
+            "group": "Individuals and private non-profit institutions",
+            "loan_type": "Other loans with a defined maturity",
+            "floating_rate_1_year_fixation": to_f(row[13]), # N
+            "over_1_to_5_years_rate_fixation": to_f(row[14]), # O
+            "over_5_years_rate_fixation": to_f(row[15]), # P
             "_sort_order": 3
         })
 
@@ -94,13 +94,13 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
 
         # Segment 4: Other loans with a defined maturity
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Sole proprietors and unicorporated businesses",
-            "Loan Type": "Other loans with a defined maturity",
-            "Total Loan Amount": to_f(row[16]), # Q
-            "Total Collateral Guarantees Loans": to_f(row[17]), # R
-            "Floating Rate 1 Year Fixation": to_f(row[18]), # S
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[19]), # T
+            "year": year, "month": month,
+            "group": "Sole proprietors and unicorporated businesses",
+            "loan_type": "Other loans with a defined maturity",
+            "total_loan_amount": to_f(row[16]), # Q
+            "total_collateral_guarantees_loans": to_f(row[17]), # R
+            "floating_rate_1_year_fixation": to_f(row[18]), # S
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[19]), # T
             "_sort_order": 4
         })
 
@@ -108,98 +108,98 @@ def extract_loan_amounts(file_path: Path) -> pd.DataFrame:
 
         # Segment 5: Loans with a defined maturity (Total)
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with a defined maturity",
-            "Total Loan Amount": to_f(row[20]), # U
-            "Total Small Medium Enterprises Loans": to_f(row[21]), # V
-            "Floating Rate 1 Year Fixation": to_f(row[22]), # W
-            "Over 1 To 5 Years Rate Fixation": to_f(row[23]), # X
-            "Over 5 Years Rate Fixation": to_f(row[24]), # Y
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with a defined maturity",
+            "total_loan_amount": to_f(row[20]), # U
+            "total_small_medium_enterprises_loans": to_f(row[21]), # V
+            "floating_rate_1_year_fixation": to_f(row[22]), # W
+            "over_1_to_5_years_rate_fixation": to_f(row[23]), # X
+            "over_5_years_rate_fixation": to_f(row[24]), # Y
             "_sort_order": 5
         })
         
         # Segment 6: 0.25 to 1M
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and over an amount of EUR 0.25 million and up to 1 million",
-            "Total Loan Amount": to_f(row[29]), # AD
-            "Total Collateral Guarantees Loans": to_f(row[30]), # AE
-            "Floating Rate 1 Year Fixation": to_f(row[31]), # AF
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[32]), # AG
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and over an amount of EUR 0.25 million and up to 1 million",
+            "total_loan_amount": to_f(row[29]), # AD
+            "total_collateral_guarantees_loans": to_f(row[30]), # AE
+            "floating_rate_1_year_fixation": to_f(row[31]), # AF
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[32]), # AG
             "_sort_order": 6
         })
         
         # Segment 7: up to 0.25M
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and up to an amount of EUR 0.25",
-            "Total Loan Amount": to_f(row[25]), # Z
-            "Total Collateral Guarantees Loans": to_f(row[26]), # AA
-            "Floating Rate 1 Year Fixation": to_f(row[27]), # AB
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[28]), # AC
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with a defined maturity and up to an amount of EUR 1 million - Loans with a defined maturity and up to an amount of EUR 0.25",
+            "total_loan_amount": to_f(row[25]), # Z
+            "total_collateral_guarantees_loans": to_f(row[26]), # AA
+            "floating_rate_1_year_fixation": to_f(row[27]), # AB
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[28]), # AC
             "_sort_order": 7
         })
 
         # Segment 8: Over 1M
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with a defined maturity over an amount of EUR 1 million",
-            "Total Loan Amount": to_f(row[33]), # AH
-            "Total Collateral Guarantees Loans": to_f(row[34]), # AI
-            "Floating Rate 1 Year Fixation": to_f(row[35]), # AJ
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[36]), # AK
-            "Over 1 To 5 Years Rate Fixation": to_f(row[37]), # AL
-            "Over 5 Years Rate Fixation": to_f(row[38]), # AM
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with a defined maturity over an amount of EUR 1 million",
+            "total_loan_amount": to_f(row[33]), # AH
+            "total_collateral_guarantees_loans": to_f(row[34]), # AI
+            "floating_rate_1_year_fixation": to_f(row[35]), # AJ
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[36]), # AK
+            "over_1_to_5_years_rate_fixation": to_f(row[37]), # AL
+            "over_5_years_rate_fixation": to_f(row[38]), # AM
             "_sort_order": 8
         })
         
         # Segment 9: Orig Mat > 1yr | 0.25 to 1M
         # Shift values to Floating Slots per snippet
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 0.25 million and up to 1 million",
-            "Floating Rate 1 Year Fixation": to_f(row[41]), # AP
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[42]), # AQ
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 0.25 million and up to 1 million",
+            "floating_rate_1_year_fixation": to_f(row[41]), # AP
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[42]), # AQ
             "_sort_order": 9
         })
         
         # Segment 10: Orig Mat > 1yr | Over 1M
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 1 million",
-            "Floating Rate 1 Year Fixation": to_f(row[43]), # AR
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[44]), # AS
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with an original maturity over 1 year - Loans over an amount of EUR 1 million",
+            "floating_rate_1_year_fixation": to_f(row[43]), # AR
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[44]), # AS
             "_sort_order": 10
         })
         
         # Segment 11: Orig Mat > 1yr | Up to 0.25M
         records.append({
-            "Year": year, "Month": month,
-            "Group": "Non-financial corporations",
-            "Loan Type": "Loans with an original maturity over 1 year - Loans up to an amount of EUR 0.25 million",
-            "Floating Rate 1 Year Fixation": to_f(row[39]), # AN
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": to_f(row[40]), # AO
+            "year": year, "month": month,
+            "group": "Non-financial corporations",
+            "loan_type": "Loans with an original maturity over 1 year - Loans up to an amount of EUR 0.25 million",
+            "floating_rate_1_year_fixation": to_f(row[39]), # AN
+            "floating_rate_1_year_rate_fixation_collateral_guarantees": to_f(row[40]), # AO
             "_sort_order": 11
         })
 
     out = pd.DataFrame(records)
     
     # Fill None in keys with empty strings
-    out["Group"] = out["Group"].fillna("")
-    out["Loan Type"] = out["Loan Type"].fillna("")
-    
+    out["group"] = out["group"].fillna("")
+    out["loan_type"] = out["loan_type"].fillna("")
+
     cols = [
-        "Year", "Month", "Group", "Loan Type", "Total Loan Amount", 
-        "Total Collateral Guarantees Loans", "Total Small Medium Enterprises Loans", 
-        "Floating Rate 1 Year Fixation", "Floating Rate 1 Year Rate Fixation Collateral Guarantees", 
-        "Floating Rate 1 Year Rate Fixation Floating Rate", "Over 1 To 5 Years Rate Fixation", 
-        "Over 5 Years Rate Fixation", "Over 5 To 10 Years Rate Fixation", "Over 10 Years Rate Fixation",
+        "year", "month", "group", "loan_type", "total_loan_amount",
+        "total_collateral_guarantees_loans", "total_small_medium_enterprises_loans",
+        "floating_rate_1_year_fixation", "floating_rate_1_year_rate_fixation_collateral_guarantees",
+        "floating_rate_1_year_rate_fixation_floating_rate", "over_1_to_5_years_rate_fixation",
+        "over_5_years_rate_fixation", "over_5_to_10_years_rate_fixation", "over_10_years_rate_fixation",
         "_sort_order"
     ]
     for c in cols:

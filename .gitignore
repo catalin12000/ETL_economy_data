@@ -40,6 +40,8 @@ data/db/*.csv
 
 # Logs
 *.log
+etl/logs/
+etl/pipelines/*/logs/
 
 # Audit/diagnostic scripts output
 db_null_audit_report.csv

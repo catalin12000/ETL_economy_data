@@ -62,29 +62,29 @@ def extract_employment(xls_path: Path) -> pd.DataFrame:
                 except: return pd.NA
             
             records.append({
-                "Year": current_year,
-                "Month": month,
-                "Seasonally": "Unadjusted",
-                "Employed 000s": to_f(row[1]),
-                "Unemployed 000s": to_f(row[2]),
-                "Inactives 000s": to_f(row[3]),
-                "Adjusted_Unemployment_Rate": pd.NA,
-                "Unadjusted_Unemployment_Rate": to_f(row[4])
+                "year": current_year,
+                "month": month,
+                "seasonally": "Unadjusted",
+                "employed_000s": to_f(row[1]),
+                "unemployed_000s": to_f(row[2]),
+                "inactives_000s": to_f(row[3]),
+                "adjusted_unemployment_rate": pd.NA,
+                "unadjusted_unemployment_rate": to_f(row[4])
             })
             records.append({
-                "Year": current_year,
-                "Month": month,
-                "Seasonally": "Adjusted",
-                "Employed 000s": to_f(row[5]),
-                "Unemployed 000s": to_f(row[6]),
-                "Inactives 000s": to_f(row[7]),
-                "Adjusted_Unemployment_Rate": to_f(row[8]),
-                "Unadjusted_Unemployment_Rate": pd.NA
+                "year": current_year,
+                "month": month,
+                "seasonally": "Adjusted",
+                "employed_000s": to_f(row[5]),
+                "unemployed_000s": to_f(row[6]),
+                "inactives_000s": to_f(row[7]),
+                "adjusted_unemployment_rate": to_f(row[8]),
+                "unadjusted_unemployment_rate": pd.NA
             })
 
     out = pd.DataFrame(records)
-    out = out.drop_duplicates(subset=["Year", "Month", "Seasonally"], keep="last")
-    out = out.sort_values(["Year", "Month", "Seasonally"]).reset_index(drop=True)
+    out = out.drop_duplicates(subset=["year", "month", "seasonally"], keep="last")
+    out = out.sort_values(["year", "month", "seasonally"]).reset_index(drop=True)
     
     # Print the last few months for verification
     print("\n--- Extracted Data Tail ---")

@@ -28,23 +28,23 @@ def extract_eu_gdp(csv_path: Path) -> pd.DataFrame:
 
     # Mapping Eurostat unit codes to requested column names
     UNIT_MAP = {
-        "CLV20_MEUR": "Chain Linked Volumes",
-        "CLV_PCH_PRE": "Quarter Over Quarter",
-        "CLV_PCH_SM": "Year Over Year",
-        "CP_MEUR": "Current Prices"
+        "CLV20_MEUR": "chain_linked_volumes",
+        "CLV_PCH_PRE": "quarter_over_quarter",
+        "CLV_PCH_SM": "year_over_year",
+        "CP_MEUR": "current_prices"
     }
 
     # 1. Parse Year and Quarter from TIME_PERIOD (e.g., "2024-Q1")
-    df[["Year", "Quarter"]] = df["TIME_PERIOD"].str.split("-Q", expand=True)
-    df["Year"] = pd.to_numeric(df["Year"])
-    df["Quarter"] = pd.to_numeric(df["Quarter"])
+    df[["year", "quarter"]] = df["TIME_PERIOD"].str.split("-Q", expand=True)
+    df["year"] = pd.to_numeric(df["year"])
+    df["quarter"] = pd.to_numeric(df["quarter"])
 
     # 2. Map Geopolitical Entity
-    df["Geopolitical Entity"] = df["geo"].map(lambda x: GEO_MAP.get(x, x))
+    df["geopolitical_entity"] = df["geo"].map(lambda x: GEO_MAP.get(x, x))
 
     # 3. Pivot Units to Columns
     df_pivot = df.pivot_table(
-        index=["Geopolitical Entity", "Year", "Quarter"],
+        index=["geopolitical_entity", "year", "quarter"],
         columns="unit",
         values="OBS_VALUE",
         aggfunc="first"
@@ -59,13 +59,13 @@ def extract_eu_gdp(csv_path: Path) -> pd.DataFrame:
             df_pivot[col] = pd.NA
 
     # 6. Reorder and Round
-    cols = ["Geopolitical Entity", "Year", "Quarter", "Chain Linked Volumes", "Quarter Over Quarter", "Year Over Year", "Current Prices"]
+    cols = ["geopolitical_entity", "year", "quarter", "chain_linked_volumes", "quarter_over_quarter", "year_over_year", "current_prices"]
     df_out = df_pivot[cols].copy()
-    
-    val_cols = ["Chain Linked Volumes", "Quarter Over Quarter", "Year Over Year", "Current Prices"]
+
+    val_cols = ["chain_linked_volumes", "quarter_over_quarter", "year_over_year", "current_prices"]
     for c in val_cols:
         df_out[c] = pd.to_numeric(df_out[c], errors="coerce").round(1)
 
-    df_out = df_out.sort_values(["Year", "Quarter", "Geopolitical Entity"]).reset_index(drop=True)
+    df_out = df_out.sort_values(["year", "quarter", "geopolitical_entity"]).reset_index(drop=True)
     
     return df_out

@@ -50,6 +50,10 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
     state = load_state(pipeline_id)
     if not state:
         return {"pipeline": pipeline_id, "skipped": "no state.json"}
+    if state.get("last_status") == "skipped":
+        return {"pipeline": pipeline_id, "skipped": state.get("last_message") or "latest pipeline run was skipped"}
+    if state.get("last_status") == "error":
+        return {"pipeline": pipeline_id, "skipped": "latest pipeline run errored; keeping Pipeline Run Log local"}
 
     raw_paths = [
         Path(p) for key in _RAW_PATH_KEYS
@@ -65,12 +69,13 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
     run_dt = datetime.now()
 
     if dry_run:
-        from etl.core.s3_upload import _s3_key
+        from etl.core.s3_upload import _log_s3_key, _pipeline_log_path, _s3_key
         keys = [_s3_key(pipeline_id, p, "raw_data", run_dt) for p in raw_paths]
         if deliverable:
-            base = _s3_key(pipeline_id, deliverable, "transformed_data", run_dt, use_table_name=True)
-            parts = base.rsplit("/", 1)
-            keys.append(f"{parts[0]}/deliverable/{parts[1]}")
+            deliverable_key = _s3_key(pipeline_id, deliverable, "transformed_data", run_dt, use_table_name=True)
+            keys.append(deliverable_key)
+            if _pipeline_log_path(pipeline_id):
+                keys.append(_log_s3_key(deliverable_key))
         return {"pipeline": pipeline_id, "dry_run_keys": keys}
 
     result = upload_pipeline_files(pipeline_id, raw_paths, deliverable, run_dt)
@@ -78,7 +83,27 @@ def _sync_one(pipeline_id: str, dry_run: bool) -> dict:
         "pipeline": pipeline_id,
         "uploaded": result.get("uploaded", []),
         "errors": result.get("errors", []),
+        "details": result.get("details", {}),
     }
+
+
+def _result_status(result: dict) -> str:
+    if "skipped" in result:
+        return "SKIPPED"
+    if "dry_run_keys" in result:
+        return "DRY"
+
+    uploaded = result.get("uploaded", [])
+    errors = result.get("errors", [])
+    details = result.get("details", {})
+
+    if not errors:
+        return "OK"
+    if details.get("deliverable_uploaded"):
+        return "PARTIAL"
+    if uploaded and not details.get("s3_deliverable_key"):
+        return "PARTIAL"
+    return "FAILED"
 
 
 def _print_summary(results: list[dict], dry_run: bool) -> None:
@@ -103,9 +128,12 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
     total_err = 0
     skipped   = 0
     ok        = 0
+    partial   = 0
+    failed    = 0
 
     for r in results:
         pid = r["pipeline"]
+        plain_status = _result_status(r)
 
         if "skipped" in r:
             skipped += 1
@@ -122,14 +150,16 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
             total_up  += len(uploaded)
             total_err += len(errors)
 
-            if not errors:
+            if plain_status == "OK":
                 ok += 1
                 status = "[green3]OK[/]"
                 note   = ""
-            elif uploaded:
+            elif plain_status == "PARTIAL":
+                partial += 1
                 status = "[yellow]PARTIAL[/]"
                 note   = "\n".join(f"[red]{e}[/]" for e in errors)
             else:
+                failed += 1
                 status = "[red]FAILED[/]"
                 note   = "\n".join(f"[red]{e}[/]" for e in errors)
 
@@ -150,10 +180,73 @@ def _print_summary(results: list[dict], dry_run: bool) -> None:
     console.print(
         f"  [bold white]{total_up} files{'  (dry run)' if dry_run else ' uploaded'}[/]   "
         f"[green3]{ok} ok[/]   "
+        f"[yellow]{partial} partial[/]   "
         f"[yellow]{skipped} skipped[/]   "
+        f"[red]{failed} failed[/]   "
         f"[red]{total_err} errors[/]"
     )
     print()
+
+
+def _write_sync_log(results: list[dict], *, dry_run: bool, started_at: datetime, completed_at: datetime) -> Path:
+    path = Path("etl") / "logs" / "sync" / completed_at.strftime("%Y-%m") / f"{completed_at.strftime('%Y%m%dT%H%M%S')}.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    counts: dict[str, int] = {}
+    for result in results:
+        status = _result_status(result)
+        counts[status] = counts.get(status, 0) + 1
+
+    lines = [
+        "=" * 88,
+        "Sync Log",
+        f"Bucket: s3://{_BUCKET}",
+        f"Started: {started_at.isoformat()}",
+        f"Completed: {completed_at.isoformat()}",
+        f"Dry run: {dry_run}",
+        "=" * 88,
+        "",
+        "Summary:",
+        f"  total: {len(results)}",
+    ]
+    for status, count in sorted(counts.items()):
+        lines.append(f"  {status.lower()}: {count}")
+
+    lines.extend(["", "Pipelines:"])
+    for result in results:
+        status = _result_status(result)
+        lines.append(f"  {result['pipeline']}")
+        lines.append(f"    status: {status}")
+        if "skipped" in result:
+            lines.append(f"    reason: {result['skipped']}")
+        if "dry_run_keys" in result:
+            lines.append("    dry_run_keys:")
+            for key in result["dry_run_keys"]:
+                lines.append(f"      s3://{_BUCKET}/{key}")
+        if result.get("uploaded"):
+            details = result.get("details", {})
+            raw_keys = details.get("raw_keys") or [k for k in result["uploaded"] if k.startswith("raw_data/")]
+            deliverable_key = details.get("s3_deliverable_key")
+            log_key = details.get("s3_log_key")
+
+            if deliverable_key:
+                lines.append("    deliverable:")
+                lines.append(f"      s3://{_BUCKET}/{deliverable_key}")
+            if log_key and log_key in result["uploaded"]:
+                lines.append("    pipeline_run_log:")
+                lines.append(f"      s3://{_BUCKET}/{log_key}")
+            if raw_keys:
+                lines.append("    raw_files:")
+                for key in raw_keys:
+                    if key in result["uploaded"]:
+                        lines.append(f"      s3://{_BUCKET}/{key}")
+        if result.get("errors"):
+            lines.append("    errors:")
+            for error in result["errors"]:
+                lines.append(f"      {error}")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def main():
@@ -167,11 +260,13 @@ def main():
 
     console.print(f"\n[bold yellow]Syncing {len(targets)} pipeline(s) to [white]s3://{_BUCKET}[/][/]{'[yellow]  (DRY RUN)[/]' if args.dry_run else ''}\n")
 
+    started_at = datetime.now()
     results = []
     for t in tqdm(targets, desc="Uploading", unit="pipeline", ncols=80):
         results.append(_sync_one(t, args.dry_run))
 
     _print_summary(results, args.dry_run)
+    _write_sync_log(results, dry_run=args.dry_run, started_at=started_at, completed_at=datetime.now())
 
 
 if __name__ == "__main__":

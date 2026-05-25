@@ -51,26 +51,26 @@ def extract_new_residential_buildings_work_categories(xls_path: Path) -> pd.Data
         records.extend(
             [
                 {
-                    "Year": year,
-                    "Quarter": quarter,
-                    "Overall Index": _parse_float(df.iat[i + 5, quarter + 1]),
-                    " Earth-moving": _parse_float(df.iat[i + 6, quarter + 1]),
-                    " Concrete reinforced or not": _parse_float(df.iat[i + 7, quarter + 1]),
-                    " Wall-building ": _parse_float(df.iat[i + 8, quarter + 1]),
-                    " Plastering": _parse_float(df.iat[i + 9, quarter + 1]),
-                    " Electrical installations": _parse_float(df.iat[i + 10, quarter + 1]),
-                    " Hydraulic installations": _parse_float(df.iat[i + 11, quarter + 1]),
-                    " Central heating installations": _parse_float(df.iat[i + 12, quarter + 1]),
-                    " Coverings-Coatings ": _parse_float(df.iat[i + 13, quarter + 1]),
-                    " Carpentry": _parse_float(df.iat[i + 14, quarter + 1]),
-                    " Iron and steel structures": _parse_float(df.iat[i + 15, quarter + 1]),
-                    " Aluminium structures ": _parse_float(df.iat[i + 16, quarter + 1]),
-                    " Painting ": _parse_float(df.iat[i + 17, quarter + 1]),
-                    " Insulation ": _parse_float(df.iat[i + 18, quarter + 1]),
-                    " Glazing ": _parse_float(df.iat[i + 19, quarter + 1]),
-                    " Elevators ": _parse_float(df.iat[i + 20, quarter + 1]),
-                    " Plaster structures": _parse_float(df.iat[i + 21, quarter + 1]),
-                    " Special installations without appliances and accessories ": _parse_float(
+                    "year": year,
+                    "quarter": quarter,
+                    "overall_index": _parse_float(df.iat[i + 5, quarter + 1]),
+                    "earth_moving": _parse_float(df.iat[i + 6, quarter + 1]),
+                    "concrete_reinforced": _parse_float(df.iat[i + 7, quarter + 1]),
+                    "wall_building": _parse_float(df.iat[i + 8, quarter + 1]),
+                    "plastering": _parse_float(df.iat[i + 9, quarter + 1]),
+                    "electrical_installations": _parse_float(df.iat[i + 10, quarter + 1]),
+                    "hydraulic_installations": _parse_float(df.iat[i + 11, quarter + 1]),
+                    "central_heating_installations": _parse_float(df.iat[i + 12, quarter + 1]),
+                    "coverings_coatings": _parse_float(df.iat[i + 13, quarter + 1]),
+                    "carpentry": _parse_float(df.iat[i + 14, quarter + 1]),
+                    "iron_steel_structures": _parse_float(df.iat[i + 15, quarter + 1]),
+                    "aluminium_structures": _parse_float(df.iat[i + 16, quarter + 1]),
+                    "painting": _parse_float(df.iat[i + 17, quarter + 1]),
+                    "insulation": _parse_float(df.iat[i + 18, quarter + 1]),
+                    "glazing": _parse_float(df.iat[i + 19, quarter + 1]),
+                    "elevators": _parse_float(df.iat[i + 20, quarter + 1]),
+                    "plaster_structures": _parse_float(df.iat[i + 21, quarter + 1]),
+                    "special_installations_without_appliances_accessories": _parse_float(
                         df.iat[i + 22, quarter + 1]
                     ),
                 }
@@ -82,6 +82,6 @@ def extract_new_residential_buildings_work_categories(xls_path: Path) -> pd.Data
     if out.empty:
         raise RuntimeError("No quarterly rows extracted for new residential buildings work categories.")
 
-    out = out.drop_duplicates(subset=["Year", "Quarter"], keep="last")
-    out = out.sort_values(["Year", "Quarter"]).reset_index(drop=True)
+    out = out.drop_duplicates(subset=["year", "quarter"], keep="last")
+    out = out.sort_values(["year", "quarter"]).reset_index(drop=True)
     return out

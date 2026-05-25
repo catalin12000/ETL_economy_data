@@ -98,7 +98,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Quarter", "Sex"],
+            key_cols=["year", "quarter", "sex"],
         )
 
         # 4) DB comparison (READ-ONLY, zeus)

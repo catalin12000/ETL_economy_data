@@ -56,23 +56,16 @@ class Pipeline:
         
         print(f"Comparing with master DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month", "Geopolitical_Entity"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month", "geopolitical_entity"]
         )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "Geopolitical_Entity": "geopolitical_entity",
-            "Consumer_confidence_indicator": "consumer_confidence_indicator"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
         
         sql_path = pp.sql("ed_eu_consumer_confidence_index.sql")
         
@@ -107,25 +100,15 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = ['id', 'Year', 'Month', 'Geopolitical_Entity', 'Consumer_Confidence_Indicator']
-        
+        target_cols = ['id', 'year', 'month', 'geopolitical_entity', 'consumer_confidence_indicator']
+
         if not delta_df.empty:
-            # Map database columns (lowercase) back to Capitalized for deliverable
-            rev_map = {
-                "id": "id",
-                "year": "Year",
-                "month": "Month",
-                "geopolitical_entity": "Geopolitical_Entity",
-                "consumer_confidence_indicator": "Consumer_Confidence_Indicator"
-            }
-            delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
             for c in target_cols:
                 if c not in delta_df.columns: delta_df[c] = pd.NA
             write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            # If no changes were made to the DB, create an empty file with headers
             write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         db_summary = {
             "status": db_comp_res.get("status"),

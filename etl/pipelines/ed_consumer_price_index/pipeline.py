@@ -63,8 +63,6 @@ class Pipeline:
         print("Comparing extraction with live Postgres DB...")
         # Prepare DF for DB sync (needs 'year_over_year' match)
         df_for_db = df_new.copy()
-        if "Year Over Year" in df_for_db.columns:
-            df_for_db.rename(columns={"Year Over Year": "Year_over_Year"}, inplace=True)
             
         # Locate the SQL file for fetching DB state
         sql_path = pp.sql("ed_consumer_price_index.sql")
@@ -103,24 +101,14 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
-        target_cols = ['Year', 'Month', 'Index', 'Year_over_Year']
-        
+        target_cols = ['year', 'month', 'index', 'year_over_year']
+
         if not delta_df.empty:
-            # Map columns to the expected deliverable format
-            col_map = {
-                "year": "Year",
-                "month": "Month",
-                "index": "Index",
-                "year_over_year": "Year_over_Year"
-            }
-            delta_df.rename(columns=col_map, inplace=True)
-            
             for c in target_cols:
                 if c not in delta_df.columns: delta_df[c] = pd.NA
-            
+
             write_deliverable_csv(delta_df[target_cols], deliverable_path)
         else:
-            # If no changes are needed, create an empty file with headers
             write_deliverable_csv(pd.DataFrame(columns=target_cols), deliverable_path)
         # Prepare state
         db_summary = {

@@ -85,28 +85,28 @@ def extract_retail_trade_volume(path: Path) -> pd.DataFrame:
             continue
 
         values = {
-            "Overall Index": _parse_float(df.iat[i, 1]),
-            "Overall index except automotive fuel": _parse_float(df.iat[i, 2]),
-            "Food sector (supermarkets, food,beverages, tobacco)": _parse_float(df.iat[i, 3]),
-            "Overall index except Food sector and Automotive fuel": _parse_float(df.iat[i, 4]),
-            "Super Markets": _parse_float(df.iat[i, 5]),
-            "Department stores": _parse_float(df.iat[i, 6]),
-            "Automotive fuel": _parse_float(df.iat[i, 7]),
-            "Food beverages, tobacco": _parse_float(df.iat[i, 8]),
-            "Pharmaceutical products, cosmetics": _parse_float(df.iat[i, 9]),
-            "Clothing and footwear": _parse_float(df.iat[i, 10]),
-            "Furniture, electrical and household equipment": _parse_float(df.iat[i, 11]),
-            "Books stationery, other goods": _parse_float(df.iat[i, 12]),
+            "overall_index": _parse_float(df.iat[i, 1]),
+            "overall_index_excl_automotive": _parse_float(df.iat[i, 2]),
+            "food_sector_index": _parse_float(df.iat[i, 3]),
+            "overall_index_excl_food_sector": _parse_float(df.iat[i, 4]),
+            "supermarkets_index": _parse_float(df.iat[i, 5]),
+            "department_stores_index": _parse_float(df.iat[i, 6]),
+            "automotive_fuel_index": _parse_float(df.iat[i, 7]),
+            "food_beverages_tobacco_index": _parse_float(df.iat[i, 8]),
+            "pharmaceutical_cosmetics_index": _parse_float(df.iat[i, 9]),
+            "clothing_footwear_index": _parse_float(df.iat[i, 10]),
+            "furniture_electrical_household_equipment_index": _parse_float(df.iat[i, 11]),
+            "books_stationary_other_goods_index": _parse_float(df.iat[i, 12]),
         }
         if all(v is None for v in values.values()):
             continue
 
-        records.append({"Year": current_year, "Month": month, **values})
+        records.append({"year": current_year, "month": month, **values})
 
     out = pd.DataFrame(records)
     if out.empty:
         raise RuntimeError("No rows extracted from TABLE 2 in retail trade volume workbook.")
 
-    out = out.drop_duplicates(subset=["Year", "Month"], keep="last")
-    out = out.sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = out.drop_duplicates(subset=["year", "month"], keep="last")
+    out = out.sort_values(["year", "month"]).reset_index(drop=True)
     return out

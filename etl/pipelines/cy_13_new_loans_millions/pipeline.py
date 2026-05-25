@@ -145,46 +145,46 @@ class Pipeline:
         
         print(f"Comparing with baseline DB {db_path}...")
         res = compare_and_update_csv(
-            db_path, 
-            df_new, 
-            out_csv_full, 
-            report_csv, 
-            key_cols=["Year", "Month"]
+            db_path,
+            df_new,
+            out_csv_full,
+            report_csv,
+            key_cols=["year", "month"]
         )
 
         # 6. DB Comparison (READ-ONLY - ZEUS DB)
         print("Comparing extraction with live Cyprus Postgres DB (zeus)...")
         df_for_db = df_new.copy()
-        
-        # Mapping extract columns to DB schema
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "Housing_Pure_New_Loans": "housing_pure_new_loans",
-            "Housing_Renegotiated_Loans": "housing_renegotiated_loans",
-            "Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate": "housing_floating_rate_up_to_1_year_initial_fixation_rate",
-            "Housing_Annual_Percentage_Rate_Of_Charge": "housing_annual_percentage_rate_of_charge",
-            "Outstanding_Housing_Loans_Locals": "outstanding_housing_loans_locals",
-            "Outstanding_Housing_Loans_Eu": "outstanding_housing_loans_eu",
-            "Outstanding_Housing_Loans_Non_Eu_Rates": "outstanding_housing_loans_non_eu",
-            "Consumer_Annual_Percentage_Rate_Of_Charge": "consumer_annual_percentage_rate_of_charge",
-            "Consumer_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate": "consumer_floating_rate_up_to_1_year_initial_fixation_rate",
-            "Consumer_Pure_New_Loans": "consumer_pure_new_loans",
-            "Consumer_Renegotiated_Loans": "consumer_renegotiated_loans",
-            "Outstanding_Consumer_Loans_Locals": "outstanding_consumer_loans_locals",
-            "Outstanding_Consumer_Loans_Eu": "outstanding_consumer_loans_eu",
-            "Outstanding_Consumer_Loans_Non_Eu_Rates": "outstanding_consumer_loans_non_eu"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
-        
+        df_for_db = df_for_db.rename(columns={
+            "outstanding_housing_loans_non_eu_rates": "outstanding_housing_loans_non_eu",
+            "outstanding_consumer_loans_non_eu_rates": "outstanding_consumer_loans_non_eu",
+        })
+
+        sync_cols = [
+            "housing_pure_new_loans",
+            "housing_renegotiated_loans",
+            "housing_floating_rate_up_to_1_year_initial_fixation_rate",
+            "housing_annual_percentage_rate_of_charge",
+            "outstanding_housing_loans_locals",
+            "outstanding_housing_loans_eu",
+            "outstanding_housing_loans_non_eu",
+            "consumer_annual_percentage_rate_of_charge",
+            "consumer_floating_rate_up_to_1_year_initial_fixation_rate",
+            "consumer_pure_new_loans",
+            "consumer_renegotiated_loans",
+            "outstanding_consumer_loans_locals",
+            "outstanding_consumer_loans_eu",
+            "outstanding_consumer_loans_non_eu",
+        ]
+
         sql_path = pp.sql("ed_new_loans_millions.sql")
-        
+
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.db_table_name,
-            db_name="zeus", # CYPRUS
+            db_name="zeus",
             match_cols=["year", "month"],
-            sync_cols=[c for c in col_map.values() if c not in ["year", "month"]],
+            sync_cols=sync_cols,
             tolerance=0.05,
             sql_file_path=str(sql_path)
         )
@@ -206,46 +206,34 @@ class Pipeline:
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
         
         target_cols = [
-            'id', 'Year', 'Month',
-            'Consumer_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
-            'Housing_Floating_Rate_Up_to_1_Year_Initial_Fixation_Rate',
-            'Consumer_Annual_Percentage_Rate_Of_Charge',
-            'Housing_Annual_Percentage_Rate_Of_Charge',
-            'Consumer_Pure_New_Loans',
-            'Consumer_Renegotiated_Loans',
-            'Housing_Pure_New_Loans',
-            'Housing_Renegotiated_Loans',
-            'Outstanding_Consumer_Loans_Locals',
-            'Outstanding_Housing_Loans_Locals',
-            'Outstanding_Consumer_Loans_Eu',
-            'Outstanding_Housing_Loans_Eu',
-            'Outstanding_Consumer_Loans_Non_Eu',
-            'Outstanding_Housing_Loans_Non_Eu'
+            'id', 'year', 'month',
+            'consumer_floating_rate_up_to_1_year_initial_fixation_rate',
+            'housing_floating_rate_up_to_1_year_initial_fixation_rate',
+            'consumer_annual_percentage_rate_of_charge',
+            'housing_annual_percentage_rate_of_charge',
+            'consumer_pure_new_loans',
+            'consumer_renegotiated_loans',
+            'housing_pure_new_loans',
+            'housing_renegotiated_loans',
+            'outstanding_consumer_loans_locals',
+            'outstanding_housing_loans_locals',
+            'outstanding_consumer_loans_eu',
+            'outstanding_housing_loans_eu',
+            'outstanding_consumer_loans_non_eu',
+            'outstanding_housing_loans_non_eu',
         ]
-        
+
         if not delta_df.empty:
-            # Map back to Capitalized for deliverable
-            rev_map = {v: k for k, v in col_map.items()}
-            # Specific fixes for casing
-            rev_map["id"] = "id"
-            rev_map["year"] = "Year"
-            rev_map["month"] = "Month"
-            rev_map["outstanding_housing_loans_non_eu"] = "Outstanding_Housing_Loans_Non_Eu"
-            rev_map["outstanding_consumer_loans_non_eu"] = "Outstanding_Consumer_Loans_Non_Eu"
-            
-            delta_df.rename(columns=rev_map, inplace=True)
             if "id" in delta_df.columns:
                 delta_df["id"] = pd.to_numeric(delta_df["id"], errors="coerce").astype("Int64")
-            
+
             # Apply Filter: Only 2024 onwards
-            if "Year" in delta_df.columns:
-                delta_df = delta_df[delta_df["Year"] >= 2024].copy()
-            
+            if "year" in delta_df.columns:
+                delta_df = delta_df[delta_df["year"] >= 2024].copy()
+
             if not delta_df.empty:
-                # Sort
-                sort_cols = ["Year", "Month"]
-                delta_df = delta_df.sort_values(sort_cols).reset_index(drop=True)
-                
+                delta_df = delta_df.sort_values(["year", "month"]).reset_index(drop=True)
+
                 for c in target_cols:
                     if c not in delta_df.columns: delta_df[c] = pd.NA
                 write_deliverable_csv(delta_df[target_cols], deliverable_path)

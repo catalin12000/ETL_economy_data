@@ -5,6 +5,8 @@ from sqlalchemy.engine import make_url
 from typing import List, Any
 from pathlib import Path
 
+from etl.core.pipeline_logging import emit_event
+
 
 def _load_dotenv_if_present() -> None:
     """
@@ -103,6 +105,16 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             with open(sql_file_path, 'r', encoding='utf-8') as f:
                 query = f.read()
         except Exception as e:
+            emit_event(
+                stage="db_compare",
+                event="db_query_read_failed",
+                status="error",
+                db_name=db_name,
+                table_name=table_name,
+                sql_file_path=sql_file_path,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
             return {"error": f"Failed to read SQL file {sql_file_path}: {e}"}
     else:
         cols_to_fetch = match_cols + sync_cols + (["id"] if "id" not in match_cols else [])
@@ -113,6 +125,16 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
         df_db = pd.read_sql(query, engine)
     except Exception as e:
         print(f"Error fetching from DB table {table_name}: {e}")
+        emit_event(
+            stage="db_compare",
+            event="db_fetch_failed",
+            status="error",
+            db_name=db_name,
+            table_name=table_name,
+            sql_file_path=sql_file_path,
+            error_type=type(e).__name__,
+            error_message=str(e),
+        )
         return {"error": str(e)}
 
     # Standardize column names
@@ -134,7 +156,36 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
             f"DB cols: {sorted(db_cols)}."
         )
         print(f"ERROR: {msg}")
+        emit_event(
+            stage="db_schema_check",
+            event="db_schema_check_completed",
+            status="error",
+            db_name=db_name,
+            table_name=table_name,
+            sql_file_path=sql_file_path,
+            match_cols=match_cols,
+            sync_cols=sync_cols,
+            extracted_cols=sorted(extracted_cols),
+            db_cols=sorted(db_cols),
+            missing_in_extract=missing_in_extract,
+            missing_in_db=missing_in_db,
+        )
         return {"error": msg}
+
+    emit_event(
+        stage="db_schema_check",
+        event="db_schema_check_completed",
+        status="success",
+        db_name=db_name,
+        table_name=table_name,
+        sql_file_path=sql_file_path,
+        match_cols=match_cols,
+        sync_cols=sync_cols,
+        extracted_cols=sorted(extracted_cols),
+        db_cols=sorted(db_cols),
+        missing_in_extract=[],
+        missing_in_db=[],
+    )
 
     # Store original DB values for restoration later
     orig_db_values = {}
@@ -236,10 +287,26 @@ def compare_with_postgres(df: pd.DataFrame, table_name: str, db_name: str, match
     inserted_df = pd.DataFrame(inserted_rows_list) if inserted_rows_list else pd.DataFrame()
     updated_df = pd.DataFrame(updated_rows_list) if updated_rows_list else pd.DataFrame()
 
-    return {
+    result = {
         "status": "success",
         "inserted": len(inserted_df),
         "updated": len(updated_df),
         "inserted_df": inserted_df,
         "updated_df": updated_df
     }
+    emit_event(
+        stage="db_compare",
+        event="db_compare_completed",
+        status="success",
+        db_name=db_name,
+        table_name=table_name,
+        sql_file_path=sql_file_path,
+        match_cols=match_cols,
+        sync_cols=sync_cols,
+        tolerance=tolerance,
+        extracted_rows=len(df),
+        db_rows=len(df_db),
+        inserted=result["inserted"],
+        updated=result["updated"],
+    )
+    return result

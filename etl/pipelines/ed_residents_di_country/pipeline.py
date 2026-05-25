@@ -72,7 +72,7 @@ class Pipeline:
 
         print("Extracting residents DI by country data...")
         df_all = extract_residents_di_country(out_path)
-        df_new = df_all[pd.to_numeric(df_all["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        df_new = df_all[pd.to_numeric(df_all["year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
         if df_new.empty:
             return {
                 "status": "error",
@@ -91,19 +91,11 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Country"],
+            key_cols=["year", "country"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Country": "country",
-                "Area": "area",
-                "Amount": "amount_millions",
-                "Continent": "continent",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_residents_di_by_country.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,

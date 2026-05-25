@@ -28,21 +28,19 @@ class Pipeline:
     VOLUME_TITLE   = "04. Volume Index for Motor Trade"
     MIN_DB_YEAR = 2015
 
-    ALL_SYNC_COLS = [
+    DB_SYNC_COLS = [
+        "motor_trade_turnover_index",
+        "vehicle_sale_turnover_index",
+    ]
+    OUTPUT_COLS = [
         "motor_trade_turnover_index",
         "vehicle_sale_turnover_index",
         "motor_trade_volume_index",
         "vehicle_sale_volume_index",
     ]
 
-    @staticmethod
-    def _format_db_compare_output(df: pd.DataFrame) -> pd.DataFrame:
-        target_cols = ["id", "year", "month"] + [
-            "motor_trade_turnover_index",
-            "vehicle_sale_turnover_index",
-            "motor_trade_volume_index",
-            "vehicle_sale_volume_index",
-        ]
+    def _format_db_compare_output(self, df: pd.DataFrame) -> pd.DataFrame:
+        target_cols = ["id", "year", "month"] + self.OUTPUT_COLS
         if df.empty:
             return pd.DataFrame(columns=target_cols)
 
@@ -101,15 +99,15 @@ class Pipeline:
         print("Extracting volume data (file 04)...")
         df_volume = extract_motor_trade_volume(volume_path)
 
-        df_new = pd.merge(df_turnover, df_volume, on=["Year", "Month"], how="outer")
-        df_new = df_new[pd.to_numeric(df_new["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        df_new = pd.merge(df_turnover, df_volume, on=["year", "month"], how="outer")
+        df_new = df_new[pd.to_numeric(df_new["year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
         if df_new.empty:
             return {
                 "status": "error",
-                "message": f"No rows found for Year >= {self.MIN_DB_YEAR}.",
+                "message": f"No rows found for year >= {self.MIN_DB_YEAR}.",
                 "state": new_state,
             }
-        df_new = df_new.sort_values(["Year", "Month"]).reset_index(drop=True)
+        df_new = df_new.sort_values(["year", "month"]).reset_index(drop=True)
 
         output_dir = pp.output
         out_csv_full = output_dir / "mock_db_snapshot.csv"
@@ -125,21 +123,19 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month"],
+            key_cols=["year", "month"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         # 6) DB compare — all 4 sync cols
         print("Comparing with live Postgres DB (athena)...")
-        df_for_db = pd.DataFrame({
-            "year":  pd.to_numeric(df_new["Year"],  errors="coerce"),
-            "month": pd.to_numeric(df_new["Month"], errors="coerce"),
-            "motor_trade_turnover_index":  pd.to_numeric(df_new["motor_trade_turnover_index"],  errors="coerce"),
-            "vehicle_sale_turnover_index": pd.to_numeric(df_new["vehicle_sale_turnover_index"], errors="coerce"),
-            "motor_trade_volume_index":    pd.to_numeric(df_new["motor_trade_volume_index"],    errors="coerce"),
-            "vehicle_sale_volume_index":   pd.to_numeric(df_new["vehicle_sale_volume_index"],   errors="coerce"),
-        }).dropna(subset=["year", "month"]).copy()
+        df_for_db = df_new.copy()
+        df_for_db["year"] = pd.to_numeric(df_for_db["year"], errors="coerce")
+        df_for_db["month"] = pd.to_numeric(df_for_db["month"], errors="coerce")
+        for c in self.OUTPUT_COLS:
+            df_for_db[c] = pd.to_numeric(df_for_db[c], errors="coerce")
+        df_for_db = df_for_db.dropna(subset=["year", "month"]).copy()
 
         sql_path = pp.sql("ed_motor_trade_turnover_index.sql")
         db_comp_res = compare_with_postgres(
@@ -147,7 +143,7 @@ class Pipeline:
             table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month"],
-            sync_cols=self.ALL_SYNC_COLS,
+            sync_cols=self.DB_SYNC_COLS,
             tolerance=0.11,
             sql_file_path=str(sql_path),
         )
@@ -168,8 +164,20 @@ class Pipeline:
         updated_df  = db_comp_res.get("updated_df",  pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        write_deliverable_csv(self._format_db_compare_output(delta_df), deliverable_path)
-        self._format_db_compare_output(updated_df).to_csv(db_diff_path, index=False)
+        def enrich_with_volume_columns(delta_like: pd.DataFrame) -> pd.DataFrame:
+            if delta_like.empty:
+                return pd.DataFrame(columns=["id", "year", "month"] + self.OUTPUT_COLS)
+            keys = delta_like[["id", "year", "month"]].copy()
+            keys["year"] = pd.to_numeric(keys["year"], errors="coerce")
+            keys["month"] = pd.to_numeric(keys["month"], errors="coerce")
+            full_values = df_for_db[["year", "month"] + self.OUTPUT_COLS].drop_duplicates(subset=["year", "month"])
+            return keys.merge(full_values, on=["year", "month"], how="left")
+
+        deliverable_df = enrich_with_volume_columns(delta_df)
+        updated_only_df = enrich_with_volume_columns(updated_df)
+
+        write_deliverable_csv(self._format_db_compare_output(deliverable_df), deliverable_path)
+        self._format_db_compare_output(updated_only_df).to_csv(db_diff_path, index=False)
 
         both_unchanged = (
             not is_new_by_hash(state.get("file_sha256_turnover"), hash_t)

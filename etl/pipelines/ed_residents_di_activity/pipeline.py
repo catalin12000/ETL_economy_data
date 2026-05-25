@@ -72,7 +72,7 @@ class Pipeline:
 
         print("Extracting residents DI by activity data...")
         df_all = extract_residents_di_activity(out_path)
-        df_new = df_all[pd.to_numeric(df_all["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        df_new = df_all[pd.to_numeric(df_all["year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
         if df_new.empty:
             return {
                 "status": "error",
@@ -91,20 +91,11 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Subsection Code"],
+            key_cols=["year", "subsection_code"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Section Code": "section_code",
-                "Section Name": "section_name",
-                "Subsection Code": "subsection_code",
-                "Subsection Name": "subsection_name",
-                "Amount Millions": "amount_millions",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_residents_di_by_activity.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
@@ -139,40 +130,30 @@ class Pipeline:
 
         target_cols = [
             "id",
-            "Year",
-            "Section Code",
-            "Section Name",
-            "Subsection Code",
-            "Subsection Name",
-            "Amount Millions",
+            "year",
+            "section_code",
+            "section_name",
+            "subsection_code",
+            "subsection_name",
+            "amount_millions",
         ]
 
         def shape_output(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return pd.DataFrame(columns=target_cols)
 
-            shaped = df.rename(
-                columns={
-                    "id": "id",
-                    "year": "Year",
-                    "section_code": "Section Code",
-                    "section_name": "Section Name",
-                    "subsection_code": "Subsection Code",
-                    "subsection_name": "Subsection Name",
-                    "amount_millions": "Amount Millions",
-                }
-            ).copy()
-            shaped["Year"] = pd.to_numeric(shaped["Year"], errors="coerce")
-            shaped["Amount Millions"] = pd.to_numeric(shaped["Amount Millions"], errors="coerce")
+            shaped = df.copy()
+            shaped["year"] = pd.to_numeric(shaped["year"], errors="coerce")
+            shaped["amount_millions"] = pd.to_numeric(shaped["amount_millions"], errors="coerce")
             shaped["id"] = pd.to_numeric(shaped["id"], errors="coerce")
-            shaped = shaped.dropna(subset=["Year", "Subsection Code"]).copy()
-            shaped["Year"] = shaped["Year"].astype(int)
+            shaped = shaped.dropna(subset=["year", "subsection_code"]).copy()
+            shaped["year"] = shaped["year"].astype(int)
             shaped = shaped.sort_values(
-                ["Year", "Section Code", "Subsection Code"],
+                ["year", "section_code", "subsection_code"],
                 ascending=[False, True, True],
             ).reset_index(drop=True)
             shaped["id"] = shaped["id"].map(lambda x: "" if pd.isna(x) else str(int(x)))
-            shaped["Amount Millions"] = shaped["Amount Millions"].map(
+            shaped["amount_millions"] = shaped["amount_millions"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.2f}"
             )
 

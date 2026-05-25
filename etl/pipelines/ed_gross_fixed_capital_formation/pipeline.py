@@ -84,7 +84,7 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Quarter", "Seasonally"],
+            key_cols=["year", "quarter", "seasonally"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")

@@ -81,38 +81,13 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Quarter"],
+            key_cols=["year", "quarter"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Quarter": "quarter",
-                "Overall Index": "overall_index",
-                " Earth-moving": "earth_moving",
-                " Concrete reinforced or not": "concrete_reinforced",
-                " Wall-building ": "wall_building",
-                " Plastering": "plastering",
-                " Electrical installations": "electrical_installations",
-                " Hydraulic installations": "hydraulic_installations",
-                " Central heating installations": "central_heating_installations",
-                " Coverings-Coatings ": "coverings_coatings",
-                " Carpentry": "carpentry",
-                " Iron and steel structures": "iron_steel_structures",
-                " Aluminium structures ": "aluminium_structures",
-                " Painting ": "painting",
-                " Insulation ": "insulation",
-                " Glazing ": "glazing",
-                " Elevators ": "elevators",
-                " Plaster structures": "plaster_structures",
-                " Special installations without appliances and accessories ": (
-                    "special_installations_without_appliances_accessories"
-                ),
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_new_residential_buildings_work_categories.sql")
         sync_cols = [
             "overall_index",

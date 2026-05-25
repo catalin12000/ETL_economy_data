@@ -57,7 +57,7 @@ class Pipeline:
 
         print("Extracting FDI country data...")
         df_all = extract_fdi_country(out_path)
-        df_new = df_all[pd.to_numeric(df_all["Year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
+        df_new = df_all[pd.to_numeric(df_all["year"], errors="coerce") >= self.MIN_DB_YEAR].copy()
         if df_new.empty:
             return {
                 "status": "error",
@@ -76,20 +76,11 @@ class Pipeline:
             df_new,
             out_csv_full,
             report_csv,
-            key_cols=["Year", "Country"],
+            key_cols=["year", "country"],
         )
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Country": "country",
-                "Area": "area",
-                "Amount": "amount",
-                "Continent": "continent",
-            }
-        )
-
+        df_for_db = df_new
         sql_path = pp.sql("ed_fdi_country.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,
@@ -121,23 +112,14 @@ class Pipeline:
         updated_df = db_comp_res.get("updated_df", pd.DataFrame())
         delta_df = pd.concat([inserted_df, updated_df], ignore_index=True)
 
-        target_cols = ["Year", "Country", "Area", "Amount", "Continent"]
+        target_cols = ["year", "country", "area", "amount", "continent"]
         if not delta_df.empty:
-            delta_df = delta_df.rename(
-                columns={
-                    "year": "Year",
-                    "country": "Country",
-                    "area": "Area",
-                    "amount": "Amount",
-                    "continent": "Continent",
-                }
-            )
-            delta_df["Year"] = pd.to_numeric(delta_df["Year"], errors="coerce")
-            delta_df["Amount"] = pd.to_numeric(delta_df["Amount"], errors="coerce")
-            delta_df = delta_df.dropna(subset=["Year", "Country"]).copy()
-            delta_df["Year"] = delta_df["Year"].astype(int)
-            delta_df = delta_df.sort_values(["Year", "Country"], ascending=[False, True]).reset_index(drop=True)
-            delta_df["Amount"] = delta_df["Amount"].map(
+            delta_df["year"] = pd.to_numeric(delta_df["year"], errors="coerce")
+            delta_df["amount"] = pd.to_numeric(delta_df["amount"], errors="coerce")
+            delta_df = delta_df.dropna(subset=["year", "country"]).copy()
+            delta_df["year"] = delta_df["year"].astype(int)
+            delta_df = delta_df.sort_values(["year", "country"], ascending=[False, True]).reset_index(drop=True)
+            delta_df["amount"] = delta_df["amount"].map(
                 lambda x: "" if pd.isna(x) else f"{float(x):.6f}".rstrip("0").rstrip(".")
             )
             for c in target_cols:

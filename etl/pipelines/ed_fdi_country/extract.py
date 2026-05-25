@@ -106,11 +106,11 @@ def extract_fdi_country_sheet(xls_path: Path, sheet_name: int | str) -> pd.DataF
 
             records.append(
                 {
-                    "Year": year,
-                    "Country": country,
-                    "Area": area,
-                    "Amount": float(amount),
-                    "Continent": continent,
+                    "year": year,
+                    "country": country,
+                    "area": area,
+                    "amount": float(amount),
+                    "continent": continent,
                     "_row_order": row_order,
                 }
             )
@@ -119,8 +119,8 @@ def extract_fdi_country_sheet(xls_path: Path, sheet_name: int | str) -> pd.DataF
     if out.empty:
         raise RuntimeError("No rows extracted from FDI country source.")
 
-    out = out.sort_values(["Year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
-    return out[["Year", "Country", "Area", "Amount", "Continent"]]
+    out = out.sort_values(["year", "_row_order"], ascending=[False, True]).reset_index(drop=True)
+    return out[["year", "country", "area", "amount", "continent"]]
 
 
 def extract_fdi_country(xls_path: Path) -> pd.DataFrame:

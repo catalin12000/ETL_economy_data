@@ -85,28 +85,28 @@ class Pipeline:
         lookup = full_replace_df.copy()
         if lookup.empty or "id" not in lookup.columns:
             if "id" not in out.columns:
-                insert_at = out.columns.get_loc("Loan Type") + 1 if "Loan Type" in out.columns else len(out.columns)
+                insert_at = out.columns.get_loc("loan_type") + 1 if "loan_type" in out.columns else len(out.columns)
                 out.insert(insert_at, "id", existing_id)
             else:
                 out["id"] = existing_id
             return out
 
         local_key_map = {
-            "Year": "year",
-            "Month": "month",
-            "Group": "group",
-            "Loan Type": "loan_type",
+            "year": "year",
+            "month": "month",
+            "group": "group",
+            "loan_type": "loan_type",
         }
 
         local_keys = out[list(local_key_map.keys())].copy()
         ref_keys = lookup[list(local_key_map.values()) + ["id"]].copy()
 
-        local_keys["year"] = pd.to_numeric(local_keys["Year"], errors="coerce").fillna(0).astype(int)
-        local_keys["month"] = pd.to_numeric(local_keys["Month"], errors="coerce").fillna(0).astype(int)
+        local_keys["year"] = pd.to_numeric(local_keys["year"], errors="coerce").fillna(0).astype(int)
+        local_keys["month"] = pd.to_numeric(local_keys["month"], errors="coerce").fillna(0).astype(int)
         ref_keys["year"] = pd.to_numeric(ref_keys["year"], errors="coerce").fillna(0).astype(int)
         ref_keys["month"] = pd.to_numeric(ref_keys["month"], errors="coerce").fillna(0).astype(int)
 
-        for local_col, ref_col in [("Group", "group"), ("Loan Type", "loan_type")]:
+        for local_col, ref_col in [("group", "group"), ("loan_type", "loan_type")]:
             local_keys[f"{ref_col}_norm"] = local_keys[local_col].apply(lambda x: _normalize_match_value(ref_col, x))
             ref_keys[f"{ref_col}_norm"] = ref_keys[ref_col].apply(lambda x: _normalize_match_value(ref_col, x))
 
@@ -140,38 +140,23 @@ class Pipeline:
         public CSV column layout used by this pipeline.
         """
         target_cols = [
-            'id', 'Year', 'Month', 'Group', 'Loan_Type', 'Total_Loan_Amount',
-            'Total_Collateral_Guarantees_Loans', 'Total_Small_Medium_Enterprises_Loans',
-            'Floating_Rate_1_Year_Fixation', 'Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees',
-            'Floating_Rate_1_Year_Rate_Fixation_Floating_Rate', 'Over_1_To_5_Years_Rate_Fixation',
-            'Over_5_Years_Rate_Fixation', 'Over_5_To_10_Years_Rate_Fixation', 'Over_10_Years_Rate_Fixation'
+            'id', 'year', 'month', 'group', 'loan_type', 'total_loan_amount',
+            'total_collateral_guarantees_loans', 'total_small_medium_enterprises_loans',
+            'floating_rate_1_year_fixation', 'floating_rate_1_year_rate_fixation_collateral_guarantees',
+            'floating_rate_1_year_rate_fixation_floating_rate', 'over_1_to_5_years_rate_fixation',
+            'over_5_years_rate_fixation', 'over_5_to_10_years_rate_fixation', 'over_10_years_rate_fixation'
         ]
 
         if df.empty:
             return pd.DataFrame(columns=target_cols)
 
         out = df.copy()
-        rev_map = {
-            "id": "id",
-            "year": "Year", "month": "Month", "group": "Group", "loan_type": "Loan_Type",
-            "total_loan_amount": "Total_Loan_Amount",
-            "total_collateral_guarantees_loans": "Total_Collateral_Guarantees_Loans",
-            "total_small_medium_enterprises_loans": "Total_Small_Medium_Enterprises_Loans",
-            "floating_rate_1_year_fixation": "Floating_Rate_1_Year_Fixation",
-            "floating_rate_1_year_rate_fixation_collateral_guarantees": "Floating_Rate_1_Year_Rate_Fixation_Collateral_Guarantees",
-            "floating_rate_1_year_rate_fixation_floating_rate": "Floating_Rate_1_Year_Rate_Fixation_Floating_Rate",
-            "over_1_to_5_years_rate_fixation": "Over_1_To_5_Years_Rate_Fixation",
-            "over_5_years_rate_fixation": "Over_5_Years_Rate_Fixation",
-            "over_5_to_10_years_rate_fixation": "Over_5_To_10_Years_Rate_Fixation",
-            "over_10_years_rate_fixation": "Over_10_Years_Rate_Fixation"
-        }
-        out.rename(columns=rev_map, inplace=True)
         if "id" in out.columns:
             out["id"] = pd.to_numeric(out["id"], errors="coerce").astype("Int64")
         for c in target_cols:
             if c not in out.columns:
                 out[c] = pd.NA
-        sort_cols = ["Year", "Month", "Group", "Loan_Type"]
+        sort_cols = ["year", "month", "group", "loan_type"]
         out = out.sort_values(sort_cols).reset_index(drop=True)
         return out[target_cols]
 
@@ -213,40 +198,31 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month", "Group", "Loan Type"]
+            key_cols=["year", "month", "group", "loan_type"]
         )
 
         # 3. DB Comparison (READ-ONLY)
         print("Comparing extraction with live Postgres DB...")
         df_for_db = df_new.copy()
-        col_map = {
-            "Year": "year",
-            "Month": "month",
-            "Group": "group",
-            "Loan Type": "loan_type",
-            "Total Loan Amount": "total_loan_amount",
-            "Total Collateral Guarantees Loans": "total_collateral_guarantees_loans",
-            "Total Small Medium Enterprises Loans": "total_small_medium_enterprises_loans",
-            "Floating Rate 1 Year Fixation": "floating_rate_1_year_fixation",
-            "Floating Rate 1 Year Rate Fixation Collateral Guarantees": "floating_rate_1_year_rate_fixation_collateral_guarantees",
-            "Floating Rate 1 Year Rate Fixation Floating Rate": "floating_rate_1_year_rate_fixation_floating_rate",
-            "Over 1 To 5 Years Rate Fixation": "over_1_to_5_years_rate_fixation",
-            "Over 5 Years Rate Fixation": "over_5_years_rate_fixation",
-            "Over 5 To 10 Years Rate Fixation": "over_5_to_10_years_rate_fixation",
-            "Over 10 Years Rate Fixation": "over_10_years_rate_fixation"
-        }
-        df_for_db.rename(columns=col_map, inplace=True)
         if "_sort_order" in df_for_db.columns:
             df_for_db.drop(columns=["_sort_order"], inplace=True)
-            
+
         sql_path = pp.sql("ed_loan_amounts_millions.sql")
-        
+
+        sync_cols = [
+            "total_loan_amount", "total_collateral_guarantees_loans",
+            "total_small_medium_enterprises_loans", "floating_rate_1_year_fixation",
+            "floating_rate_1_year_rate_fixation_collateral_guarantees",
+            "floating_rate_1_year_rate_fixation_floating_rate", "over_1_to_5_years_rate_fixation",
+            "over_5_years_rate_fixation", "over_5_to_10_years_rate_fixation",
+            "over_10_years_rate_fixation"
+        ]
         db_comp_res = compare_with_postgres(
             df=df_for_db,
             table_name=self.db_table_name,
             db_name="athena",
             match_cols=["year", "month", "group", "loan_type"],
-            sync_cols=[c for c in col_map.values() if c not in ["year", "month", "group", "loan_type"]],
+            sync_cols=sync_cols,
             tolerance=0.05,
             sql_file_path=str(sql_path)
         )

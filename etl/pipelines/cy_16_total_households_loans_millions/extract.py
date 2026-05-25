@@ -55,15 +55,15 @@ def extract_households_loans(xls_path: Path) -> pd.DataFrame:
                 return 0.0
 
         records.append({
-            "Year": year,
-            "Month": month,
-            "Total_Loans": to_m(df.iloc[row_total, col_idx]),
-            "Total_Households_Loans": to_m(df.iloc[row_households, col_idx]),
-            "Non_Performing_Loans": to_m(df.iloc[row_households, col_idx + 1]),
-            "Loan_Amounts_Past_90_Days": to_m(df.iloc[row_households, col_idx + 2]),
-            "Restructured_Loans_Forbearance": to_m(df.iloc[row_households, col_idx + 3]),
-            "Non_Performing_Restructured_Loans": to_m(df.iloc[row_households, col_idx + 5]),
+            "year": year,
+            "month": month,
+            "total_loans": to_m(df.iloc[row_total, col_idx]),
+            "total_households_loans": to_m(df.iloc[row_households, col_idx]),
+            "non_performing_loans": to_m(df.iloc[row_households, col_idx + 1]),
+            "loan_amounts_past_90_days": to_m(df.iloc[row_households, col_idx + 2]),
+            "restructured_loans_forbearance": to_m(df.iloc[row_households, col_idx + 3]),
+            "non_performing_restructured_loans": to_m(df.iloc[row_households, col_idx + 5]),
         })
         
-    out = pd.DataFrame(records).sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = pd.DataFrame(records).sort_values(["year", "month"]).reset_index(drop=True)
     return out

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any, Callable
 
 import pandas as pd
@@ -11,6 +12,13 @@ from etl.core.database import compare_with_postgres, get_engine
 from etl.core.download import is_new_by_hash
 from etl.core.migration_source import get_latest_pdf_path, get_source_fingerprint
 from etl.core.output import write_deliverable_csv
+
+
+def _to_snake_col(name: str) -> str:
+    s = str(name).strip().lower()
+    s = s.replace("&", "and").replace("+", "and")
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    return s.strip("_")
 
 
 def _parse_period(period: str | None) -> tuple[int | None, int | None]:
@@ -38,7 +46,7 @@ def _format_delta(
         if col not in formatted.columns:
             formatted[col] = pd.NA
 
-    for col in ["id", "Year", "Month", "Quarter", "Rank"]:
+    for col in ["id", "year", "month", "quarter", "rank"]:
         if col in formatted.columns:
             formatted[col] = pd.to_numeric(formatted[col], errors="coerce").astype("Int64")
 
@@ -180,6 +188,15 @@ def run_shared_appendix_b_pipeline(
         )
     else:
         df_new = extractor(pdf_path, report_year=report_year, report_month=report_month)
+
+    # Keep pipeline config and extracted frames consistently snake_case.
+    key_cols = [_to_snake_col(c) for c in key_cols]
+    target_cols = [_to_snake_col(c) for c in target_cols]
+    target_to_db = {_to_snake_col(target): db_col for target, db_col in target_to_db.items()}
+    match_cols = [_to_snake_col(c) for c in match_cols]
+    sync_cols = [_to_snake_col(c) for c in sync_cols]
+    df_new = df_new.copy()
+    df_new.columns = [_to_snake_col(c) for c in df_new.columns]
 
     from etl.core.paths import PipelinePaths
     pp = PipelinePaths(pipeline_id)

@@ -40,7 +40,7 @@ def _norm_bucket(s: str) -> str:
 def extract_monthly_gross_earnings_distribution(csv_path: Path) -> pd.DataFrame:
     """
     Extract CYSTAT monthly gross earnings distribution as:
-      Year, Category, Gross_monthly_earnings, Percentage_of_employees
+      year, category, gross_monthly_earnings, percentage_of_employees
     """
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     df.columns = [str(c).replace("\ufeff", "").replace('"', "").strip() for c in df.columns]
@@ -77,10 +77,10 @@ def extract_monthly_gross_earnings_distribution(csv_path: Path) -> pd.DataFrame:
                 continue
             rows.append(
                 {
-                    "Year": int(year),
-                    "Category": category,
-                    "Gross_monthly_earnings": bucket_label,
-                    "Percentage_of_employees": round(float(value), 1),
+                    "year": int(year),
+                    "category": category,
+                    "gross_monthly_earnings": bucket_label,
+                    "percentage_of_employees": round(float(value), 1),
                 }
             )
 
@@ -90,9 +90,9 @@ def extract_monthly_gross_earnings_distribution(csv_path: Path) -> pd.DataFrame:
 
     category_order = {"Total": 0, "Males": 1, "Females": 2}
     bucket_order = {bucket: i for i, bucket in enumerate(BUCKETS_IN_ORDER)}
-    out["__cat_ord"] = out["Category"].map(category_order).fillna(99)
-    out["__bucket_ord"] = out["Gross_monthly_earnings"].map(bucket_order).fillna(999)
-    out = out.sort_values(["Year", "__cat_ord", "__bucket_ord"]).drop(
+    out["__cat_ord"] = out["category"].map(category_order).fillna(99)
+    out["__bucket_ord"] = out["gross_monthly_earnings"].map(bucket_order).fillna(999)
+    out = out.sort_values(["year", "__cat_ord", "__bucket_ord"]).drop(
         columns=["__cat_ord", "__bucket_ord"]
     )
     out = out.reset_index(drop=True)

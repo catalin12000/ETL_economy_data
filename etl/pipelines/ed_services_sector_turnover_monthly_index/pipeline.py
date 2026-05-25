@@ -83,21 +83,13 @@ class Pipeline:
             extracted_df=df_new,
             out_csv_path=out_csv_full,
             report_csv_path=report_csv,
-            key_cols=["Year", "Month", "Code"],
+            key_cols=["year", "month", "code"],
         )
         res.updated_df.to_csv(out_csv_full, index=False)
         res.diff_df.to_csv(output_file, index=False)
 
         print("Comparing extraction with live Postgres DB (athena)...")
-        df_for_db = df_new.rename(
-            columns={
-                "Year": "year",
-                "Month": "month",
-                "Code": "code",
-                "Economic_Activity": "economic_activity",
-                "Index": "index",
-            }
-        )
+        df_for_db = df_new
         sql_path = pp.sql("ed_services_sector_turnover_monthly_index.sql")
         db_comp_res = compare_with_postgres(
             df=df_for_db,

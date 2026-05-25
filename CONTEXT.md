@@ -51,6 +51,20 @@ A category that determines which skip signal each Pipeline uses. Declared as a c
 A `state.json` per Pipeline holding `file_sha256`, `last_download_path`, `last_run_at_utc` and similar. Treated as a **cache** to drive the freshness check (skip when the source SHA is unchanged). Safe to delete — losing it costs one redundant run, not correctness. Audit history lives in S3 (raw files + Deliverables, all timestamped). Future work: sync `state.json` to S3 alongside Raw files so history survives a wiped working copy.
 _Avoid_: Run log, audit log (state is a cache, not the audit trail).
 
+**Pipeline Run Log**:
+A human-readable `.log` audit file for one non-skipped Pipeline run. It is uploaded beside its Deliverable in S3 with the same `{db_table_name}_{timestamp}` stem only when a Deliverable exists; error logs stay local. It explains what the Pipeline did, what Delta it produced, and what went wrong when the Pipeline fails.
+_Avoid_: JSONL, total run log, state, debug log, console output.
+
+**Skipped Pipeline**:
+A Pipeline run that stops because the Source has not published a new file or the file content has not changed since the previous run. It creates no Pipeline Run Log artifacts, but still appears as Skipped in local summaries. A changed Source that produces an empty Delta after DB Compare is not Skipped.
+_Avoid_: Empty Deliverable, no-op Delta.
+
+**Run Log**:
+A local-only human-readable `.log` summary of a batch run across Pipelines, containing counts by final status such as Delivered, Skipped, and Error. It is not synced to S3 because S3 audit objects are scoped to Deliverables and Raw files.
+_Avoid_: Pipeline Run Log, state, dashboard.
+
+Local logs are gitignored and kept indefinitely unless manually removed; S3 is the durable audit store for delivered artifacts.
+
 **DB Compare**:
 The only meaningful comparison in a Pipeline. Calls `compare_with_postgres` against the live Postgres database to produce the Delta. The DB is the single source of truth for "what already exists". See [ADR-0001](./docs/adr/0001-db-as-single-source-of-truth.md).
 _Avoid_: Baseline (deprecated — see ADR).
@@ -78,12 +92,26 @@ _Avoid_: Sync, write, push (these wrongly imply we write).
 **S3 path structure**:
 ```
 raw_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{stem}_{timestamp}.{ext}
-transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/deliverable/{db_table_name}_{timestamp}.csv
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{db_table_name}_{timestamp}.csv
+transformed_data/{cy|gr}/economy_data/{source}/{YYYYMMDD}/{db_table_name}_{timestamp}.log
 ```
+The transformed `.csv` and `.log` use the same S3 timestamp so they are an obvious pair; the Pipeline run id remains inside the Pipeline Run Log content.
 
 **Sync**:
 The standalone step (`scripts/sync_s3.py`) that uploads Raw files and the Deliverable for each Pipeline to S3. Decoupled from pipeline execution by design — we run pipelines, verify, then Sync.
 _Avoid_: Upload (too generic — Sync means the specific multi-pipeline batch upload).
+
+**Partial Sync**:
+A Sync result where the Deliverable reaches S3 but a required audit artifact, such as a Raw file or Pipeline Run Log, fails to upload. It is not a data delivery failure, but it is an audit failure and must be visible in the Sync summary.
+_Avoid_: OK, warning.
+
+**Sync Log**:
+A local-only human-readable `.log` summary of one Sync batch, containing counts for OK, Partial, Failed, and Skipped Pipelines plus S3 keys for uploaded Deliverables, Pipeline Run Logs, and Raw files. Sync does not introduce a domain identifier; pairing is done by the S3 Deliverable name and timestamp.
+_Avoid_: Run Log, Pipeline Run Log, S3 report.
+
+**S3 Sync Section**:
+The final section appended to a local Pipeline Run Log before Sync uploads that same log beside the Deliverable in S3. It records the S3 Deliverable name, S3 Deliverable key, and S3 Pipeline Run Log key; the S3 Pipeline Run Log is uploaded only if the Deliverable CSV upload succeeds.
+_Avoid_: Upload section, S3 footer.
 
 ## Flagged ambiguities
 

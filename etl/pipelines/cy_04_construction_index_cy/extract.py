@@ -35,17 +35,17 @@ def extract_construction_index(csv_path: Path) -> pd.DataFrame:
     period = df[period_col].astype(str).str.strip().str.replace('"', "", regex=False)
     out = pd.DataFrame(
         {
-            "Year": pd.to_numeric(period.str.extract(r"^(\d{4})M\d{2}$")[0], errors="coerce"),
-            "Month": pd.to_numeric(period.str.extract(r"^\d{4}M(\d{2})$")[0], errors="coerce"),
-            "Index": pd.to_numeric(df[index_col], errors="coerce"),
+            "year": pd.to_numeric(period.str.extract(r"^(\d{4})M\d{2}$")[0], errors="coerce"),
+            "month": pd.to_numeric(period.str.extract(r"^\d{4}M(\d{2})$")[0], errors="coerce"),
+            "index": pd.to_numeric(df[index_col], errors="coerce"),
         }
     )
 
-    out = out.dropna(subset=["Year", "Month", "Index"]).copy()
-    out["Year"] = out["Year"].astype(int)
-    out["Month"] = out["Month"].astype(int)
-    out["Index"] = out["Index"].round(2)
-    out = out.sort_values(["Year", "Month"]).reset_index(drop=True)
+    out = out.dropna(subset=["year", "month", "index"]).copy()
+    out["year"] = out["year"].astype(int)
+    out["month"] = out["month"].astype(int)
+    out["index"] = out["index"].round(2)
+    out = out.sort_values(["year", "month"]).reset_index(drop=True)
 
     if out.empty:
         raise RuntimeError("No rows extracted from construction index source.")

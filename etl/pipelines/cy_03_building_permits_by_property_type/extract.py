@@ -43,11 +43,11 @@ def extract_building_permits_type(csv_path: Path) -> pd.DataFrame:
 
     # 1. Parse Year and Month
     period = df[month_col].astype(str).str.strip().str.replace('"', "", regex=False)
-    df["Year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
-    df["Month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
-    df = df.dropna(subset=["Year", "Month"]).copy()
-    df["Year"] = df["Year"].astype(int)
-    df["Month"] = df["Month"].astype(int)
+    df["year"] = pd.to_numeric(period.str.extract(r"^(\d{4})")[0], errors="coerce")
+    df["month"] = pd.to_numeric(period.str.extract(r"M(\d{2})")[0], errors="coerce")
+    df = df.dropna(subset=["year", "month"]).copy()
+    df["year"] = df["year"].astype(int)
+    df["month"] = df["month"].astype(int)
 
     # 2. Map Metrics to DB Strings
     # CSV columns are like: "Number Monthly data Number of permits", etc.
@@ -108,26 +108,26 @@ def extract_building_permits_type(csv_path: Path) -> pd.DataFrame:
                     f_val = pd.NA
                 
                 records.append({
-                    "Year": row["Year"],
-                    "Month": row["Month"],
-                    "permits": db_metric, # This is the metric column in DB
+                    "year": row["year"],
+                    "month": row["month"],
+                    "permits": db_metric,
                     "db_col": db_col,
                     "value": f_val
                 })
 
     # Pivot so that db_col (Project types) become columns
     out = pd.DataFrame(records).pivot_table(
-        index=["Year", "Month", "permits"],
+        index=["year", "month", "permits"],
         columns="db_col",
         values="value",
         aggfunc="first"
     ).reset_index()
-    
+
     # Ensure all DB columns exist
     for col in TYPE_MAP.values():
         if col not in out.columns:
             out[col] = pd.NA
-            
+
     # Sort
-    out = out.sort_values(["Year", "Month", "permits"]).reset_index(drop=True)
+    out = out.sort_values(["year", "month", "permits"]).reset_index(drop=True)
     return out
