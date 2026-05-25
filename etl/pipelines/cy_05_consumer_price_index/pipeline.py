@@ -19,6 +19,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_consumer_price_index"
+    source_type = "api"
     display_name = "Cyprus: Consumer Price Index (Monthly)"
     DB_TABLE_NAME = "ed_consumer_price_index"
     DB_BASE_YEAR = 2025

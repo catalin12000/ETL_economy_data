@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_construction_index_cy"
+    source_type = "api"
     display_name = "Cyprus: Construction Materials Price Index (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Price%20Index%20of%20Construction%20Materials/1420013E.px"

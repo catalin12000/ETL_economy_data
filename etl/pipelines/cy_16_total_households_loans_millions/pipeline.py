@@ -22,6 +22,7 @@ class Pipeline:
     country = "cy"
     source = "central_bank_cy"
     db_table_name = "ed_total_households_loans_millions"
+    source_type = "static_file"
     display_name = "Cyprus: Total Households Loans Millions (NPLs)"
 
     # Page listing the aggregate banking sector data

@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_new_residential_buildings_work_categories"
+    source_type = "dynamic_file"
     display_name = "Ed New Residential Buildings Work Categories (DKT63) - Quarterly"
 
     PUBLICATION_CODE = "DKT63"

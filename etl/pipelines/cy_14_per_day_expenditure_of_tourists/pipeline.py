@@ -21,6 +21,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_per_day_expenditure_of_tourists"
+    source_type = "api"
     display_name = "Cyprus: Per Day Expenditure of Tourists (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Tourism/Revenue%20from%20Tourism/Monthly/2031024E.px"

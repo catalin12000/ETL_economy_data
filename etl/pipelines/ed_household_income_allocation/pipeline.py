@@ -13,6 +13,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_household_income_allocation"
+    source_type = "dynamic_file"
     display_name = "Household Income Allocation (Gross Savings) - Annual"
 
     # SEL60 is the ELSTAT code for Main aggregates of Households

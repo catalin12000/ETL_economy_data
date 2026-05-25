@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "eurostat"
     db_table_name = "ed_economic_forecast_cy"
+    source_type = "static_file"
     display_name = "Cyprus: Economic Forecast (EU Commission)"
 
     SOURCE_URL = (

@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_gross_value_added_sector"
+    source_type = "api"
     display_name = "Cyprus: Gross Value Added By Sector (Annual)"
     MIN_DELIVERABLE_YEAR = 2021
 

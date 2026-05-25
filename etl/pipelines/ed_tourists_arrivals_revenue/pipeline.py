@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_tourists_arrivals_revenue"
+    source_type = "static_file"
     display_name = "Ed Tourists Arrivals and Revenue (BoG)"
 
     RECEIPTS_URL = "https://www.bankofgreece.gr/RelatedDocuments/RECEIPTS_BY_COUNTRY_OF_ORIGIN.xls"

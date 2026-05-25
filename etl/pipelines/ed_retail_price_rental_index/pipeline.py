@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_retail_price_rental_index"
+    source_type = "static_file"
     display_name = "Ed Retail Price and Rent Indices (BoG)"
 
     PRICE_INDEX_URL = "https://www.bankofgreece.gr/RelatedDocuments/RETAIL_PRICE_INDEX.pdf"

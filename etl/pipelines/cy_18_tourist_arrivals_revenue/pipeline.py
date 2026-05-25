@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_tourist_arrivals_revenue"
+    source_type = "api"
     display_name = "Cyprus: Tourist Arrivals and Revenue (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Tourism/Revenue%20from%20Tourism/Monthly/2031010E.px"

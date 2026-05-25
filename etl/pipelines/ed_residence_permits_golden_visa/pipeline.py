@@ -14,6 +14,7 @@ class Pipeline:
     country = "gr"
     source = "migration_gov"
     db_table_name = "ed_residence_permits_golden_visa"
+    source_type = "scraped"
     display_name = "Ed Residence Permits Golden Visa"
     TABLE_SPEC = "Appendix B Table 13b"
 

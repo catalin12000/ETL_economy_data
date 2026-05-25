@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_industrial_production_index"
+    source_type = "dynamic_file"
     display_name = "Industrial Production Index (Overall + Seasonally Adjusted)"
 
     PUBLICATION_CODE = "DKT21"

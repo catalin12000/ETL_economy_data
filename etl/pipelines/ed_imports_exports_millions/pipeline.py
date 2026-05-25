@@ -66,6 +66,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_imports_exports_millions"
+    source_type = "dynamic_file"
     display_name = "Imports-Exports of Goods and Services (Millions) - Annual"
 
     PUBLICATION_CODE = "SEL30"

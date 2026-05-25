@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_construction_index"
+    source_type = "dynamic_file"
     display_name = "Ed Construction Index"
 
     TARGET_TITLE = "02. Evolution of the Production Index in Construction (working day adjusted data)"

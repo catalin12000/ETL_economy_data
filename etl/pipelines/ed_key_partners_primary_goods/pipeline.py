@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_key_partners_primary_goods"
+    source_type = "dynamic_file"
     display_name = "Key Partners - Primary Goods (SFC02) - Trade Balance Time Period"
 
     PUBLICATION_CODE = "SFC02"

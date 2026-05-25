@@ -14,6 +14,7 @@ class Pipeline:
     country = "gr"
     source = "migration_gov"
     db_table_name = "ed_residence_permits_top10_countries"
+    source_type = "scraped"
     display_name = "Ed Residence Permits Top10 Countries"
     TABLE_SPEC = "Appendix B Table 3"
 

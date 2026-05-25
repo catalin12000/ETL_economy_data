@@ -14,6 +14,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_building_permits_by_no_of_rooms"
+    source_type = "dynamic_file"
     display_name = "Ed Building Permits By No Of Rooms"
 
     PUBLICATION_CODE = "SOP03"

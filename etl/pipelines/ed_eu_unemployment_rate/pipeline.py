@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_eu_unemployment_rate"
+    source_type = "static_file"
     display_name = "Ed EU Unemployment Rate (Eurostat)"
 
     DATASET_CODE = "une_rt_m"

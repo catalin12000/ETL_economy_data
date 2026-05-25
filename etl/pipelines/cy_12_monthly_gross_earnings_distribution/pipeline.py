@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_monthly_gross_earnings_distribution"
+    source_type = "api"
     display_name = "Cyprus: Monthly Gross Earnings Distribution (Annual)"
     MIN_DELIVERABLE_YEAR = 2021
 

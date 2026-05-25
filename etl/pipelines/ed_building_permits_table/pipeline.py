@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_building_permits"
+    source_type = "dynamic_file"
     display_name = "Ed Building Permits (Monthly Private Building Activity)"
 
     TARGET_TITLE = "01. Monthly Private Building Activity, number of permits, surface and volume"

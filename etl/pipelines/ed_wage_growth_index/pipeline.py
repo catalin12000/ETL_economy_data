@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_wage_growth_index"
+    source_type = "dynamic_file"
     display_name = "Ed Wage Growth Index - Quarterly"
 
     TARGET_TITLE = "Evolution of Gross Wages and Salaries in main sections of the economy"

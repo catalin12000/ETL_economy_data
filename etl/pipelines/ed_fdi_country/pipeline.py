@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_fdi_country"
+    source_type = "static_file"
     display_name = "BoG FDI Flows - Home by Country"
     MIN_DB_YEAR = 2020
 

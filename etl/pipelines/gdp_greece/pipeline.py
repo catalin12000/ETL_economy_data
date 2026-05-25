@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "gdp_greece"
+    source_type = "dynamic_file"
     display_name = "GDP Greece - Quarterly"
 
     TARGET_TITLE_SUBSTRING = (

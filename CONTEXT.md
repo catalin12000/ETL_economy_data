@@ -40,6 +40,17 @@ _Avoid_: Create/modify, new/changed.
 The downloaded source artifact (PDF/XLS/etc.) before any extraction. Uploaded to S3 for audit only — the Backend does not read these.
 _Avoid_: Download, source file, raw data.
 
+**Source type**:
+A category that determines which skip signal each Pipeline uses. Declared as a class attribute on every Pipeline. See [ADR-0005](./docs/adr/0005-source-type-skip-signals.md).
+- `static_file` — fixed URL, file content updates in place (skip on `file_sha256`)
+- `dynamic_file` — URL changes per publication period (skip on `latest_period_seen`)
+- `api` — programmatic endpoint with varying response bytes (skip on `data_sha256`)
+- `scraped` — file discovered from an index page, one per period (skip on `latest_period_seen`)
+
+**State**:
+A `state.json` per Pipeline holding `file_sha256`, `last_download_path`, `last_run_at_utc` and similar. Treated as a **cache** to drive the freshness check (skip when the source SHA is unchanged). Safe to delete — losing it costs one redundant run, not correctness. Audit history lives in S3 (raw files + Deliverables, all timestamped). Future work: sync `state.json` to S3 alongside Raw files so history survives a wiped working copy.
+_Avoid_: Run log, audit log (state is a cache, not the audit trail).
+
 **DB Compare**:
 The only meaningful comparison in a Pipeline. Calls `compare_with_postgres` against the live Postgres database to produce the Delta. The DB is the single source of truth for "what already exists". See [ADR-0001](./docs/adr/0001-db-as-single-source-of-truth.md).
 _Avoid_: Baseline (deprecated — see ADR).

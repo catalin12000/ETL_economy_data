@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_apartments_price_index"
+    source_type = "static_file"
     display_name = "Ed Apartments Price Index Table"
 
     PDF_URL = "https://www.bankofgreece.gr/RelatedDocuments/Νέοι_Πίνακες_Τιμών_Κατοικιών_full.pdf"

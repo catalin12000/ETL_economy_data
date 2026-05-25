@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_eu_consumer_confidence_index"
+    source_type = "static_file"
     display_name = "Ed EU Consumer Confidence Index (Eurostat)"
 
     DATASET_CODE = "ei_bsco_m"

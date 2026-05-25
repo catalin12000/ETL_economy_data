@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_tourist_arrivals_country"
+    source_type = "api"
     display_name = "Cyprus: Tourist Arrivals By Country (Monthly)"
     MIN_DELIVERABLE_YEAR = 2023
 

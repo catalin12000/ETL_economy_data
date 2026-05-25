@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_retail_trade_volume_index"
+    source_type = "dynamic_file"
     display_name = "Retail Trade Volume Index"
 
     PUBLICATION_CODE = "DKT39"

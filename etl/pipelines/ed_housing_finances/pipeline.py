@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_housing_finances"
+    source_type = "dynamic_file"
     display_name = "Housing Finances (Households S.1M) - Quarterly"
 
     PUBLICATION_CODE = "SEL95"

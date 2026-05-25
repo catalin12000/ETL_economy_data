@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_economic_sentiment_indicator"
+    source_type = "static_file"
     display_name = "Ed Economic Sentiment Indicator (Eurostat)"
 
     DATASET_CODE = "teibs010"

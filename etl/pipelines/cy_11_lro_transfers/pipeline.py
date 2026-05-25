@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "dls"
     db_table_name = "ed_lro_transfers"
+    source_type = "scraped"
     display_name = "Cyprus: LRO Transfers (DLS Portal)"
 
     TRANSFERS_PAGE_URLS = {

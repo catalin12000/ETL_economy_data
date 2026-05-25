@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_average_monthly_earnings"
+    source_type = "api"
     display_name = "Cyprus: Average Monthly Earnings (Quarterly)"
     MIN_DELIVERABLE_YEAR = 2023  # Keep only data after 2024.
 

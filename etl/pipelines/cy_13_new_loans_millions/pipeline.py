@@ -22,6 +22,7 @@ class Pipeline:
     country = "cy"
     source = "central_bank_cy"
     db_table_name = "ed_new_loans_millions"
+    source_type = "static_file"
     display_name = "Cyprus: New Loans Millions (MFS Spreadsheet)"
 
     # Base URL for statistics

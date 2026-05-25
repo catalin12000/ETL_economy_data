@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_eu_harmonized_index_of_consumer_prices"
+    source_type = "static_file"
     display_name = "Ed EU Harmonized Index Of Consumer Prices (Eurostat)"
 
     DATASET_CODE = "prc_hicp_manr"

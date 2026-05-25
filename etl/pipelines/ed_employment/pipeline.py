@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_employment"
+    source_type = "dynamic_file"
     display_name = "Employment Status & Unemployment Rate"
 
     TARGET_TITLE_SUBSTRING = "Κατάσταση απασχόλησης και ποσοστό ανεργίας"

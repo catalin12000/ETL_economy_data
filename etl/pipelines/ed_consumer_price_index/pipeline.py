@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_consumer_price_index"
+    source_type = "dynamic_file"
     display_name = "Ed Consumer Price Index"
 
     TARGET_TITLE_SUBSTRING = "Συγκρίσεις Γενικού Δείκτη Τιμών Καταναλωτή"

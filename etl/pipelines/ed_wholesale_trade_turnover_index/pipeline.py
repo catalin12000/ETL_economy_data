@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_wholesales_turnover_index"
+    source_type = "dynamic_file"
     display_name = "Wholesale Trade Turnover Index"
 
     PUBLICATION_CODE = "DKT42"

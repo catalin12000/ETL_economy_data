@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_retail_trade_turnover_index"
+    source_type = "dynamic_file"
     display_name = "Retail Trade Turnover Index"
 
     PUBLICATION_CODE = "DKT39"

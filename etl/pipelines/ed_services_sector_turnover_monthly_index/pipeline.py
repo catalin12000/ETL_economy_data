@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_services_sector_turnover_monthly_index"
+    source_type = "dynamic_file"
     display_name = "Ed Services Sector Turnover Monthly Index (DKT54)"
 
     PUBLICATION_CODE = "DKT54"

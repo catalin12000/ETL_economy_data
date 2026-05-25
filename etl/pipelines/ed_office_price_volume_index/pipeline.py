@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_office_price_volume_index"
+    source_type = "static_file"
     display_name = "Ed Office Price and Rent Indices (BoG)"
 
     PRICE_INDEX_URL = "https://www.bankofgreece.gr/RelatedDocuments/OFFICE_PRICE_INDEX.pdf"

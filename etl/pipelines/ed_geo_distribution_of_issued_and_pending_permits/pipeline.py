@@ -128,6 +128,7 @@ class Pipeline:
     country = "gr"
     source = "migration_gov"
     db_table_name = "ed_geo_distribution_of_issued_and_pending_permits"
+    source_type = "scraped"
     display_name = "Ed Geo Distribution of Issued and Pending Permits"
 
     INDEX_URL = "https://migration.gov.gr/en/statistika/"

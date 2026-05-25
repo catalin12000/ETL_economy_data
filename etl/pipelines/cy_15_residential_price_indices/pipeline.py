@@ -22,6 +22,7 @@ class Pipeline:
     country = "cy"
     source = "central_bank_cy"
     db_table_name = "ed_residential_price_indices"
+    source_type = "static_file"
     display_name = "Cyprus: Residential Property Price Indices (RPPI)"
 
     # Page listing the RPPI data

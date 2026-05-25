@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "dls"
     db_table_name = "ed_lro_contracts_of_sale"
+    source_type = "scraped"
     display_name = "Cyprus: LRO Contracts of Sale (DLS Portal)"
 
     CONTRACTS_PAGE_URLS = {

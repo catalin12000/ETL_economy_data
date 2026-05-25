@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_new_residential_building_cost_index"
+    source_type = "dynamic_file"
     display_name = "Ed New Residential Building Cost Index (DKT63) - Quarterly"
 
     # DKT63: Price Indices for New Residential Buildings Construction

@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_gva_by_sector"
+    source_type = "dynamic_file"
     display_name = "Ed GVA By Sector - Annual"
 
     PUBLICATION_CODE = "SEL12"

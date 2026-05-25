@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_motor_trade_turnover_index"
+    source_type = "dynamic_file"
     display_name = "Motor Trade Turnover and Volume Index"
 
     PUBLICATION_CODE = "DKT45"

@@ -20,6 +20,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_gross_fixed_capital_formation"
+    source_type = "dynamic_file"
     display_name = "Ed Gross Fixed Capital Formation (SEL81) - Quarterly"
     PUBLICATION_CODE = "SEL81"
     TARGET_TITLE_SUBSTRING = "Quarterly Gross fixed capital formation by Asset, Chain-linked volumes"

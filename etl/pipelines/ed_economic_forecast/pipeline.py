@@ -19,6 +19,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_economic_forecast"
+    source_type = "static_file"
     display_name = "EU Economic Forecast - Greece"
 
     SOURCE_URL = (

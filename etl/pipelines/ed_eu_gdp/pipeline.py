@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "eurostat"
     db_table_name = "ed_eu_gdp"
+    source_type = "static_file"
     display_name = "Ed EU GDP (Eurostat)"
 
     DATASET_CODE = "namq_10_gdp"

@@ -14,6 +14,7 @@ class Pipeline:
     country = "gr"
     source = "elstat"
     db_table_name = "ed_new_built_properties_per_region"
+    source_type = "dynamic_file"
     display_name = "Ed New Built Properties Per Region (SOP03 - Table 1)"
 
     PUBLICATION_CODE = "SOP03"

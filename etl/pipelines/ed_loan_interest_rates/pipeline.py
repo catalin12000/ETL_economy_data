@@ -18,6 +18,7 @@ class Pipeline:
     country = "gr"
     source = "bank_of_greece"
     db_table_name = "ed_loan_interest_rates"
+    source_type = "static_file"
     display_name = "Housing & Consumer Loans (Interest Rates)"
 
     SOURCE_PAGE = (

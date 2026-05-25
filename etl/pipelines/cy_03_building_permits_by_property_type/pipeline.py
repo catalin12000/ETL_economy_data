@@ -20,6 +20,7 @@ class Pipeline:
     country = "cy"
     source = "cystat"
     db_table_name = "ed_building_permits_by_property_type"
+    source_type = "api"
     display_name = "Cyprus: Building Permits by Property Type (Monthly)"
 
     API_URL = "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Construction/Building%20Permits/1440005E.px"
